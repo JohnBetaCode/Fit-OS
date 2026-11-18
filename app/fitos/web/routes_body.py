@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 def status_labels() -> dict[str, str]:
-    return {"ready": _("Listo"), "recovering": _("En recuperación"), "fatigued": _("Fatigado")}
+    return {"ready": _("Recuperado"), "recovering": _("En recuperación"), "fatigued": _("Fatigado")}
 
 
 def level_labels() -> dict[str, str]:

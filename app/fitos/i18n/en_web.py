@@ -658,4 +658,5 @@ EN: dict[str, str] = {
     "ver mapa": "see map",
     "Ver mapa": "See map",
     "Vista del mapa": "Map view",
+    "Recuperado": "Ready",  # body map state (not "Listo", which is the rest timer's "Done")
 }
