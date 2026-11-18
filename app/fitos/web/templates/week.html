@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-2 mb-4">
+  <div>
+    <div class="h2 mb-0">{{ _("Semana") }}</div>
+    <div class="text-sm text-mute capitalize">{{ fmt_date(view.start) }} – {{ fmt_date(view.days[-1].date) }}</div>
+  </div>
+  <div class="flex gap-2">
+    <a href="/semana?d={{ prev.isoformat() }}" class="btn">‹ {{ _("Anterior") }}</a>
+    {% if view.start != this_week %}<a href="/semana" class="btn">{{ _("Esta semana") }}</a>{% endif %}
+    <a href="/semana?d={{ next.isoformat() }}" class="btn">{{ _("Siguiente") }} ›</a>
+  </div>
+</div>
+
+{% if view.planned_sets %}
+<section class="card mb-4">
+  <div class="text-sm font-semibold mb-2">{{ _("Sets planeados por músculo") }} <span class="text-mute font-normal">· {{ _("meta {lo}–{hi} por semana", lo=lo, hi=hi) }}</span></div>
+  <div class="grid sm:grid-cols-2 gap-x-6 gap-y-1">
+    {% for m, v in view.planned_sets.items() %}
+    {% set tone = "bg-warn" if v < lo else ("bg-bad" if v > hi else "bg-accent") %}
+    <div class="flex items-center gap-2 text-sm">
+      <span class="w-28 truncate">{{ muscle_label(m) }}</span>
+      <div class="flex-1 h-2 rounded-full bg-panel2 overflow-hidden"><div class="h-full {{ tone }}" style="width: {{ [100, v / hi * 100]|min }}%"></div></div>
+      <span class="w-10 text-right num text-mute">{{ v|num(1) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<div class="grid gap-3">
+{% for d in view.days %}
+  {% set plan = d.plan %}
+  <section id="d-{{ d.date.isoformat() }}" class="card min-w-0 {% if d.today %}border-accent/60{% endif %} {% if d.past and not d.workout %}opacity-70{% endif %}">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="font-semibold capitalize">{{ weekday_long(d.date) }} <span class="text-mute font-normal num">{{ fmt_day_month(d.date) }}</span>
+        {% if d.today %}<span class="chip ml-1 text-accent border-accent/40">{{ _("hoy") }}</span>{% endif %}</div>
+      <div class="text-sm text-mute flex items-center gap-2">
+        {% if d.marked %}<span class="chip">{% for k, icon, label in day_kinds if k == d.marked.kind %}{{ icon }} {{ label }}{% endfor %}</span>{% endif %}
+        {% if d.workout %}<a href="/entrenos/{{ d.workout.id }}" class="text-accent">✅ {{ _("Entreno hecho") }} ›</a>
+        {% elif plan and plan.status == "skipped" %}😴 {{ _("Descanso") }}
+        {% elif plan %}{{ _(plan.focus_label) }}{% if plan.source == "custom" %} · ✍️{% endif %}
+        {% elif d.projected %}{{ _("Toca: {focus}", focus=_(d.projected.name)) }}
+        {% elif not d.training %}{{ _("Día libre") }}{% endif %}
+      </div>
+    </div>
+
+    {% if (d.past or d.today) %}
+    <form method="post" action="/semana/estado" class="flex flex-wrap gap-1 mt-2 text-xs">
+      <input type="hidden" name="date" value="{{ d.date.isoformat() }}">
+      {% for k, icon, label in day_kinds %}
+        <button name="kind" value="{{ '' if d.marked and d.marked.kind == k else k }}" class="chip {% if d.marked and d.marked.kind == k %}border-accent/60 text-accent{% endif %}" title="{{ label }}">{{ icon }} {{ label }}</button>
+      {% endfor %}
+    </form>
+    {% endif %}
+
+    {% if plan and plan.status != "skipped" and plan.items %}
+    <ol class="mt-3 divide-y divide-line/60">
+      {% for it in plan.items %}
+      {% set wt = w(it.target_weight_kg, it.exercise) %}
+      <li class="py-2">
+        {% set detail = it.sets ~ " × " ~ rep_range(it) ~ ((" · " ~ wt) if wt else "") ~ ("" if is_timed(it) else " · RIR " ~ it.target_rir) %}
+        <div class="flex items-start gap-2">
+          <span class="w-5 shrink-0 text-mute num">{{ loop.index }}</span>
+          <div class="flex-1 min-w-0">
+            <a href="/ejercicios/{{ it.exercise_id }}" class="block truncate hover:text-accent">{{ it.exercise.display_name }}</a>
+            <div class="text-xs text-mute num sm:hidden">{{ detail }}</div>
+          </div>
+          <span class="hidden sm:inline text-sm text-mute num whitespace-nowrap">{{ detail }}</span>
+        </div>
+        {% if d.editable %}
+        <details class="mt-1 ml-7">
+          <summary class="text-xs text-accent cursor-pointer">{{ _("editar") }}</summary>
+          {% set fid = "i" ~ it.id %}
+          <form id="{{ fid }}" method="post" action="/semana/items/{{ it.id }}" class="flex flex-wrap items-end gap-2 mt-2">
+            {% if is_timed(it) %}
+              <label><span class="label">{{ _("Minutos") }}</span><input name="minutes" type="number" min="1" max="120" value="{{ (it.slot.duration_min or [20])[-1] }}" class="input w-20 py-1 num"></label>
+              <input type="hidden" name="sets" value="1"><input type="hidden" name="rep_min" value="1"><input type="hidden" name="rep_max" value="1"><input type="hidden" name="rir" value="{{ it.target_rir }}">
+            {% else %}
+              <label><span class="label">{{ _("Sets") }}</span><input name="sets" type="number" min="1" max="10" value="{{ it.sets }}" class="input w-16 py-1 num"></label>
+              <label><span class="label">{{ _("Reps mín.") }}</span><input name="rep_min" type="number" min="1" max="100" value="{{ it.rep_min }}" class="input w-16 py-1 num"></label>
+              <label><span class="label">{{ _("Reps máx.") }}</span><input name="rep_max" type="number" min="1" max="100" value="{{ it.rep_max }}" class="input w-16 py-1 num"></label>
+              <label><span class="label">Kg</span><input name="weight_kg" inputmode="decimal" value="{{ it.target_weight_kg if it.target_weight_kg is not none else '' }}" class="input w-20 py-1 num"></label>
+              <label><span class="label">RIR</span><input name="rir" type="number" min="0" max="5" value="{{ it.target_rir }}" class="input w-14 py-1 num"></label>
+            {% endif %}
+            <button name="action" value="save" class="btn py-1">{{ _("Guardar") }}</button>
+            <button name="action" value="up" class="btn py-1" title="{{ _("Subir") }}" {% if loop.first %}disabled{% endif %}>↑</button>
+            <button name="action" value="down" class="btn py-1" title="{{ _("Bajar") }}" {% if loop.last %}disabled{% endif %}>↓</button>
+            <button name="action" value="remove" class="btn py-1 text-bad" onclick="return confirm({{ _("¿Quitar este ejercicio del plan?")|tojson|forceescape }})">✕</button>
+          </form>
+          <button type="button" class="text-xs text-accent mt-2" hx-get="/semana/items/{{ it.id }}/opciones" hx-target="#opt-{{ it.id }}">🔄 {{ _("Cambiar por otro ejercicio") }}</button>
+          <div id="opt-{{ it.id }}"></div>
+        </details>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+
+    {% if d.editable and plan and plan.status != "skipped" %}
+    <div class="mt-3">
+      <input type="search" name="q" placeholder="{{ _("Agregar ejercicio: busca por nombre (p. ej. caminadora, curl)") }}" class="input py-1"
+             hx-get="/semana/planes/{{ plan.id }}/buscar" hx-trigger="input changed delay:300ms" hx-target="#add-{{ plan.id }}">
+      <div id="add-{{ plan.id }}"></div>
+    </div>
+    {% endif %}
+
+    {% if not d.past and not d.workout and (not plan or plan.status in ("proposed", "accepted", "skipped")) %}
+    <form method="post" action="/semana/dia" class="flex flex-wrap items-end gap-2 mt-3">
+      <input type="hidden" name="date" value="{{ d.date.isoformat() }}">
+      {% if view.program_days %}
+      <label><span class="label">{{ _("Enfoque") }}</span><select name="program_day_id" class="input py-1">
+        {% set cur = plan.program_day_id if plan else (d.projected.id if d.projected else none) %}
+        {% for pd in view.program_days %}<option value="{{ pd.id }}" {% if pd.id == cur %}selected{% endif %}>{{ _(pd.name) }}</option>{% endfor %}
+      </select></label>
+      {% endif %}
+      <label><span class="label">{{ _("Lugar") }}</span><select name="equipment_profile_id" class="input py-1">
+        {% for ep in profiles %}<option value="{{ ep.id }}" {% if plan and plan.equipment_profile_id == ep.id %}selected{% endif %}>{{ equipment_name(ep) }}</option>{% endfor %}
+      </select></label>
+      <button name="action" value="build" class="btn py-1 {% if not plan %}btn-accent{% endif %}">{{ _("Rearmar") if plan and plan.status != "skipped" else _("Armar") }}</button>
+      {% if plan and plan.status != "skipped" %}<button name="action" value="rest" class="btn py-1">😴 {{ _("Descanso") }}</button>{% endif %}
+    </form>
+    {% endif %}
+  </section>
+{% endfor %}
+</div>
+<p class="text-xs text-mute mt-4">{{ _("Los planes se pueden editar hasta que empiezas la sesión. Un día ✍️ fue armado a mano.") }}</p>
+{% endblock %}

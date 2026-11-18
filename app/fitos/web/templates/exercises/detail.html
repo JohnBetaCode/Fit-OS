@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ ex.display_name }}{% endblock %}
+{% block content %}
+<a href="/ejercicios" class="text-sm text-mute hover:text-ink">‹ {{ _("Ejercicios") }}</a>
+<div class="grid md:grid-cols-2 gap-4 mt-3">
+  <div class="grid gap-3 content-start">
+    <div class="rounded-2xl bg-white overflow-hidden aspect-square max-w-md w-full mx-auto">
+      <video src="/media/mp4/{{ ex.media_mp4 }}" poster="/media/thumbs/{{ ex.media_thumb }}"
+             autoplay loop muted playsinline class="w-full h-full object-contain"></video>
+    </div>
+    <p class="text-xs text-mute text-center">{{ _("Animaciones") }} © <a href="https://gymvisual.com/" class="underline" target="_blank" rel="noopener">Gym visual</a></p>
+  </div>
+
+  <div class="grid gap-4 content-start">
+    <div>
+      <h1 class="text-xl font-semibold leading-tight">{{ ex.display_name }}</h1>
+      {% set alt_name = ex.name_en if lang() == "es" else ex.name_es %}{% if alt_name and alt_name != ex.display_name %}<div class="text-sm text-mute">{{ alt_name }}</div>{% endif %}
+      <div class="flex flex-wrap gap-1 mt-2">
+        {% if ex.is_staple %}<span class="chip !text-accent">{{ _("Básico") }}</span>{% endif %}
+        {% if ex.movement_pattern %}<span class="chip">{{ pattern_es.get(ex.movement_pattern, ex.movement_pattern) }}</span>{% endif %}
+        {% if ex.mechanic %}<span class="chip">{{ mechanic_es.get(ex.mechanic, ex.mechanic) }}</span>{% endif %}
+        {% if ex.laterality %}<span class="chip">{{ laterality_es.get(ex.laterality, ex.laterality) }}</span>{% endif %}
+        {% if ex.difficulty %}<span class="chip">{{ _("Dificultad {n}/3", n=ex.difficulty) }}</span>{% endif %}
+        {% if not ex.enabled %}<span class="chip !text-warn">{{ _("Sin revisar") }}</span>{% endif %}
+      </div>
+    </div>
+
+    {% include "exercises/_actions.html" %}
+
+    <div class="card grid gap-3 text-sm">
+      <div>
+        <div class="label">{{ _("Músculo principal") }}</div>
+        {{ muscle_es.get(ex.primary_muscle, ex.primary_muscle or "—") }}
+      </div>
+      {% if ex.secondary_muscles %}
+      <div>
+        <div class="label">{{ _("Secundarios") }}</div>
+        {% for m in ex.secondary_muscles %}{{ muscle_es.get(m, m) }}{% if not loop.last %}, {% endif %}{% endfor %}
+      </div>
+      {% endif %}
+      <div>
+        <div class="label">{{ _("Equipo") }}</div>
+        {{ equipment_es.get(ex.equipment_tag, ex.equipment_tag) }}
+        {% if ex.requires %}· {{ _("requiere") }} {% for r in ex.requires %}{{ equipment_es.get(r, r) }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+      </div>
+      {% if ex.stress_joints %}
+      <div>
+        <div class="label">{{ _("Articulaciones exigidas") }}</div>
+        {% for j in ex.stress_joints %}{{ joint_es.get(j, j) }}{% if not loop.last %}, {% endif %}{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% set steps = ex.instructions %}
+    {% if steps %}
+    <div class="card">
+      <div class="h2">{{ _("Cómo se hace") }}</div>
+      <ol class="list-decimal pl-5 grid gap-2 text-sm">
+        {% for step in steps %}<li>{{ step }}</li>{% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+
+    {% if ex.youtube_url %}
+      <a href="{{ ex.youtube_url }}" class="btn w-fit" target="_blank" rel="noopener">▶ {{ _("Ver técnica en YouTube") }}</a>
+    {% endif %}
+
+    <div class="card" id="history">
+      <div class="h2">{{ _("Tu historial") }}</div>
+      {% if history %}
+        <table class="tbl num">
+          <thead><tr><th>{{ _("Fecha") }}</th><th>{{ _("Mejor set") }}</th><th>e1RM</th></tr></thead>
+          <tbody>
+          {% for h in history %}
+            <tr><td>{{ h.date }}</td><td>{{ h.weight_kg|kg }} kg × {{ h.reps }}</td><td>{{ h.e1rm_kg|kg }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-sm text-mute">{{ _("Aún no lo has registrado.") }}</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

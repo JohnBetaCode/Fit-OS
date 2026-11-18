@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block head %}<script src="/static/vendor/echarts.min.js"></script>{% endblock %}
+{% block content %}
+{% include "_progress_nav.html" %}
+<div class="grid gap-3 grid-cols-1 sm:grid-cols-3 mb-4">
+  {% for r in rings %}
+  <div class="card flex items-center gap-4">
+    <div class="relative w-16 h-16 shrink-0">
+      <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90" role="img" aria-label="{{ r.label }}: {{ (r.pct ~ '%') if r.pct is not none else _('sin dato') }}">
+        <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-panel2)" stroke-width="3.5"/>
+        {% if r.pct is not none %}<circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-accent)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="{{ (r.pct * 0.974)|round(1) }} 100"/>{% endif %}
+      </svg>
+      <div class="absolute inset-0 grid place-items-center text-sm font-bold num">{{ (r.pct ~ '%') if r.pct is not none else '—' }}</div>
+    </div>
+    <div><div class="text-xs text-mute uppercase tracking-wide">{{ r.label }}</div><div class="font-semibold">{{ r.text }}</div><div class="text-xs text-mute">{{ r.note }}</div></div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid gap-4 md:grid-cols-2">
+  <section class="card">
+    <div class="h2">{{ _("Sets duros por músculo · esta semana") }}</div>
+    <p class="text-xs text-mute mb-3">{{ _("Banda productiva {lo}–{hi} sets (sombreada). Principal = 1, secundario = 0,5.", lo=lo, hi=hi) }}</p>
+    {% for b in bars %}
+    <div class="flex items-center gap-2 text-sm mb-1.5" title="{{ b.label }}: {{ _("{n} sets", n=b.value|num) }}">
+      <span class="w-24 text-mute truncate">{{ b.label }}</span>
+      <div class="flex-1 h-3 bg-panel2 rounded-full relative overflow-hidden">
+        <div class="absolute inset-y-0 bg-accent/10" style="left: {{ lo / hi * 100 }}%; right: 0"></div>
+        <div class="absolute inset-y-0 left-0 rounded-full {% if b.status == 'ok' %}bg-accent{% elif b.status == 'high' %}bg-warn{% else %}bg-info/70{% endif %}" style="width: {{ b.pct }}%"></div>
+      </div>
+      <span class="w-10 text-right num">{{ b.value|num }}</span>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <div class="flex items-center justify-between mb-2">
+      <div class="h2 mb-0">{{ _("1RM estimado") }}</div>
+      {% if options %}
+      <form method="get" action="/progreso"><select name="exercise_id" class="input py-1 w-56" onchange="this.form.submit()">
+        {% for id, name in options %}<option value="{{ id }}" {% if id == sel %}selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select></form>
+      {% endif %}
+    </div>
+    <div id="e1rm" class="h-56"></div>
+    {% if not options %}<p class="text-sm text-mute">{{ _("Aparece cuando registres sets con peso.") }}</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <div class="h2">{{ _("Constancia · 12 semanas") }}</div>
+    {% set weeks = cons.weeks if cons is mapping and cons.weeks else [] %}
+    <div class="flex items-end gap-1 h-24">
+      {% for wk in weeks %}
+        {% set c = wk.count if wk is mapping else wk %}
+        <div class="flex-1 flex flex-col justify-end items-center gap-1" title="{{ (fmt_day_month(wk.week_start) ~ ': ') if wk is mapping and wk.week_start else '' }}{{ _('{n} sesiones', n=c) }}">
+          <div class="w-full rounded-t {% if c >= (cons.target or 1) %}bg-accent{% elif c > 0 %}bg-accent/40{% else %}bg-panel2{% endif %}" style="height: {{ [c * 18, 4]|max }}px"></div>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="text-xs text-mute mt-2">{{ _("Racha: <b class='text-ink'>{n}</b> semanas cumpliendo la meta.", n=(cons.streak if cons is mapping else 0)|int)|safe }}</p>
+  </section>
+
+  <section class="card">
+    <div class="flex items-center justify-between mb-2">
+      <div class="h2 mb-0">{{ _("Peso corporal") }}</div>
+      <form method="post" action="/progreso/peso" class="flex gap-2"><input name="weight_kg" class="input py-1 w-24" placeholder="kg" inputmode="decimal"><button class="btn py-1">{{ _("Anotar") }}</button></form>
+    </div>
+    <div id="weight" class="h-48"></div>
+  </section>
+
+  <section id="medidas" class="card md:col-span-2">
+    <div class="h2">{{ _("Medidas") }}</div>
+    <form method="post" action="/progreso/medidas" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 items-end">
+      {% for k in measure_kinds %}
+      {% set m = measures.get(k) %}
+      <label><span class="label">{{ metric_label(k) }} ({{ metric_units[k] }})</span>
+        <input name="{{ k }}" inputmode="decimal" class="input py-1 num" placeholder="{{ m.value|num(1) if m else '' }}">
+        {% if m %}<span class="text-[11px] text-mute num">{{ fmt_day_month(m.on) }}{% if m.delta is not none %} · {% if m.delta > 0 %}+{% endif %}{{ m.delta|num(1) }}{% endif %}</span>{% endif %}
+      </label>
+      {% endfor %}
+      <label><span class="label">{{ _("Fecha") }}</span><input type="date" name="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" class="input py-1"></label>
+      <button class="btn btn-accent py-1">{{ _("Anotar") }}</button>
+    </form>
+    <p class="text-xs text-mute mt-2">{{ _("También por WhatsApp: <b>cintura 84, pecho 102</b>. Mide en ayunas, a la misma hora, con la cinta sin apretar.")|safe }}</p>
+  </section>
+
+  <section id="fotos" class="card md:col-span-2">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <div class="h2 mb-0">{{ _("Fotos de progreso") }}</div>
+      <form method="post" action="/progreso/fotos" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+        <input type="file" name="files" accept="image/*" multiple required class="text-sm max-w-[14rem]">
+        <input type="date" name="taken_on" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" class="input py-1 w-40">
+        <button class="btn py-1">⬆️ {{ _("Subir") }}</button>
+      </form>
+    </div>
+    {% if photo_days %}
+      {% if photo_days|length > 1 %}
+      {% set first = photo_days[-1] %}{% set last = photo_days[0] %}
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        {% for label, day in [(_("Primera"), first), (_("Última"), last)] %}
+        <figure><img src="/fotos/{{ day[1][0].id }}" class="w-full aspect-[3/4] object-cover rounded-xl bg-panel2" loading="lazy" alt="">
+          <figcaption class="text-xs text-mute mt-1">{{ label }} · {{ fmt_date(day[0]) }}</figcaption></figure>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% for day, items in photo_days %}
+      <div class="text-sm text-mute mb-1 capitalize">{{ fmt_date(day) }}</div>
+      <div class="flex flex-wrap gap-2 mb-3">
+        {% for ph in items %}
+        <div class="relative">
+          <a href="/fotos/{{ ph.id }}" target="_blank"><img src="/fotos/{{ ph.id }}" class="w-24 h-32 object-cover rounded-lg bg-panel2" loading="lazy" alt="{{ ph.note or '' }}"></a>
+          <form method="post" action="/progreso/fotos/{{ ph.id }}/borrar" class="absolute top-1 right-1" onsubmit="return confirm({{ _("¿Borrar esta foto?")|tojson|forceescape }})"><button class="text-xs bg-black/60 rounded px-1">✕</button></form>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    {% else %}
+    <p class="text-sm text-mute">{{ _("Manda una foto al grupo de WhatsApp sin texto (o con <b>progreso</b>), o súbela aquí. Misma luz, misma pose y misma hora para poder comparar.")|safe }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card md:col-span-2">
+    <div class="h2">{{ _("Récords") }}</div>
+    {% if prs %}
+    <table class="tbl"><thead><tr><th>{{ _("Fecha") }}</th><th>{{ _("Ejercicio") }}</th><th>{{ _("Set") }}</th><th>{{ _("Tipo") }}</th></tr></thead><tbody>
+    {% set kinds = {"e1rm": _("1RM estimado"), "weight": _("peso máximo"), "reps_at_weight": _("reps a ese peso")} %}
+    {% for pr in prs %}<tr><td class="num text-mute whitespace-nowrap">{{ fmt_date(pr.date) }}</td><td>{{ pr.exercise }}</td><td class="num">{{ pr.reps }} × {{ pr.weight_kg|kg }} kg{% if pr.e1rm_kg %} · e1RM {{ pr.e1rm_kg|num }}{% endif %}</td><td class="text-mute text-xs">{% for f in pr.flags %}{{ kinds.get(f, f) }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="text-sm text-mute">{{ _("Todavía no hay récords.") }}</p>{% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const css = getComputedStyle(document.documentElement);
+  const c = n => css.getPropertyValue('--color-' + n).trim();
+  function line(el, data, unit, name) {
+    if (!el || !data.length) return;
+    const ch = echarts.init(el, null, { renderer: 'svg' });
+    ch.setOption({
+      grid: { left: 40, right: 16, top: 16, bottom: 28 },
+      tooltip: { trigger: 'axis', backgroundColor: c('panel2'), borderColor: c('line'), textStyle: { color: c('ink') },
+                 valueFormatter: v => v + ' ' + unit },
+      xAxis: { type: 'time', axisLine: { lineStyle: { color: c('line') } }, axisLabel: { color: c('mute') }, splitLine: { show: false } },
+      yAxis: { type: 'value', scale: true, axisLabel: { color: c('mute') }, splitLine: { lineStyle: { color: c('line'), opacity: .5 } } },
+      series: [{ name, type: 'line', data, smooth: false, symbol: 'circle', symbolSize: 8,
+                 lineStyle: { width: 2, color: c('accent') }, itemStyle: { color: c('accent'), borderColor: c('panel'), borderWidth: 2 } }]
+    });
+    window.addEventListener('resize', () => ch.resize());
+  }
+  line(document.getElementById('e1rm'), {{ series_json|safe }}, 'kg', 'e1RM');
+  line(document.getElementById('weight'), {{ weights_json|safe }}, 'kg', {{ _("Peso")|tojson }});
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+# Datos de salud, base, medios y backups: NUNCA a git
+/data/
+*.sqlite
+*.sqlite-*
+*.age
+.env
+secrets.sh
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+# Claude Code local
+.claude/settings.local.json
+# Your deployment: target host and private notes (see deploy/target.env.example)
+deploy/target.env
+deploy/local/

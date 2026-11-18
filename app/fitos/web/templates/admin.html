@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+{% if ok %}<div class="card mb-4 border-accent/50 text-sm">✅ {{ ok }}</div>{% endif %}
+{% if error %}<div class="card mb-4 border-bad/60 text-sm" role="alert">⚠️ {{ error }}</div>{% endif %}
+<div class="grid gap-4 lg:grid-cols-3">
+  <section class="card lg:col-span-2">
+    <div class="h2">{{ _("Usuarios") }}</div>
+    <p class="text-xs text-mute mb-3">{{ _("Cada persona tiene su propia base de datos: solo ve lo suyo. Como admin puedes ver los datos de cualquiera, sin poder cambiarlos.") }}</p>
+    <div class="grid gap-3">
+      {% for r in rows %}{% set a = r.a %}
+      <div class="border border-line rounded-xl p-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-semibold">{{ a.display_name }}</span>
+          <span class="text-mute text-sm">@{{ a.username }}</span>
+          {% if a.role == "admin" %}<span class="chip">admin</span>{% endif %}
+          {% if not a.active %}<span class="chip">{{ _("desactivado") }}</span>{% endif %}
+          <span class="chip">{{ _("WhatsApp") if a.wa_chat_id else _("solo web") }}</span>
+          {% if not r.has_db %}<span class="chip text-bad">{{ _("sin base de datos") }}</span>{% endif %}
+          <span class="text-xs text-mute ml-auto">{{ _("Última entrada: {when}", when=(fmt_date(a.last_login_at.date()) if a.last_login_at else "—")) }}</span>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-3">
+          {% if a.username != account.username and r.has_db %}
+          <form method="post" action="/ver-como"><input type="hidden" name="user" value="{{ a.username }}"><button class="btn py-1">👀 {{ _("Ver sus datos") }}</button></form>
+          {% endif %}
+          <details class="w-full">
+            <summary class="text-sm text-mute cursor-pointer">{{ _("Editar") }}</summary>
+            <div class="grid gap-3 md:grid-cols-2 mt-3">
+              <form method="post" action="/admin/usuarios/{{ a.username }}" class="grid gap-2">
+                <label><span class="label">{{ _("Nombre") }}</span><input name="display_name" value="{{ a.display_name }}" class="input" maxlength="80"></label>
+                <label><span class="label">{{ _("Rol") }}</span><select name="role" class="input">
+                  <option value="user" {% if a.role == "user" %}selected{% endif %}>{{ _("Usuario: ve solo lo suyo") }}</option>
+                  <option value="admin" {% if a.role == "admin" %}selected{% endif %}>{{ _("Admin: gestiona usuarios y ve a todos") }}</option></select></label>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="active" value="1" {% if a.active %}checked{% endif %} {% if a.username == account.username %}disabled{% endif %}> {{ _("Puede entrar") }}</label>
+                <div><button class="btn">{{ _("Guardar") }}</button></div>
+              </form>
+              <form method="post" action="/admin/usuarios/{{ a.username }}/clave" class="grid gap-2 content-start">
+                <label><span class="label">{{ _("Clave nueva (mínimo {n} caracteres)", n=min_password) }}</span><input type="password" name="password" class="input" minlength="{{ min_password }}" autocomplete="new-password" required></label>
+                <div><button class="btn">{{ _("Cambiar clave") }}</button></div>
+              </form>
+            </div>
+          </details>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <form method="post" action="/admin/usuarios" class="card grid gap-3 content-start">
+    <div class="h2">{{ _("Nuevo usuario") }}</div>
+    <label><span class="label">{{ _("Usuario (para entrar)") }}</span><input name="username" value="{{ form.username or '' }}" class="input" required pattern="[a-z][a-z0-9_\-]{1,31}" autocapitalize="none" autocomplete="off" placeholder="alex"></label>
+    <label><span class="label">{{ _("Nombre") }}</span><input name="display_name" value="{{ form.display_name or '' }}" class="input" maxlength="80" placeholder="Alex"></label>
+    <label><span class="label">{{ _("Clave (mínimo {n} caracteres)", n=min_password) }}</span><input type="password" name="password" class="input" minlength="{{ min_password }}" autocomplete="new-password" required></label>
+    <label><span class="label">{{ _("Rol") }}</span><select name="role" class="input">
+      <option value="user">{{ _("Usuario: ve solo lo suyo") }}</option>
+      <option value="admin" {% if form.role == "admin" %}selected{% endif %}>{{ _("Admin: gestiona usuarios y ve a todos") }}</option></select></label>
+    <p class="text-xs text-mute">{{ _("Empieza vacío: llena su perfil y elige un programa. Usa la web; WhatsApp solo está conectado a tu grupo.") }}</p>
+    <div><button class="btn btn-accent">{{ _("Crear usuario") }}</button></div>
+  </form>
+</div>
+{% endblock %}

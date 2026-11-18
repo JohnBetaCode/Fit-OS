@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="/entrenos" class="text-sm text-mute hover:text-ink">‹ {{ _("Entrenos") }}</a>
+{% if saved %}<div class="card mt-2 border-accent/50 text-sm">✅ {{ _("Entreno guardado.") }}</div>{% endif %}
+<div class="flex items-end justify-between mt-2 mb-4">
+  <div>
+    <h1 class="text-2xl font-bold">{{ _(ws.planned.focus_label) if ws.planned else _("Sesión") }}</h1>
+    <div class="text-mute text-sm capitalize">{{ fmt(ws.date) }}</div>
+  </div>
+  <div class="flex gap-2">
+    <div class="card py-2 px-3 text-center"><div class="text-[11px] text-mute">{{ _("Sets") }}</div><div class="font-semibold num">{{ summary.get('sets', 0) }}</div></div>
+    <div class="card py-2 px-3 text-center"><div class="text-[11px] text-mute">{{ _("Tonelaje") }}</div><div class="font-semibold num">{{ (summary.get('tonnage_kg', 0) or 0)|num(0) }} kg</div></div>
+    <div class="card py-2 px-3 text-center"><div class="text-[11px] text-mute">RPE</div><div class="font-semibold num">{{ ws.session_rpe or "—" }}</div></div>
+  </div>
+</div>
+{% if ws.notes %}<p class="card text-sm mb-3 whitespace-pre-line">{{ ws.notes }}</p>{% endif %}
+<details class="card mb-3">
+  <summary class="cursor-pointer font-semibold">✏️ {{ _("Editar entreno") }}</summary>
+  <form method="post" action="/entrenos/{{ ws.id }}/editar" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+    <label><span class="label">{{ _("Fecha") }}</span><input type="date" name="date" value="{{ ws.date.isoformat() }}" max="{{ today.isoformat() }}" class="input" required></label>
+    <label><span class="label">{{ _("RPE de la sesión") }} (1–10)</span><input type="number" name="rpe" min="1" max="10" value="{{ ws.session_rpe or '' }}" class="input num"></label>
+    <label><span class="label">{{ _("Duración (min)") }}</span><input type="number" name="duration_min" min="1" max="600" value="{{ summary.get('duration_min') or '' }}" class="input num"></label>
+    <label class="col-span-2 md:col-span-4"><span class="label">{{ _("Notas") }}</span><textarea name="notes" rows="2" maxlength="1000" class="input">{{ ws.notes or '' }}</textarea></label>
+    <div class="col-span-2 md:col-span-4 flex items-center justify-between gap-2">
+      <button class="btn btn-accent">{{ _("Guardar") }}</button>
+      <button form="del-session" class="btn text-bad border-bad/40">🗑 {{ _("Borrar entreno") }}</button>
+    </div>
+  </form>
+  <form id="del-session" method="post" action="/entrenos/{{ ws.id }}/borrar" onsubmit="return confirm({{ _("¿Borrar este entreno y todos sus sets? No se puede deshacer.")|tojson|forceescape }})"></form>
+</details>
+<div class="grid gap-3">
+{% for g in groups %}
+  <section class="card">
+    <div class="flex items-center justify-between">
+      <a href="/ejercicios/{{ g.ex.id }}" class="font-semibold hover:text-accent">{{ g.ex.display_name }}</a>
+      {% if g.item %}<span class="text-sm text-mute num">{{ _("objetivo") }} {{ g.item.sets }} × {{ rep_range(g.item) }}{% if g.item.target_weight_kg %} · {{ g.item.target_weight_kg|kg }} kg{% endif %} · RIR {{ g.item.target_rir }}</span>{% endif %}
+    </div>
+    {% if g.item and g.item.swapped_from_id %}<div class="text-xs text-mute">{{ _("cambiado ({reason})", reason=g.item.swap_reason) }}</div>{% endif %}
+    {% if g.sets %}
+    <table class="tbl mt-2 [&_td]:pr-1.5 [&_th]:pr-1.5">
+      <thead><tr><th>{{ _("Set") }}</th><th>{{ _("Reps") }}</th><th>Kg</th><th>RIR</th><th class="hidden sm:table-cell">e1RM</th><th></th></tr></thead>
+      <tbody>
+      {% for s in g.sets %}
+        {% set fid = "f" ~ s.id %}
+        <tr>
+          <td class="num">{{ _("C") if s.is_warmup else s.set_idx }}</td>
+          <td><input form="{{ fid }}" name="reps" inputmode="numeric" value="{{ s.reps or '' }}" class="input w-14 px-2 num"></td>
+          <td><input form="{{ fid }}" name="weight_kg" inputmode="decimal" value="{{ s.weight_kg if s.weight_kg is not none else '' }}" class="input w-[4.5rem] px-2 num">{% if s.pr_flags %}<span class="sm:hidden"> 🏆</span>{% endif %}</td>
+          <td><input form="{{ fid }}" name="rir" inputmode="decimal" value="{{ s.rir if s.rir is not none else '' }}" class="input w-12 px-2 num"></td>
+          <td class="num text-mute hidden sm:table-cell">{{ s.e1rm_kg|num }}{% if s.pr_flags %} 🏆{% endif %}</td>
+          <td class="whitespace-nowrap"><form id="{{ fid }}" method="post" action="/entrenos/sets/{{ s.id }}" class="flex gap-1"><button class="btn px-2.5 py-1.5 text-accent" title="{{ _("guardar") }}" aria-label="{{ _("guardar") }}">✓</button><button name="delete" value="1" class="btn px-2.5 py-1.5 text-bad" title="{{ _("borrar") }}" aria-label="{{ _("borrar") }}" onclick="return confirm({{ _("¿Borrar este set?")|tojson|forceescape }})">✕</button></form></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="text-sm text-mute mt-1">{{ _("Sin sets.") }}</p>{% endif %}
+    {% set aid = "a" ~ g.ex.id %}
+    {% set last = g.sets[-1] if g.sets else none %}
+    <form id="{{ aid }}" method="post" action="/entrenos/{{ ws.id }}/sets" class="flex flex-wrap items-end gap-2 mt-2">
+      <input type="hidden" name="exercise_id" value="{{ g.ex.id }}">
+      <label><span class="label">{{ _("Reps") }}</span><input name="reps" type="number" min="1" max="100" required value="{{ last.reps if last and last.reps else '' }}" class="input w-16 py-1 num"></label>
+      <label><span class="label">Kg</span><input name="weight_kg" inputmode="decimal" value="{{ last.weight_kg if last and last.weight_kg is not none else '' }}" class="input w-20 py-1 num"></label>
+      <label><span class="label">RIR</span><input name="rir" inputmode="decimal" value="{{ last.rir if last and last.rir is not none else '' }}" class="input w-14 py-1 num"></label>
+      <button class="btn py-1">+ {{ _("añadir set") }}</button>
+    </form>
+  </section>
+{% endfor %}
+</div>
+{% endblock %}

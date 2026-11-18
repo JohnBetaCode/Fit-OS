@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Entrar") }}{% endblock %}
+{% block content %}
+<div class="min-h-[80vh] grid place-items-center">
+  <form method="post" action="/entrar" class="card w-full max-w-sm grid gap-4">
+    <div class="flex items-center gap-3">
+      <img src="/static/icons/icon-192.png" alt="" class="w-12 h-12 rounded-xl">
+      <div><div class="font-bold text-lg">Fit<span class="text-accent">·</span>OS</div>
+        <div class="text-xs text-mute">{{ _("Entra con tu usuario") }}</div></div>
+    </div>
+    {% if error %}<p class="text-sm text-bad" role="alert">{{ error }}</p>{% endif %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <label><span class="label">{{ _("Usuario") }}</span>
+      <input name="username" value="{{ username }}" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required class="input py-3 text-base"></label>
+    <label><span class="label">{{ _("Clave") }}</span>
+      <input name="password" type="password" autocomplete="current-password" required class="input py-3 text-base" {% if username %}autofocus{% endif %}></label>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="remember" value="1" checked class="w-5 h-5 accent-[var(--color-accent)]">
+      {{ _("Recordarme en este dispositivo (90 días)") }}</label>
+    <button class="btn btn-accent justify-center py-3 text-base">{{ _("Entrar") }}</button>
+  </form>
+</div>
+{% endblock %}

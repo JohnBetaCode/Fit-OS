@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+{% if saved %}<div class="card mb-4 border-accent/50 text-sm">✅ {{ _("Guardado. El próximo plan ya lo tiene en cuenta.") }}</div>{% endif %}
+<div class="flex justify-end mb-3"><a href="/bienvenida" class="text-xs text-mute hover:text-ink">👋 {{ _("Repetir la bienvenida") }}</a></div>
+<form method="post" action="/perfil" class="grid gap-4 md:grid-cols-2">
+  <section class="card">
+    <div class="h2">{{ _("Datos") }}</div>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="col-span-2"><span class="label">{{ _("Nombre (opcional)") }}</span><input name="display_name" value="{{ p.display_name or '' }}" class="input"></label>
+      <label><span class="label">{{ _("Sexo") }}</span><select name="sex" class="input">
+        {% for k, v in sexes.items() %}<option value="{{ k }}" {% if p.sex == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label><span class="label">{{ _("Nacimiento ({n} años)", n=age) if age else _("Nacimiento") }}</span><input type="date" name="birth_date" value="{{ p.birth_date or '' }}" class="input"></label>
+      <label><span class="label">{{ _("Estatura (cm)") }}</span><input name="height_cm" value="{{ p.height_cm|num(0) if p.height_cm else '' }}" class="input" inputmode="decimal"></label>
+      <label><span class="label">{{ _("Peso hoy (kg)") }}{% if weight %} · {{ _("último {kg} ({date})", kg=weight.value|kg, date=fmt_day_month(weight.measured_on)) }}{% endif %}</span><input name="weight_kg" class="input" inputmode="decimal" placeholder="{{ _("opcional") }}"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="h2">{{ _("Objetivo y experiencia") }}</div>
+    <div class="grid grid-cols-2 gap-3">
+      <label><span class="label">{{ _("Objetivo principal") }}</span><select name="primary_goal" class="input">
+        {% for k, v in goals.items() %}<option value="{{ k }}" {% if p.primary_goal == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label><span class="label">{{ _("Experiencia") }}</span><select name="experience" class="input">
+        {% for k, v in levels.items() %}<option value="{{ k }}" {% if p.experience == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label><span class="label">{{ _("Minutos por sesión") }}</span><input name="session_minutes" value="{{ p.session_minutes }}" class="input" inputmode="numeric"></label>
+      <label class="col-span-2"><span class="label">{{ _("Notas del objetivo (lo lee el coach)") }}</span><textarea name="goal_notes" rows="2" class="input" placeholder="{{ _("Ej.: quiero ganar espalda y bajar 3 kg de grasa") }}">{{ p.goal_notes or '' }}</textarea></label>
+      <label class="col-span-2"><span class="label">{{ _("Notas para el coach") }}</span><textarea name="coach_notes" rows="2" class="input" placeholder="{{ _("Ej.: no me gustan las sentadillas búlgaras; entreno en ayunas") }}">{{ p.coach_notes or '' }}</textarea></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="h2">{{ _("Días de entreno") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("El mensaje matutino sale los días marcados. Cambiar el número de días rearma el programa.") }}</p>
+    <div class="grid gap-2">
+      {% for d in weekdays %}{% set sd = (p.schedule or {}).get(d) %}
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-2 w-28"><input type="checkbox" name="day_{{ d }}" {% if sd %}checked{% endif %} class="accent-[var(--color-accent)]"> {{ weekday_names[d] }}</label>
+        <select name="ep_{{ d }}" class="input py-1 flex-1">{% for ep in eps %}<option value="{{ ep.id }}" {% if sd and sd.equipment_profile_id == ep.id %}selected{% endif %}>{{ equipment_name(ep) }}</option>{% endfor %}</select>
+        <input type="time" name="time_{{ d }}" value="{{ sd.time if sd else '06:30' }}" class="input py-1 w-[7.5rem] shrink-0">
+      </div>
+      {% endfor %}
+    </div>
+    <label class="flex items-center gap-2 text-sm mt-3"><input type="checkbox" name="reset_program"> {{ _("Rearmar el programa con la plantilla por defecto") }}</label>
+  </section>
+
+  <section class="card">
+    <div class="h2">{{ _("Lesiones y molestias") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("El planificador evita ejercicios que cargan estas articulaciones.") }}</p>
+    {% set inj = {} %}{% for i in p.injuries or [] %}{% set _ignored = inj.update({i.area: i}) %}{% endfor %}
+    <div class="grid gap-2">
+      {% for k, v in joints.items() %}
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-2 w-32"><input type="checkbox" name="inj_{{ k }}" {% if k in inj %}checked{% endif %}> {{ v }}</label>
+        <select name="sev_{{ k }}" class="input py-1 w-28">{% for s, s_label in [("leve", _("leve")), ("moderada", _("moderada")), ("fuerte", _("fuerte"))] %}<option value="{{ s }}" {% if inj.get(k, {}).get('severity') == s %}selected{% endif %}>{{ s_label }}</option>{% endfor %}</select>
+        <input name="injnote_{{ k }}" value="{{ inj.get(k, {}).get('notes', '') }}" class="input py-1 flex-1" placeholder="{{ _("nota") }}">
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="md:col-span-2 flex justify-end"><button class="btn btn-accent">{{ _("Guardar perfil") }}</button></div>
+</form>
+
+<div id="equipo" class="h2 mt-8">{{ _("Perfiles de equipo") }}</div>
+<div class="grid gap-4 md:grid-cols-2">
+  {% for ep in eps %}
+  <form method="post" action="/perfil/equipo/{{ ep.id }}" class="card">
+    <div class="flex items-center gap-2 mb-3">
+      <input name="name" value="{{ ep.name }}" class="input font-semibold">
+      <label class="flex items-center gap-1 text-xs text-mute whitespace-nowrap"><input type="checkbox" name="is_default" {% if ep.is_default %}checked{% endif %}> {{ _("por defecto") }}</label>
+    </div>
+    <div class="label">{{ _("Equipo disponible") }}</div>
+    <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-sm mb-3">
+      {% for t in equipment_tags + require_tags %}
+      <label class="flex items-center gap-2"><input type="checkbox" name="tag_{{ t }}" {% if t in ep.tags %}checked{% endif %}> {{ tag_es[t] }}</label>
+      {% endfor %}
+    </div>
+    <label><span class="label">{{ _("Mancuernas disponibles (kg, separadas por espacio)") }}</span>
+      <input name="dumbbell_kg" value="{{ (ep.loads or {}).get('dumbbell_kg', [])|map('kg')|join(' ') }}" class="input"></label>
+    <div class="grid grid-cols-3 gap-2 mt-2">
+      <label><span class="label">{{ _("Paso barra") }}</span><input name="barbell_step_kg" value="{{ (ep.loads or {}).get('barbell_step_kg', '') }}" class="input"></label>
+      <label><span class="label">{{ _("Paso máquina") }}</span><input name="machine_step_kg" value="{{ (ep.loads or {}).get('machine_step_kg', '') }}" class="input"></label>
+      <label><span class="label">{{ _("Paso polea") }}</span><input name="cable_step_kg" value="{{ (ep.loads or {}).get('cable_step_kg', '') }}" class="input"></label>
+    </div>
+    <div class="flex justify-end mt-3"><button class="btn btn-accent">{{ _("Guardar {name}", name=equipment_name(ep)) }}</button></div>
+  </form>
+  {% endfor %}
+  <form method="post" action="/perfil/equipo" class="card flex items-center gap-2">
+    <input name="name" class="input" placeholder="{{ _("Nuevo perfil (ej.: Hotel, Gym oficina)") }}"><button class="btn">{{ _("Crear") }}</button>
+  </form>
+</div>
+
+{% if disliked %}
+<div class="h2 mt-8">{{ _("Ejercicios vetados") }}</div>
+<div class="card flex flex-wrap gap-2">{% for e in disliked %}<a href="/ejercicios/{{ e.id }}" class="chip hover:text-ink">{{ e.display_name }}</a>{% endfor %}</div>
+{% endif %}
+{% endblock %}

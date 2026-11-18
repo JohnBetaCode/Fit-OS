@@ -1,0 +1,4 @@
+<nav class="flex gap-1 mb-4 text-sm" aria-label="{{ _("Progreso") }}">
+  <a href="/progreso" class="px-3 py-1.5 rounded-lg {% if request.url.path == '/progreso' %}bg-panel2 text-ink{% else %}text-mute hover:text-ink{% endif %}">{{ _("Resumen") }}</a>
+  <a href="/progreso/ejercicios" class="px-3 py-1.5 rounded-lg {% if request.url.path == '/progreso/ejercicios' %}bg-panel2 text-ink{% else %}text-mute hover:text-ink{% endif %}">{{ _("Mis ejercicios") }}</a>
+</nav>

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="{{ lang() }}" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d10">
+  <title>{% block title %}{{ tab_label or "Fit-OS" }}{% endblock %} · Fit-OS</title>
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+  <!-- Installable from the phone's browser (Add to Home Screen): standalone window, own icon -->
+  <link rel="manifest" href="/static/manifest.webmanifest" crossorigin="use-credentials">
+  <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Fit-OS">
+  <script src="/static/vendor/tailwind.js"></script>
+  <script src="/static/vendor/htmx.min.js" defer></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-bg: #0b0d10;
+      --color-panel: #14171c;
+      --color-panel2: #1b1f26;
+      --color-line: #262b33;
+      --color-ink: #e8ecf1;
+      --color-mute: #8b95a3;
+      --color-accent: #3ddc97;
+      --color-warn: #f5b942;
+      --color-bad: #ff6b6b;
+      --color-info: #5aa9ff;
+    }
+    @layer base {
+      body { @apply bg-bg text-ink antialiased; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    }
+    /* Components live in a layer so utilities on the element (w-16, py-1…) override them */
+    @layer components {
+    .card { @apply bg-panel border border-line rounded-2xl p-4; }
+    .h2 { @apply text-sm font-semibold uppercase tracking-wider text-mute mb-3; }
+    .btn { @apply inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium bg-panel2 border border-line hover:border-accent/60 transition; }
+    .btn-accent { @apply bg-accent text-black border-accent hover:brightness-110; }
+    .chip { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs border border-line text-mute; }
+    .input { @apply w-full rounded-xl bg-panel2 border border-line px-3 py-2 text-sm focus:outline-none focus:border-accent; }
+    .label { @apply block text-xs text-mute mb-1; }
+    .tabnav a { @apply px-2.5 py-2 rounded-lg text-sm text-mute hover:text-ink whitespace-nowrap; }
+    .tabnav a.on { @apply text-ink bg-panel2; }
+    table.tbl { @apply w-full text-sm; }
+    table.tbl th { @apply text-left text-xs font-medium text-mute uppercase tracking-wide py-2 border-b border-line; }
+    table.tbl td { @apply py-2 border-b border-line/60 align-top; }
+    .num { font-variant-numeric: tabular-nums; }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen pb-24 md:pb-8">
+  {% if not bare %}
+  <header class="sticky top-0 z-30 bg-bg/90 backdrop-blur border-b border-line">
+    <div class="max-w-6xl mx-auto px-4 flex items-center gap-4 h-14">
+      <a href="/" class="font-bold tracking-tight text-lg">Fit<span class="text-accent">·</span>OS</a>
+      <nav class="tabnav hidden md:flex gap-0.5 overflow-x-auto min-w-0 flex-1">
+        {% for key, label, href in tabs %}
+          <a href="{{ href }}" class="{% if key == tab %}on{% endif %}">{{ label }}</a>
+        {% endfor %}
+      </nav>
+      <div class="ml-auto shrink-0 text-xs text-mute hidden sm:flex items-center gap-3">
+        {% if is_admin and people|length > 1 %}
+        <form method="post" action="/ver-como" class="flex items-center gap-1">
+          <label class="sr-only" for="ver-como">{{ _("Ver los datos de") }}</label>
+          <select id="ver-como" name="user" class="input py-1 w-32 text-xs" onchange="this.form.submit()">
+            {% for uname, dname, active in people %}<option value="{{ uname }}" {% if uname == viewing %}selected{% endif %}>{{ dname }}{% if uname == account.username %} · {{ _("yo") }}{% elif not active %} · {{ _("desactivado") }}{% endif %}</option>{% endfor %}
+          </select>
+          <noscript><button class="btn py-1">{{ _("Ver") }}</button></noscript>
+        </form>
+        {% else %}{{ user }}{% endif %}
+        {% if user and not is_dev %}<form method="post" action="/salir"><button class="hover:text-ink">{{ _("Salir") }}</button></form>{% endif %}</div>
+    </div>
+  </header>
+  {% if read_only %}
+  <div class="bg-warn/15 border-b border-warn/40 text-sm">
+    <div class="max-w-6xl mx-auto px-4 py-2 flex flex-wrap items-center gap-3">
+      <span>👀 {{ _("Viendo los datos de {name} · solo lectura", name=viewing_name) }}</span>
+      <form method="post" action="/ver-como" class="ml-auto"><input type="hidden" name="user" value="{{ account.username }}"><button class="btn py-1">{{ _("Volver a mis datos") }}</button></form>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <main class="max-w-6xl mx-auto px-4 py-5">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if not bare %}
+  <nav class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-panel/95 backdrop-blur border-t border-line pb-[env(safe-area-inset-bottom)]">
+    <div class="grid grid-cols-5 text-center text-[11px]">
+      {% for key, label, href, icon in mobile_tabs %}
+        <a href="{{ href }}" class="py-2 {% if key == tab or (key == 'mas' and tab in more_keys) %}text-accent{% else %}text-mute{% endif %}">
+          <div class="text-lg leading-none">{{ icon }}</div>{{ label }}
+        </a>
+      {% endfor %}
+    </div>
+  </nav>
+  {% endif %}
+  <footer class="max-w-6xl mx-auto px-4 pb-4 text-[11px] text-mute/70 text-right num" aria-label="{{ _("Versión") }}">Fit·OS {{ version }}</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

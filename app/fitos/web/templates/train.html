@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% macro thumb(ex) -%}
+  {% if ex.media_thumb %}<a href="/ejercicios/{{ ex.id }}" class="shrink-0 w-14 h-14 rounded-lg bg-panel2 overflow-hidden block"><img src="/media/thumbs/{{ ex.media_thumb }}" alt="" loading="lazy" class="w-full h-full object-contain"></a>
+  {%- else %}<div class="shrink-0 w-14 h-14 rounded-lg bg-panel2 flex items-center justify-center text-xl">🏋️</div>{% endif %}
+{%- endmacro %}
+{% macro add_box(plan) -%}
+  <section class="card">
+    <div class="h2">➕ {{ _("Agregar ejercicio") }}</div>
+    <input type="search" name="q" placeholder="{{ _("Busca por nombre (p. ej. press, curl, remo)") }}" class="input"
+           hx-get="/entreno/planes/{{ plan.id }}/buscar" hx-trigger="input changed delay:300ms" hx-target="#add-{{ plan.id }}">
+    <div id="add-{{ plan.id }}"></div>
+    <form method="post" action="/entreno/planes/{{ plan.id }}/agregar" class="flex gap-2 mt-3">
+      <select name="group" class="input" aria-label="{{ _("Grupo muscular") }}">{% for k, v in groups.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+      <button class="btn whitespace-nowrap">🎲 {{ _("Uno al azar") }}</button>
+    </form>
+  </section>
+{%- endmacro %}
+{% macro item_tools(it, can_change=True) -%}
+  <div class="flex flex-wrap gap-1 mt-2">
+    {% if can_change %}
+    <button type="button" class="btn py-1 text-xs" hx-get="/entreno/items/{{ it.id }}/opciones" hx-target="#opt-{{ it.id }}">🔀 {{ _("Cambiar") }}</button>
+    <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="reroll"><button class="btn py-1 text-xs">🎲 {{ _("Otro") }}</button></form>
+    {% endif %}
+    <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="up"><button class="btn py-1 text-xs" aria-label="{{ _("Subir") }}">↑</button></form>
+    <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="down"><button class="btn py-1 text-xs" aria-label="{{ _("Bajar") }}">↓</button></form>
+    {% if can_change %}
+    <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="remove"><button class="btn py-1 text-xs" aria-label="{{ _("Quitar") }}">✖</button></form>
+    {% endif %}
+  </div>
+  <div id="opt-{{ it.id }}"></div>
+{%- endmacro %}
+
+{% block content %}
+{% if error %}<div class="card mb-4 border-bad/60 text-sm" role="alert">⚠️ {{ error }}</div>{% endif %}
+
+{% if view == "setup" %}
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-bold mb-1">🏋️ {{ _("Armemos tu entreno") }}</h1>
+  <p class="text-sm text-mute mb-4">{{ _("Dime dónde estás y qué quieres trabajar; después puedes cambiar, agregar o quitar ejercicios.") }}</p>
+  {% if done_today %}<div class="card mb-4 border-accent/50 text-sm">✅ {{ _("Ya terminaste el entreno de hoy. Si quieres otro, arma uno nuevo.") }}</div>{% endif %}
+  <form method="post" action="/entreno/armar" class="grid gap-4">
+    <section class="card grid gap-3">
+      <div class="h2">📍 {{ _("¿Dónde entrenas hoy?") }}</div>
+      <div class="grid grid-cols-2 gap-2">
+        {% for ep in eps %}<label class="btn justify-center has-[:checked]:border-accent"><input type="radio" name="equipment_profile_id" value="{{ ep.id }}" class="sr-only" {% if (setup.equipment_profile_id and ep.id == setup.equipment_profile_id) or (not setup.equipment_profile_id and ep.is_default) %}checked{% endif %}>{{ "🏋️" if ep.kind == "gym" else "🏠" }} {{ equipment_name(ep) }}</label>{% endfor %}
+      </div>
+      <fieldset><legend class="label">{{ _("¿Falta algo hoy? (máquina ocupada, no hay barra…)") }}</legend>
+        <div class="flex flex-wrap gap-2">
+          {% for k, v in missing_labels.items() %}<label class="chip cursor-pointer has-[:checked]:border-bad has-[:checked]:text-ink"><input type="checkbox" name="m_{{ k }}" value="1" class="sr-only" {% if k in setup.missing %}checked{% endif %}>{{ _("sin {thing}", thing=v|lower) }}</label>{% endfor %}
+        </div></fieldset>
+    </section>
+
+    <section class="card grid gap-3">
+      <div class="h2">🎯 {{ _("¿Qué trabajas?") }}</div>
+      <label class="flex items-center gap-2 text-sm"><input type="radio" name="focus" value="program" {% if setup.focus != "groups" %}checked{% endif %}>
+        {{ _("Lo que me toca en el programa") }}{% if next_day %}: <b>{{ _(next_day) }}</b>{% endif %}</label>
+      <label class="flex items-center gap-2 text-sm"><input type="radio" name="focus" value="groups" id="focus-groups" {% if setup.focus == "groups" %}checked{% endif %}> {{ _("Elijo músculos:") }}</label>
+      <div class="flex flex-wrap gap-2 pl-6">
+        {% for k, v in groups.items() %}<label class="chip cursor-pointer has-[:checked]:border-accent has-[:checked]:text-ink"><input type="checkbox" name="g_{{ k }}" value="1" class="sr-only" {% if k in setup.groups %}checked{% endif %} onchange="if(this.checked)document.getElementById('focus-groups').checked=true">{{ v }}</label>{% endfor %}
+      </div>
+      <label class="flex items-center gap-2 text-sm pl-6">{{ _("Ejercicios:") }}
+        <select name="count" class="input py-1 w-20">{% for n in range(3, 11) %}<option value="{{ n }}" {% if n == setup.count %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+    </section>
+
+    <section class="card grid gap-3">
+      <div class="h2">🧭 {{ _("¿Cómo los elegimos?") }}</div>
+      <div class="grid gap-2 sm:grid-cols-3">
+        {% for k, icon, label, hint in [("smart", "⭐", _("Sugeridos"), _("Los mejores para ti según tu historial")), ("random", "🎲", _("Al azar"), _("Variedad: distintos cada vez")), ("manual", "✋", _("Yo los escojo"), _("Buscas y agregas uno por uno"))] %}
+        <label class="btn flex-col items-start has-[:checked]:border-accent"><input type="radio" name="mode" value="{{ k }}" class="sr-only" {% if setup.mode == k %}checked{% endif %}>
+          <span>{{ icon }} {{ label }}</span><span class="text-[11px] text-mute font-normal">{{ hint }}</span></label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <details class="text-sm"><summary class="text-mute cursor-pointer">{{ _("¿Registras un entreno de otro día?") }}</summary>
+      <label class="block mt-2 max-w-xs"><span class="label">{{ _("Fecha") }}</span><input type="date" name="date" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" class="input"></label>
+    </details>
+    <div><button class="btn btn-accent text-base px-5 py-3">{{ _("Armar mi entreno") }} →</button></div>
+  </form>
+</div>
+
+{% elif view == "review" %}
+<div class="flex flex-wrap items-baseline gap-3 mb-4">
+  <h1 class="text-2xl font-bold">{{ _(plan.focus_label) }}</h1>
+  <span class="text-sm text-mute">{{ fmt_date(plan.date) }}</span>
+  <a href="/entreno?nuevo=1" class="text-sm text-accent ml-auto">⚙️ {{ _("Volver a armar") }}</a>
+</div>
+{% if missing %}<p class="text-xs text-mute mb-3">{{ _("Hoy sin:") }} {% for m in missing %}<span class="chip">{{ missing_labels.get(m, m) }}</span> {% endfor %}</p>{% endif %}
+<div class="grid gap-4 lg:grid-cols-3">
+  <div class="lg:col-span-2 grid gap-3 content-start">
+    {% for r in rows %}{% set it = r.it %}
+    <article class="card">
+      <div class="flex gap-3">
+        {{ thumb(it.exercise) }}
+        <div class="min-w-0 flex-1">
+          <div class="font-semibold">{{ loop.index }}. {{ it.exercise.display_name }}</div>
+          <div class="text-sm num">{{ it.sets }} × {{ rep_range(it) }}{% set wt = w(it.target_weight_kg, it.exercise) %}{% if wt %} · {{ wt }}{% endif %} · RIR {{ it.target_rir }}</div>
+          <div class="text-xs text-mute">{{ muscle_label(it.exercise.primary_muscle) }}{% if r.last %} · {{ r.last }}{% endif %}</div>
+          {% if it.target_note %}<div class="text-xs text-mute mt-1">💡 {{ it.target_note }}</div>{% endif %}
+        </div>
+      </div>
+      {{ item_tools(it) }}
+      <details class="mt-2"><summary class="text-xs text-mute cursor-pointer">{{ _("Editar series, reps y peso") }}</summary>
+        <form method="post" action="/entreno/items/{{ it.id }}" class="grid grid-cols-5 gap-2 mt-2 items-end">
+          <label><span class="label">{{ _("Series") }}</span><input name="sets" value="{{ it.sets }}" class="input" inputmode="numeric"></label>
+          <label><span class="label">{{ _("Reps mín.") }}</span><input name="rep_min" value="{{ it.rep_min }}" class="input" inputmode="numeric"></label>
+          <label><span class="label">{{ _("máx.") }}</span><input name="rep_max" value="{{ it.rep_max }}" class="input" inputmode="numeric"></label>
+          <label><span class="label">kg</span><input name="weight_kg" value="{{ it.target_weight_kg|kg if it.target_weight_kg is not none else '' }}" class="input" inputmode="decimal"></label>
+          <input type="hidden" name="rir" value="{{ it.target_rir }}">
+          <button class="btn py-2">{{ _("Guardar") }}</button>
+        </form></details>
+    </article>
+    {% else %}
+    <div class="card text-sm text-mute">{{ _("Todavía no hay ejercicios: búscalos y agrégalos.") }}</div>
+    {% endfor %}
+  </div>
+  <div class="grid gap-3 content-start">
+    <form method="post" action="/entreno/empezar" class="card">
+      <input type="hidden" name="plan_id" value="{{ plan.id }}">
+      <p class="text-sm text-mute mb-3">{{ _("{n} ejercicios. Cuando estés listo:", n=rows|length) }}</p>
+      <button class="btn btn-accent w-full justify-center text-base py-3" {% if not rows %}disabled{% endif %}>▶ {{ _("Empezar") }}</button>
+    </form>
+    {{ add_box(plan) }}
+  </div>
+</div>
+
+{% else %}{# live #}
+{% if rest %}
+<div id="rest" class="sticky top-14 z-20 card mb-3 border-accent/60 flex items-center gap-3" role="timer" aria-live="polite">
+  <span>⏱️ {{ _("Descanso") }}</span><b id="rest-left" class="text-xl num">{{ rest }}</b><span class="text-mute text-sm">s</span>
+  <button type="button" class="btn py-1 text-xs ml-auto" onclick="document.getElementById('rest').remove()">{{ _("Saltar") }}</button>
+</div>
+<script>
+  (function () {
+    var left = {{ rest|int }}, el = document.getElementById("rest-left");
+    var t = setInterval(function () {
+      left -= 1; if (!el) { clearInterval(t); return; }
+      el.textContent = Math.max(0, left);
+      if (left <= 0) { clearInterval(t); el.parentElement.classList.add("border-accent"); el.textContent = "✓";
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]); }
+    }, 1000);
+  })();
+</script>
+{% endif %}
+<div class="flex flex-wrap items-baseline gap-3 mb-4">
+  <h1 class="text-2xl font-bold">{{ _(plan.focus_label) }}</h1>
+  <span class="chip text-accent border-accent/50">{{ _("en curso") }}</span>
+  {% if plan.date != ws.started_at.date() %}<span class="text-sm text-mute">{{ fmt_date(plan.date) }}</span>{% endif %}
+</div>
+<div class="grid gap-4 lg:grid-cols-3">
+  <div class="lg:col-span-2 grid gap-3 content-start">
+    {% for r in rows %}{% set it = r.it %}
+    {% if r.current %}
+    <article class="card border-accent/60" id="actual">
+      <div class="flex gap-3">
+        {{ thumb(it.exercise) }}
+        <div class="min-w-0 flex-1">
+          <div class="font-semibold text-lg">{{ it.exercise.display_name }}</div>
+          <div class="text-sm num">{{ _("Meta:") }} {{ it.sets }} × {{ rep_range(it) }}{% set wt = w(it.target_weight_kg, it.exercise) %}{% if wt %} · {{ wt }}{% endif %} · RIR {{ it.target_rir }}</div>
+          {% if r.last %}<div class="text-xs text-mute">{{ r.last }}</div>{% endif %}
+          {% if it.target_note %}<div class="text-xs text-mute mt-1">💡 {{ it.target_note }}</div>{% endif %}
+        </div>
+      </div>
+      {% if r.sets %}
+      <ol class="mt-3 grid gap-1 text-sm">
+        {% for s in r.sets %}
+        <li class="flex items-center gap-2 num"><span class="text-mute w-6">{{ loop.index }}.</span>
+          {% if s.duration_s %}{{ (s.duration_s / 60)|round(1) }} min{% else %}{{ s.reps }} × {{ s.weight_kg|kg if s.weight_kg else _("peso corporal") }}{% if s.weight_kg %} kg{% endif %}{% if s.rir is not none %} · RIR {{ s.rir|kg }}{% endif %}{% endif %}
+          {% if s.pr_flags %}<span title="PR">🏆</span>{% endif %}
+          <form method="post" action="/entreno/series/{{ s.id }}/borrar" class="ml-auto"><button class="text-xs text-mute hover:text-bad" aria-label="{{ _("Borrar serie") }}">✖</button></form></li>
+        {% endfor %}
+      </ol>
+      {% endif %}
+      {% set timed = (it.slot or {}).get("duration_min") %}
+      <form method="post" action="/entreno/series" class="grid {% if timed %}grid-cols-2{% else %}grid-cols-4{% endif %} gap-2 mt-3 items-end">
+        <input type="hidden" name="item_id" value="{{ it.id }}">
+        {% if timed %}
+        <label><span class="label">{{ _("Minutos") }}</span><input name="minutes" value="{{ (timed[0] if timed is iterable else timed) }}" class="input" inputmode="decimal" required></label>
+        {% else %}
+        <label><span class="label">{{ _("Reps") }}</span><input name="reps" value="{{ r.prefill.reps if r.prefill and r.prefill.reps else it.rep_max }}" class="input text-lg" inputmode="numeric" required></label>
+        <label><span class="label">kg</span><input name="weight_kg" value="{{ (r.prefill.weight_kg|kg) if r.prefill and r.prefill.weight_kg else (it.target_weight_kg|kg if it.target_weight_kg else '') }}" class="input text-lg" inputmode="decimal"></label>
+        <label><span class="label">RIR</span><select name="rir" class="input text-lg"><option value="">—</option>{% for n in range(0, 5) %}<option value="{{ n }}" {% if r.prefill and r.prefill.rir == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+        {% endif %}
+        <button class="btn btn-accent justify-center py-2.5">✓ {{ _("Serie {n}", n=r.sets|length + 1) }}</button>
+      </form>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <form method="post" action="/entreno/siguiente"><button class="btn {% if r.sets|length >= it.sets %}btn-accent{% endif %}">{{ _("Siguiente ejercicio") }} →</button></form>
+      </div>
+      {{ item_tools(it, can_change=not r.sets) }}
+    </article>
+    {% else %}
+    <article class="card py-3 {% if it.status in ('done', 'skipped') %}opacity-70{% endif %}">
+      <div class="flex items-center gap-3">
+        <span class="w-6 text-center">{% if it.status == "done" %}✅{% elif it.status == "skipped" %}⏭️{% else %}{{ loop.index }}{% endif %}</span>
+        <div class="min-w-0 flex-1">
+          <div class="font-medium truncate">{{ it.exercise.display_name }}</div>
+          <div class="text-xs text-mute num">{% if r.sets %}{{ _("{n} series hechas", n=r.sets|length) }}{% else %}{{ it.sets }} × {{ rep_range(it) }}{% set wt = w(it.target_weight_kg, it.exercise) %}{% if wt %} · {{ wt }}{% endif %}{% endif %}</div>
+        </div>
+        <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="focus"><button class="btn py-1 text-xs">{{ _("Hacer ahora") }}</button></form>
+      </div>
+    </article>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="grid gap-3 content-start">
+    <form method="post" action="/entreno/terminar" class="card grid gap-2" onsubmit="return confirm('{{ _("¿Terminar el entreno?") }}')">
+      <div class="h2">🏁 {{ _("Terminar") }}</div>
+      <label><span class="label">{{ _("¿Qué tan duro fue? (1–10, opcional)") }}</span><select name="rpe" class="input"><option value="">—</option>{% for n in range(1, 11) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select></label>
+      <button class="btn btn-accent justify-center">{{ _("Terminar entreno") }}</button>
+    </form>
+    {{ add_box(plan) }}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

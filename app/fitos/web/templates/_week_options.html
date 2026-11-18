@@ -1,0 +1,20 @@
+{% if options %}
+<ul class="mt-2 grid gap-1">
+  {% for ex in options %}
+  <li>
+    {% if mode == "swap" %}
+    <form method="post" action="/semana/items/{{ item.id }}" class="flex items-center justify-between gap-2 text-sm">
+      <input type="hidden" name="action" value="swap"><input type="hidden" name="exercise_id" value="{{ ex.id }}">
+      <span class="truncate">{{ ex.display_name }}</span><button class="btn py-0.5 text-xs">{{ _("usar") }}</button>
+    </form>
+    {% else %}
+    <form method="post" action="/semana/planes/{{ plan.id }}/items" class="flex items-center justify-between gap-2 text-sm">
+      <input type="hidden" name="exercise_id" value="{{ ex.id }}">
+      <span class="truncate">{{ ex.display_name }}</span><button class="btn py-0.5 text-xs">+ {{ _("agregar") }}</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% elif mode == "swap" %}<p class="text-xs text-mute mt-2">{{ _("No encontré alternativas con tu equipo.") }}</p>
+{% endif %}

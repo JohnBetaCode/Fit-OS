@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-end justify-between mb-4">
+  <div>
+    <div class="text-xs uppercase tracking-wider text-mute">{{ _("Hoy") }}</div>
+    <h1 class="text-2xl font-bold capitalize">{{ today_label }}</h1>
+  </div>
+  <div class="flex gap-2 text-center">
+    <div class="card py-2 px-3"><div class="text-[11px] text-mute">{{ _("Carga") }}</div><div class="font-semibold num">{{ load_pct }}%</div></div>
+    <div class="card py-2 px-3"><div class="text-[11px] text-mute">{{ _("Constancia") }}</div><div class="font-semibold num">{{ consistency }}</div></div>
+  </div>
+</div>
+
+{% if not onboarded %}
+<a href="/bienvenida" class="card block mb-4 border-accent/50 hover:border-accent">
+  <div class="font-semibold">👋 {{ _("Empieza por tu perfil") }}</div>
+  <p class="text-sm text-mute">{{ _("Objetivo, días de entreno, lesiones y equipo: con eso el planificador elige tus ejercicios.") }}</p>
+</a>
+{% endif %}
+{% if not has_catalog %}
+<div class="card mb-4 border-warn/50 text-sm">{{ _("<b>Catálogo vacío.</b> Falta importar el banco de ejercicios (<code>make catalog</code> o <code>make catalog-remote</code>).")|safe }}</div>
+{% endif %}
+
+<div class="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
+  <section class="card md:col-span-2 min-w-0">
+    {% if ws %}
+      <div class="flex items-center justify-between mb-2">
+        <div class="h2 mb-0">{{ _("Sesión en curso") }}</div>
+        <span class="chip text-accent border-accent/40">{{ {"active": _("en curso"), "finishing": _("cerrando")}.get(ws.state, ws.state) }}</span>
+      </div>
+      <div class="font-semibold text-lg mb-2">{{ _(ws.planned.focus_label) if ws.planned else _("Sesión libre") }}</div>
+      <p class="text-sm text-mute mb-3">{% if has_wa %}{{ _("{n} sets registrados. Sigue en WhatsApp o aquí.", n=ws.sets|length) }}{% else %}{{ _("{n} sets registrados.", n=ws.sets|length) }}{% endif %}</p>
+    {% endif %}
+    {% if plan %}
+      {% if not ws %}
+      <div class="flex items-center justify-between mb-1">
+        <div class="h2 mb-0">{{ _("Sesión de hoy") }}</div>
+        <span class="chip">{{ {"proposed": _("propuesta"), "accepted": _("aceptada"), "active": _("en curso"), "completed": _("hecha ✅"), "skipped": _("descanso"), "replaced": _("reemplazada")}.get(plan.status, plan.status) }}</span>
+      </div>
+      <div class="font-semibold text-lg">{{ _(plan.focus_label) }} <span class="text-mute font-normal text-sm">· {{ place or "" }}</span></div>
+      {% if plan.rationale %}<p class="text-sm text-mute mt-1 italic">{{ plan.rationale }}</p>{% endif %}
+      {% endif %}
+      <ol class="mt-3 divide-y divide-line/60">
+        {% for it in plan.items %}
+        <li class="py-2 flex items-center gap-3">
+          <span class="w-6 text-mute num">{{ loop.index }}</span>
+          {% if it.exercise.media_thumb %}<img src="/media/thumbs/{{ it.exercise.media_thumb }}" class="w-10 h-10 rounded-lg object-cover bg-panel2" loading="lazy" alt="" onerror="this.style.visibility='hidden'">{% endif %}
+          {% set wt = w(it.target_weight_kg, it.exercise) %}
+          {% set detail = it.sets ~ " × " ~ rep_range(it) ~ ((" · " ~ wt) if wt else "") %}
+          <div class="flex-1 min-w-0">
+            <a href="/ejercicios/{{ it.exercise_id }}" class="hover:text-accent">{{ it.exercise.display_name }}</a>
+            {% if it.status in ("done","skipped","swapped") %}<span class="chip ml-1">{{ {"done": _("hecho"), "skipped": _("saltado"), "swapped": _("cambiado")}[it.status] }}</span>{% endif %}
+            <div class="text-xs text-mute num sm:hidden">{{ detail }}</div>
+          </div>
+          <span class="hidden sm:inline text-sm text-mute num whitespace-nowrap">{{ detail }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      {% if plan.status in ("proposed","accepted","skipped") and not ws %}
+      <div class="flex flex-wrap gap-2 mt-4">
+        <a href="/entreno" class="btn btn-accent">▶ {{ _("Empezar aquí") }}</a>
+        {% if has_wa %}<span class="btn">{{ _("o escribe <b>1</b> en el grupo")|safe }}</span>{% endif %}
+        {% for ep in profiles if ep.id != plan.equipment_profile_id %}
+        <form method="post" action="/hoy/plan"><input type="hidden" name="action" value="build"><input type="hidden" name="equipment_profile_id" value="{{ ep.id }}"><button class="btn">{{ _("Cambiar a {place}", place=equipment_name(ep)) }}</button></form>
+        {% endfor %}
+        <form method="post" action="/hoy/plan"><input type="hidden" name="action" value="next_focus"><button class="btn">{{ _("Otro enfoque") }}</button></form>
+        {% if plan.status != "skipped" %}<form method="post" action="/hoy/plan"><input type="hidden" name="action" value="skip"><button class="btn">{{ _("Hoy descanso") }}</button></form>{% endif %}
+      </div>
+      {% endif %}
+    {% elif not ws %}
+      <div class="h2">{{ _("Sesión de hoy") }}</div>
+      <p class="text-mute text-sm mb-3">{{ _("Aún no hay plan para hoy.") }}</p>
+      <div class="flex flex-wrap gap-2">
+        <a href="/entreno" class="btn btn-accent">💪 {{ _("Armar mi entreno") }}</a>
+        <form method="post" action="/hoy/plan"><input type="hidden" name="action" value="build"><button class="btn">{{ _("Lo que me toca en el programa") }}</button></form>
+      </div>
+    {% endif %}
+    {% if ws %}<a href="/entreno" class="btn btn-accent mt-4">💪 {{ _("Seguir el entreno") }} →</a>{% endif %}
+  </section>
+
+  <section class="card">
+    <div class="h2">{{ _("Semana") }}</div>
+    <div class="grid grid-cols-7 gap-1 text-center mb-4">
+      {% for d in days %}
+      <div class="rounded-lg py-2 text-xs {% if d.done %}bg-accent text-black font-semibold{% elif d.date == today %}border border-accent/60{% elif d.planned %}bg-panel2{% else %}text-mute{% endif %}" title="{{ fmt_date(d.date) }}">{{ d.label }}</div>
+      {% endfor %}
+    </div>
+    <div class="h2">{{ _("Sets duros por músculo") }}</div>
+    {% for b in bars %}
+    <div class="flex items-center gap-2 text-sm mb-1.5">
+      <span class="w-24 text-mute truncate">{{ b.label }}</span>
+      <div class="flex-1 h-2 bg-panel2 rounded-full overflow-hidden"><div class="h-full rounded-full {% if b.status == 'ok' %}bg-accent{% elif b.status == 'high' %}bg-warn{% else %}bg-info/70{% endif %}" style="width: {{ b.pct }}%"></div></div>
+      <span class="w-8 text-right num">{{ b.value|num }}</span>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <div class="h2">{{ _("Avisos") }}</div>
+    {% if labs %}
+      <ul class="text-sm space-y-1">
+        {% if labs.out_of_target %}<li><a href="/examenes" class="hover:text-accent">🩸 {{ _("{n} marcador fuera de tu meta", n=labs.out_of_target) if labs.out_of_target == 1 else _("{n} marcadores fuera de tu meta", n=labs.out_of_target) }}</a></li>{% endif %}
+        {% if labs.out_of_range %}<li><a href="/examenes" class="hover:text-accent">⚠️ {{ _("{n} fuera del rango estándar", n=labs.out_of_range) }}</a></li>{% endif %}
+        {% if labs.needs_review %}<li><a href="/examenes" class="hover:text-accent">📝 {{ _("{n} valor por confirmar", n=labs.needs_review) if labs.needs_review == 1 else _("{n} valores por confirmar", n=labs.needs_review) }}</a></li>{% endif %}
+      </ul>
+    {% else %}<p class="text-sm text-mute">{{ _("Sin avisos.") }}</p>{% endif %}
+  </section>
+
+  <section class="card md:col-span-2">
+    <div class="h2">{{ _("Últimos récords") }}</div>
+    {% if prs %}
+      <ul class="text-sm divide-y divide-line/60">
+      {% for pr in prs %}<li class="py-1.5 flex justify-between gap-2"><span class="truncate">🏆 {{ pr.exercise }}</span><span class="text-mute num whitespace-nowrap">{{ pr.reps }} × {{ pr.weight_kg|kg }} kg{% if pr.e1rm_kg %} · e1RM {{ pr.e1rm_kg|num }}{% endif %}</span></li>{% endfor %}
+      </ul>
+    {% else %}<p class="text-sm text-mute">{{ _("Los récords aparecen cuando repites un ejercicio y lo superas.") }}</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

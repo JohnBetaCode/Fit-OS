@@ -1,0 +1,26 @@
+name: ci
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt && pip install -e ".[dev]"
+      - run: ruff check fitos tests
+      - run: pytest -q
+      - name: migrations
+        run: |
+          export DATABASE_URL=sqlite:///$(mktemp -d)/ci.sqlite
+          alembic upgrade head && alembic check

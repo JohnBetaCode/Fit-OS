@@ -1,0 +1,22 @@
+[
+  {"id": "0001", "name": "dumbbell bench press", "category": "chest", "body_part": "chest", "equipment": "dumbbell",
+   "instructions": {"en": "Press.", "es": "Empuja."}, "instruction_steps": {"en": ["Lie down.", "Press."], "es": ["Acuéstate en el banco.", "Empuja las mancuernas."]},
+   "muscle_group": "triceps", "secondary_muscles": ["triceps", "shoulders"], "target": "pectorals",
+   "image": "images/0001-aaa.jpg", "gif_url": "videos/0001-aaa.gif", "media_id": "aaa", "attribution": "© Gym visual — https://gymvisual.com/"},
+  {"id": "0002", "name": "pull-up", "category": "back", "body_part": "back", "equipment": "body weight",
+   "instructions": {"es": "Sube."}, "instruction_steps": {"es": ["Cuélgate de la barra.", "Sube hasta pasar la barbilla."]},
+   "muscle_group": "lats", "secondary_muscles": ["biceps"], "target": "lats",
+   "image": "images/0002-bbb.jpg", "gif_url": "videos/0002-bbb.gif", "media_id": "bbb", "attribution": "© Gym visual — https://gymvisual.com/"},
+  {"id": "0003", "name": "barbell back squat", "category": "upper legs", "body_part": "upper legs", "equipment": "barbell",
+   "instructions": {"es": "Baja."}, "instruction_steps": {"es": ["Coloca la barra.", "Baja y sube."]},
+   "muscle_group": "quads", "secondary_muscles": ["glutes"], "target": "quads",
+   "image": "images/0003-ccc.jpg", "gif_url": "videos/0003-ccc.gif", "media_id": "ccc", "attribution": "© Gym visual — https://gymvisual.com/"},
+  {"id": "0004", "name": "push-up", "category": "chest", "body_part": "chest", "equipment": "body weight",
+   "instructions": {"es": "Empuja."}, "instruction_steps": {"es": ["Apoya las manos.", "Baja el pecho."]},
+   "muscle_group": "chest", "secondary_muscles": ["triceps"], "target": "pectorals",
+   "image": "images/0004-ddd.jpg", "gif_url": "videos/0004-ddd.gif", "media_id": "ddd", "attribution": "© Gym visual — https://gymvisual.com/"},
+  {"id": "0005", "name": "tire flip", "category": "cardio", "body_part": "cardio", "equipment": "tire",
+   "instructions": {"es": "Voltea."}, "instruction_steps": {"es": ["Agarra la llanta.", "Voltéala."]},
+   "muscle_group": "glutes", "secondary_muscles": [], "target": "glutes",
+   "image": "images/0005-eee.jpg", "gif_url": "videos/0005-eee.gif", "media_id": "eee", "attribution": "© Gym visual — https://gymvisual.com/"}
+]

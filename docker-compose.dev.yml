@@ -1,0 +1,12 @@
+# Local development: `make dev`. Code mounted with --reload, fake WAHA and Claude, simulated identity.
+services:
+  fitos:
+    command: ["uvicorn", "fitos.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/fitos"]
+    environment:
+      APP_ENV: development
+      WAHA_MODE: fake
+      DEV_USER_LOGIN: dev@localhost
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ./app/fitos:/app/fitos
+      - ./app/migrations:/app/migrations

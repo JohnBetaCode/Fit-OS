@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <div class="flex items-center gap-3 mb-5">
+    <span class="font-bold tracking-tight text-lg">Fit<span class="text-accent">·</span>OS</span>
+    {% if step <= steps|length %}
+    <span class="text-xs text-mute ml-auto">{{ _("Paso {n} de {total}", n=step, total=steps|length) }}</span>
+    {% endif %}
+  </div>
+
+  {% if step <= steps|length %}
+  <ol class="grid grid-cols-4 gap-2 mb-6" aria-label="{{ _("Pasos") }}">
+    {% for title in steps %}
+    <li class="text-[11px] {% if loop.index == step %}text-ink{% else %}text-mute{% endif %}">
+      <div class="h-1.5 rounded-full mb-1 {% if loop.index <= step %}bg-accent{% else %}bg-panel2{% endif %}"></div>
+      <a href="/bienvenida?paso={{ loop.index }}" {% if loop.index == step %}aria-current="step"{% endif %}>{{ title }}</a>
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+
+  {% if step == 1 %}
+  <h1 class="text-2xl font-bold mb-1">👋 {{ _("Hola{name}, te damos la bienvenida a Fit-OS", name=(", " ~ default_name) if default_name else "") }}</h1>
+  <p class="text-sm text-mute mb-5">{{ _("Unas preguntas cortas para armar tus entrenos. Puedes cambiar todo después en Perfil.") }}</p>
+  <form method="post" action="/bienvenida/1" class="card grid gap-3">
+    <label><span class="label">{{ _("¿Cómo te llamamos?") }}</span><input name="display_name" value="{{ default_name }}" class="input" maxlength="64" autocomplete="given-name"></label>
+    <fieldset><legend class="label">{{ _("Sexo (para los rangos de los exámenes)") }}</legend>
+      <div class="grid grid-cols-2 gap-2">
+        {% for k, v in sexes.items() %}<label class="btn justify-center has-[:checked]:border-accent"><input type="radio" name="sex" value="{{ k }}" class="sr-only" {% if p.sex == k %}checked{% endif %}>{{ v }}</label>{% endfor %}
+      </div></fieldset>
+    <div class="grid grid-cols-3 gap-3">
+      <label class="col-span-3 sm:col-span-1"><span class="label">{{ _("Nacimiento") }}</span><input type="date" name="birth_date" value="{{ p.birth_date or '' }}" class="input"></label>
+      <label><span class="label">{{ _("Estatura (cm)") }}</span><input name="height_cm" value="{{ p.height_cm|kg if p.height_cm else '' }}" class="input" inputmode="decimal"></label>
+      <label><span class="label">{{ _("Peso (kg)") }}</span><input name="weight_kg" value="{{ weight.value|kg if weight else '' }}" class="input" inputmode="decimal"></label>
+    </div>
+    <div class="flex justify-end"><button class="btn btn-accent">{{ _("Siguiente") }} →</button></div>
+  </form>
+
+  {% elif step == 2 %}
+  <h1 class="text-2xl font-bold mb-1">🎯 {{ _("¿Qué buscas?") }}</h1>
+  <p class="text-sm text-mute mb-5">{{ _("Con esto se eligen las repeticiones, el volumen y los ejercicios.") }}</p>
+  <form method="post" action="/bienvenida/2" class="card grid gap-4">
+    <fieldset><legend class="label">{{ _("Objetivo principal") }}</legend>
+      <div class="grid gap-2 sm:grid-cols-2">
+        {% for k, v in goals.items() %}<label class="btn has-[:checked]:border-accent"><input type="radio" name="primary_goal" value="{{ k }}" class="sr-only" {% if p.primary_goal == k %}checked{% endif %}>{{ v }}</label>{% endfor %}
+      </div></fieldset>
+    <fieldset><legend class="label">{{ _("Experiencia en el gimnasio") }}</legend>
+      <div class="grid grid-cols-3 gap-2">
+        {% for k, v in levels.items() %}<label class="btn justify-center has-[:checked]:border-accent"><input type="radio" name="experience" value="{{ k }}" class="sr-only" {% if p.experience == k %}checked{% endif %}>{{ v }}</label>{% endfor %}
+      </div></fieldset>
+    <label><span class="label">{{ _("Algo más sobre tu objetivo (opcional)") }}</span><input name="goal_notes" value="{{ p.goal_notes or '' }}" class="input" placeholder="{{ _("Ej.: correr una media maratón, bajar 5 kg") }}"></label>
+    {% set hurt = (p.injuries or [])|map(attribute="area")|list %}
+    <fieldset><legend class="label">{{ _("¿Alguna molestia o lesión? (se evitan ejercicios que la carguen)") }}</legend>
+      <div class="flex flex-wrap gap-2">
+        {% for k, v in joints.items() %}<label class="chip cursor-pointer has-[:checked]:border-accent has-[:checked]:text-ink"><input type="checkbox" name="inj_{{ k }}" value="1" class="sr-only" {% if k in hurt %}checked{% endif %}>{{ v }}</label>{% endfor %}
+      </div>
+      <input name="injury_notes" value="{{ (p.injuries or [{}])[0].get('notes', '') if p.injuries else '' }}" class="input mt-2" placeholder="{{ _("Detalle (opcional)") }}"></fieldset>
+    <div class="flex justify-between"><a href="/bienvenida?paso=1" class="btn">← {{ _("Atrás") }}</a><button class="btn btn-accent">{{ _("Siguiente") }} →</button></div>
+  </form>
+
+  {% elif step == 3 %}
+  <h1 class="text-2xl font-bold mb-1">🗓️ {{ _("Tu semana") }}</h1>
+  <p class="text-sm text-mute mb-5">{{ _("Qué días entrenas y dónde. El programa se arma según cuántos días elijas.") }}</p>
+  {% if request.query_params.get("error") == "dias" %}<div class="card mb-3 border-bad/60 text-sm" role="alert">⚠️ {{ _("Elige al menos un día.") }}</div>{% endif %}
+  <form method="post" action="/bienvenida/3" class="card grid gap-4">
+    <fieldset><legend class="label">{{ _("Días de entreno") }}</legend>
+      <div class="grid grid-cols-7 gap-1">
+        {% for d in weekdays %}<label class="btn justify-center px-0 has-[:checked]:bg-accent has-[:checked]:text-black has-[:checked]:border-accent"><input type="checkbox" name="day_{{ d }}" value="1" class="sr-only" {% if d in (p.schedule or {}) %}checked{% endif %}><span aria-label="{{ weekday_names[d] }}">{{ weekday_names[d][:2] }}</span></label>{% endfor %}
+      </div></fieldset>
+    <div class="grid grid-cols-2 gap-3">
+      <label><span class="label">{{ _("Hora habitual") }}</span><input type="time" name="time" value="{{ first_time }}" class="input"></label>
+      <label><span class="label">{{ _("Minutos por sesión") }}</span><input name="session_minutes" value="{{ p.session_minutes }}" class="input" inputmode="numeric"></label>
+    </div>
+    <fieldset><legend class="label">{{ _("¿Dónde entrenas?") }}</legend>
+      <div class="grid grid-cols-2 gap-2">
+        {% for ep in eps %}<label class="btn justify-center has-[:checked]:border-accent"><input type="radio" name="equipment_profile_id" value="{{ ep.id }}" class="sr-only" {% if (first_ep and ep.id == first_ep) or (not first_ep and ep.is_default) %}checked{% endif %}>{{ "🏋️" if ep.kind == "gym" else "🏠" }} {{ equipment_name(ep) }}</label>{% endfor %}
+      </div>
+      <p class="text-xs text-mute mt-1">{{ _("Qué máquinas y pesos hay en cada lugar lo ajustas en Perfil → Equipo.") }}</p></fieldset>
+    <div class="flex justify-between"><a href="/bienvenida?paso=2" class="btn">← {{ _("Atrás") }}</a><button class="btn btn-accent">{{ _("Siguiente") }} →</button></div>
+  </form>
+
+  {% elif step == 4 %}
+  <h1 class="text-2xl font-bold mb-1">📋 {{ _("Tu programa") }}</h1>
+  <p class="text-sm text-mute mb-5">{{ _("Una rotación de días: cada entreno toma el siguiente. Para {n} días por semana te recomendamos el primero.", n=p.days_per_week) }}</p>
+  <form method="post" action="/bienvenida/4" class="grid gap-3">
+    {% for o in options %}
+    <label class="card cursor-pointer has-[:checked]:border-accent block">
+      <div class="flex items-center gap-2"><input type="radio" name="template_key" value="{{ o.key }}" {% if o.key == chosen %}checked{% endif %}>
+        <span class="font-semibold">{{ _(o.name) }}</span>
+        {% if o.recommended %}<span class="chip text-accent border-accent/50">{{ _("recomendado") }}</span>{% endif %}
+        {% if o.per_week %}<span class="text-xs text-mute ml-auto">{{ _("pensado para {n} días", n=o.per_week) }}</span>{% endif %}</div>
+      <div class="text-xs text-mute mt-1 pl-6">{% for d in o.days %}{{ _(d) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+    </label>
+    {% endfor %}
+    <div class="flex justify-between"><a href="/bienvenida?paso=3" class="btn">← {{ _("Atrás") }}</a><button class="btn btn-accent">{{ _("Empezar") }} 💪</button></div>
+  </form>
+
+  {% else %}
+  <h1 class="text-2xl font-bold mb-1">✅ {{ _("¡Listo!") }}</h1>
+  <p class="text-sm text-mute mb-5">{{ _("Tu perfil y tu programa están armados.") }}</p>
+  <div class="card grid gap-2 text-sm mb-4">
+    <div>📋 <b>{{ _(program.name) if program else "—" }}</b></div>
+    <div>🗓️ {% for d in weekdays if d in (p.schedule or {}) %}{{ weekday_names[d] }}{% if not loop.last %}, {% endif %}{% endfor %} · {{ first_time }}{% if place %} · {{ place }}{% endif %}</div>
+    <div>🎯 {{ goals.get(p.primary_goal, p.primary_goal) }} · {{ levels.get(p.experience, p.experience) }}</div>
+  </div>
+  <ul class="text-sm text-mute space-y-1 mb-5 list-disc pl-5">
+    <li>{{ _("En Hoy ves el entreno del día; en Semana, los próximos.") }}</li>
+    <li>{{ _("Los pesos se ajustan solos con lo que vas registrando.") }}</li>
+    <li>{{ _("Todo esto se cambia en Perfil y en Ajustes → Programa.") }}</li>
+  </ul>
+  <a href="/" class="btn btn-accent">{{ _("Ver mi entreno de hoy") }} →</a>
+  {% endif %}
+
+  {% if step <= steps|length %}
+  <form method="post" action="/bienvenida/saltar" class="mt-6 text-center"><button class="text-xs text-mute hover:text-ink underline">{{ _("Completar después") }}</button></form>
+  {% endif %}
+</div>
+{% endblock %}

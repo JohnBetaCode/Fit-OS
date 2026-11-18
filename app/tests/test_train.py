@@ -1,0 +1,150 @@
+"""Assisted training (Train tab): build the day from muscle groups or the program, respect the place and what's
+missing today, adjust before and during, and log a whole workout from the web."""
+
+from __future__ import annotations
+
+import random
+from datetime import date
+
+import pytest
+from factories import make_catalog, make_equipment_profiles, make_profile
+from fastapi.testclient import TestClient
+
+from fitos.core.db import session_scope
+from fitos.core.models import PlannedSession, WorkoutSession
+from fitos.main import app
+from fitos.training import assist
+from fitos.training import service as tr
+from fitos.training.planner import create_program_from_template
+
+DAY = date(2026, 11, 18)
+
+
+@pytest.fixture
+def world(db):
+    make_profile(db, onboarded=True, schedule={"wed": {"equipment_profile_id": None, "time": "18:00"}})
+    casa, gym = make_equipment_profiles(db)
+    cat = make_catalog(db)
+    db.commit()
+    return {"casa": casa.id, "gym": gym.id, "cat": cat}
+
+
+def _muscles(plan: PlannedSession) -> list[str]:
+    return [it.exercise.primary_muscle for it in plan.items]
+
+
+def test_groups_alternate_and_start_with_compounds(db, world):
+    setup = assist.Setup(on=DAY, equipment_profile_id=world["gym"], focus="groups", groups=["chest", "shoulders"],
+                         count=4, mode="smart")
+    plan = assist.build(db, setup)
+    assert _muscles(plan) == ["chest", "delts", "chest", "delts"]
+    assert [it.exercise.mechanic for it in plan.items][:2] == ["compound", "compound"]
+    assert plan.items[2].exercise.mechanic == "isolation" and plan.focus_label == "Pecho + Hombro"
+    assert len({it.exercise_id for it in plan.items}) == 4  # no repeats
+
+
+def test_home_and_missing_equipment_are_respected(db, world):
+    home = assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["casa"], focus="groups",
+                                         groups=["chest", "back"], count=4))
+    assert all(it.exercise.equipment_tag in ("dumbbell", "bodyweight") for it in home.items)
+    gym = assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["gym"], focus="groups",
+                                        groups=["chest", "legs"], count=6, missing=["barbell", "cable"]))
+    assert not {it.exercise.equipment_tag for it in gym.items} & {"barbell", "cable"}
+    assert assist.today_missing(db, DAY) == {"barbell", "cable"}
+    # alternatives for an item also skip what's missing
+    opts = assist.options(db, gym.items[0])
+    assert opts and not {e.equipment_tag for e in opts} & {"barbell", "cable"}
+
+
+def test_random_mode_varies_but_stays_on_target(db, world):
+    seen = set()
+    for seed in range(8):
+        plan = assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["gym"], focus="groups",
+                                             groups=["chest"], count=2, mode="random"), rng=random.Random(seed))
+        assert _muscles(plan) == ["chest", "chest"]
+        seen.add(plan.items[0].exercise_id)
+    assert len(seen) > 1
+
+
+def test_program_focus_swaps_what_is_missing(db, world):
+    create_program_from_template(db, "upper_lower_4", 4)
+    plan = assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["gym"], focus="program",
+                                         missing=["barbell"]))
+    assert plan.items and all(it.exercise.equipment_tag != "barbell" for it in plan.items)
+
+
+def test_reroll_add_remove_and_live_rules(db, world):
+    plan = assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["gym"], focus="groups",
+                                         groups=["chest"], count=2))
+    first = plan.items[0]
+    old = first.exercise_id
+    assist.reroll(db, first, rng=random.Random(1))
+    assert first.exercise_id != old and first.exercise.primary_muscle == "chest"
+    added = assist.add(db, plan, group="biceps", rng=random.Random(2))
+    assert added.exercise.primary_muscle == "biceps"
+    assist.remove(db, added)
+    assert len(plan.items) == 2
+    ws = tr.start_session(db, plan, source="web")
+    from fitos.wa.parser import SetEntry
+
+    tr.log_sets(db, ws, plan.items[0], [SetEntry(reps=8, weight_kg=40)])
+    with pytest.raises(ValueError):
+        assist.reroll(db, plan.items[0])  # it already has sets
+    with pytest.raises(ValueError):
+        assist.remove(db, plan.items[0])
+    live_add = assist.add(db, plan, exercise_id="pushdown")  # adding works mid-workout
+    assert live_add in plan.items and plan.status == "active"
+    assist.remove(db, plan.items[1])
+    assert plan.items[1].status == "skipped"
+
+
+def test_whole_workout_from_the_web(world):
+    with TestClient(app, follow_redirects=False) as c:
+        assert "Armemos tu entreno" in c.get("/entreno").text
+        r = c.post("/entreno/armar", data={"equipment_profile_id": str(world["gym"]), "focus": "groups",
+                                           "g_chest": "1", "g_triceps": "1", "count": "3", "mode": "smart",
+                                           "date": DAY.isoformat()})
+        assert r.status_code == 303 and r.headers["location"].startswith("/entreno?plan=")
+        review = c.get(r.headers["location"])
+        assert review.status_code == 200 and "Empezar" in review.text
+        with session_scope() as s:
+            plan = s.query(PlannedSession).filter_by(date=DAY, status="proposed").one()
+            pid, items = plan.id, [it.id for it in plan.items]
+        assert "usar" in c.get(f"/entreno/items/{items[0]}/opciones").text
+        assert c.post("/entreno/empezar", data={"plan_id": pid}).headers["location"] == "/entreno"
+        live = c.get("/entreno")
+        assert "en curso" in live.text and "Serie 1" in live.text
+        r = c.post("/entreno/series", data={"item_id": items[0], "reps": "8", "weight_kg": "60", "rir": "2"})
+        assert "descanso=" in r.headers["location"]
+        assert "Serie 2" in c.get("/entreno").text
+        c.post(f"/entreno/items/{items[2]}", data={"action": "focus"})
+        c.post("/entreno/series", data={"item_id": items[2], "reps": "12", "weight_kg": "20", "rir": ""})
+        r = c.post("/entreno/series", data={"item_id": items[2], "reps": "10", "weight_kg": "", "rir": ""})
+        assert "descanso=" in r.headers["location"]  # empty kg / RIR from the form are fine (bodyweight)
+        assert c.post("/entreno/series", data={"item_id": items[2], "reps": "500"}).status_code == 303  # refused
+        r = c.post("/entreno/terminar", data={"rpe": "8"})
+        assert r.headers["location"].startswith("/entrenos/")
+    with session_scope() as s:
+        ws = s.query(WorkoutSession).one()
+        assert ws.state == "completed" and ws.session_rpe == 8 and ws.date == DAY and ws.source == "web"
+        assert sorted((st.reps, st.weight_kg or 0) for st in ws.sets) == [(8, 60.0), (10, 0), (12, 20.0)]
+
+
+def test_manual_mode_starts_empty_and_needs_an_exercise(world):
+    with TestClient(app, follow_redirects=False) as c:
+        r = c.post("/entreno/armar", data={"equipment_profile_id": str(world["casa"]), "focus": "groups",
+                                           "g_abs": "1", "mode": "manual"})
+        page = c.get(r.headers["location"])
+        assert "Todavía no hay ejercicios" in page.text
+        pid = int(r.headers["location"].split("=")[1])
+        assert "error=" in c.post("/entreno/empezar", data={"plan_id": pid}).headers["location"]
+        assert "crunch" in c.get(f"/entreno/planes/{pid}/buscar", params={"q": "crunch"}).text
+        c.post(f"/entreno/planes/{pid}/agregar", data={"exercise_id": "crunch"})
+        assert c.post("/entreno/empezar", data={"plan_id": pid}).headers["location"] == "/entreno"
+
+
+def test_setup_remembers_the_last_choice(db, world):
+    assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["casa"], focus="groups",
+                                  groups=["legs"], count=5, mode="random"))
+    s = assist.last_setup(db, DAY)
+    assert (s.equipment_profile_id, s.focus, s.groups, s.count, s.mode) == (world["casa"], "groups", ["legs"], 5, "random")

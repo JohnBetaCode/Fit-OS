@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Simulador WA") }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <div class="flex items-center justify-between mb-3">
+    <div class="h2 mb-0">💪 {{ _("Gym · simulador") }}</div>
+    <span class="chip">WAHA_MODE=fake</span>
+  </div>
+  <div id="log" class="card h-[65vh] overflow-y-auto flex flex-col gap-2"
+       hx-get="/dev/wa/log" hx-trigger="every 1s" hx-swap="innerHTML">
+    {% include "_dev_wa_log.html" %}
+  </div>
+  <div id="quote" class="hidden mt-3 card py-2 text-xs text-mute flex items-center justify-between gap-2">
+    <span id="quote-text" class="truncate"></span><button type="button" class="text-bad" onclick="clearQuote()">✕</button>
+  </div>
+  <form id="send" class="mt-3 flex gap-2" hx-post="/dev/wa" hx-target="#log" hx-swap="innerHTML"
+        hx-on::after-request="this.reset(); clearQuote(); this.querySelector('input[name=text]').focus()">
+    <input type="hidden" name="reply_to" id="reply_to">
+    <input name="text" class="input" placeholder="{{ _("Escribe como en el grupo… (hoy, 1, 10x40, ocupada, fin)") }}" autocomplete="off" autofocus>
+    <button class="btn btn-accent">{{ _("Enviar") }}</button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.body.addEventListener('htmx:afterSwap', e => { if (e.target.id === 'log') e.target.scrollTop = e.target.scrollHeight; });
+  window.addEventListener('load', () => { const l = document.getElementById('log'); l.scrollTop = l.scrollHeight; });
+  // Swipe → reply, like WhatsApp: the next message quotes this one
+  function quote(id, text) {
+    document.getElementById('reply_to').value = id;
+    document.getElementById('quote-text').textContent = '↩️ ' + text;
+    document.getElementById('quote').classList.remove('hidden');
+    document.querySelector('#send input[name=text]').focus();
+  }
+  function clearQuote() {
+    document.getElementById('reply_to').value = '';
+    document.getElementById('quote').classList.add('hidden');
+  }
+</script>
+{% endblock %}

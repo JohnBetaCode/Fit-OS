@@ -1,0 +1,12 @@
+{% for m in messages %}
+  <div class="max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap {% if m.direction == 'in' %}self-end bg-accent/20 border border-accent/30{% else %}self-start bg-panel2 border border-line{% endif %}">
+    {% set url = media_url(m) %}
+    {% if url and m.kind == 'video' %}<video src="{{ url }}" autoplay loop muted playsinline class="rounded-lg mb-2 w-48"></video>{% endif %}
+    {% if url and m.kind == 'image' %}<img src="{{ url }}" class="rounded-lg mb-2 w-48" alt="">{% endif %}
+    {{- m.body -}}
+    <div class="text-[10px] text-mute mt-1">{{ m.status }}{% if m.handler %} · {{ m.handler }}{% endif %}{% if m.quoted_wa_id %} · ↩️{% endif %}
+      {% if m.direction == 'out' and m.wa_id %}<button type="button" class="ml-2 text-accent" onclick="quote({{ m.wa_id|tojson|forceescape }}, {{ (m.body or '')[:80]|tojson|forceescape }})">↩️ {{ _("responder") }}</button>{% endif %}</div>
+  </div>
+{% else %}
+  <p class="text-mute text-sm">{{ _("Escribe <b>ping</b> o <b>ayuda</b>.")|safe }}</p>
+{% endfor %}

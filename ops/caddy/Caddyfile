@@ -1,0 +1,40 @@
+# Single entry point for the dashboard: HTTPS (Caddy's internal CA) in front of the app.
+# The app only trusts requests carrying X-Fitos-Proxy = PROXY_SECRET (header_up overwrites any value a client
+# sends) and then asks for a user and password itself (/entrar, a 90-day "remember me" cookie). Users live in
+# ${DATA_DIR}/caddy/users.caddy (outside the repo), one `username <bcrypt hash>` per line:
+#   make web-user U=me        (or: docker run --rm caddy:2-alpine caddy hash-password --plaintext 'secret')
+#
+# Open it by IP or by a short hostname. With a `*.ts.net` name Caddy tries to fetch the certificate from
+# tailscaled (not reachable from the container) and the TLS handshake fails.
+
+# Plain http:// to the HTTPS port (a phone typing the address without "https") gets a redirect to https://
+# on the same port instead of "Client sent an HTTP request to an HTTPS server".
+{
+	servers :8444 {
+		listener_wrappers {
+			http_redirect
+			tls
+		}
+	}
+}
+
+# The WAHA webhook does not come through here (it reaches fitos:8000 directly on wa-shared).
+(portal) {
+	reverse_proxy fitos:8000 {
+		header_up X-Fitos-Proxy {$PROXY_SECRET}
+	}
+}
+
+# HTTPS with Caddy's internal CA: devices show a warning unless they trust its root (Settings → On your phone).
+:8444 {
+	tls internal {
+		on_demand
+	}
+	import portal
+}
+
+# Plain HTTP for a TLS-terminating proxy on the same host that has a publicly trusted certificate, e.g.
+# `tailscale serve --bg --https=443 http://127.0.0.1:8445`. Published on 127.0.0.1 only (docker-compose.yml).
+http://:8445 {
+	import portal
+}

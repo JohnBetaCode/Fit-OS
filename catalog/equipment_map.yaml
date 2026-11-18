@@ -1,0 +1,30 @@
+# Dataset `equipment` (hasaneyldrm/exercises-dataset) → Fit-OS `equipment_tag` (docs/design.md §6.3).
+# A value missing here is imported as `other` and the import reports it.
+body weight: bodyweight
+dumbbell: dumbbell
+cable: cable
+barbell: barbell
+olympic barbell: barbell
+leverage machine: machine
+band: band
+resistance band: band
+smith machine: smith
+kettlebell: kettlebell
+weighted: plate
+stability ball: stability_ball
+medicine ball: medicine_ball
+bosu ball: bosu
+ez barbell: ez_bar
+trap bar: trap_bar
+assisted: assisted_machine
+sled machine: sled
+rope: rope
+roller: foam_roller
+wheel roller: ab_wheel
+upper body ergometer: cardio_machine
+skierg machine: cardio_machine
+stationary bike: cardio_machine
+elliptical machine: cardio_machine
+stepmill machine: cardio_machine
+hammer: other
+tire: other

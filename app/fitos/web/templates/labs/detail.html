@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% from "labs/_macros.html" import status_chip, subnav, legend_status %}
+{% block title %}{{ d.name }}{% endblock %}
+{% block content %}
+{{ subnav(sub) }}
+{% set bm = d.bm %}
+<a href="/examenes" class="text-sm text-mute hover:text-ink">‹ {{ _("Exámenes") }}</a>
+
+<header class="mt-2 mb-4">
+  {% set bm_name = d.name %}{% set bm_alt = bm.name_en if lang() == "es" else bm.name_es %}
+  <h1 class="text-xl font-semibold">{{ bm_name }}{% if bm_alt and bm_alt != bm_name %} <span class="text-sm font-normal text-mute">{{ bm_alt }}</span>{% endif %}</h1>
+  {% if d.last %}
+  <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-1">
+    <span class="text-3xl font-semibold">{{ d.last.value | num(bm.decimals) }}</span>
+    <span class="text-mute">{{ bm.canonical_unit }}</span>
+    {{ status_chip(d.last.status, d.last.status_label) }}
+    <span class="text-xs text-mute">{{ d.last.label }}</span>
+  </div>
+  {% endif %}
+  {% set bm_desc = d.description %}
+  {% if bm_desc %}<p class="text-sm text-mute mt-2 max-w-2xl">{{ bm_desc }}</p>{% endif %}
+  <div class="flex flex-wrap gap-2 mt-3 text-xs">
+    {% if d.std_now_text %}<span class="chip">{{ _("estándar {range}", range=d.std_now_text) }}</span>{% endif %}
+    {% if d.target_text %}<span class="chip">{{ _("meta {range}", range=d.target_text) }}{% if d.target_label %} · {{ d.target_label }}{% endif %}</span>{% endif %}
+    <span class="chip">{{ _("{n} fuera de meta", n=d.counts.out_of_target) }}</span>
+    <span class="chip">{{ _("{n} fuera de rango", n=d.counts.out_of_range) }}</span>
+    {% if d.counts.needs_review %}<span class="chip border-warn/60 text-warn">{{ _("{n} por confirmar", n=d.counts.needs_review) }}</span>{% endif %}
+  </div>
+</header>
+
+{% if d.points %}
+<section class="card mb-4">
+  <div id="labs-chart" class="w-full h-72" role="img"
+       aria-label="{{ _("Serie de {name} en el tiempo; los valores están en la tabla de abajo", name=bm_name) }}"></div>
+  <div class="mt-2">{{ legend_status() }}</div>
+  <script type="application/json" id="labs-chart-data">{{ d.chart | tojson }}</script>
+  <script type="application/json" id="labs-chart-i18n">{{ {"months": months_short(), "target": _("meta"), "std": _("estándar"), "borderline": _("limítrofe"), "review": _("por confirmar")} | tojson }}</script>
+</section>
+{% else %}
+<div class="card text-sm text-mute mb-4">{{ _("Aún no hay valores de este marcador.") }}</div>
+{% endif %}
+
+<div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
+  {% if d.points %}
+  <section class="card overflow-x-auto">
+    <h2 class="h2">{{ _("Valores") }}</h2>
+    <table class="tbl [&_th]:pr-3 [&_td]:pr-3">
+      <thead><tr><th>{{ _("Fecha") }}</th><th class="text-right">{{ _("Valor") }}</th><th>{{ _("Estado") }}</th><th>{{ _("Estándar") }}</th>{% if d.has_ref %}<th>{{ _("Rango del informe") }}</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for p in d.points | reverse %}
+        <tr>
+          <td class="whitespace-nowrap">{{ p.label }}</td>
+          <td class="text-right num whitespace-nowrap">{{ p.comparator or "" }}{{ p.value | num(bm.decimals) }}</td>
+          <td>{{ status_chip(p.status, p.status_label) }}
+            {% if p.needs_review %}<span class="chip border-warn/60 text-warn ml-1">{{ _("por confirmar") }}</span>{% endif %}
+            {% if p.derived %}<span class="chip ml-1">{{ _("calculado") }}</span>{% endif %}</td>
+          <td class="num whitespace-nowrap">{{ p.std_text }}</td>
+          {% if d.has_ref %}<td class="num whitespace-nowrap text-mute">{{ p.ref_text or "—" }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not age_known %}<p class="text-xs text-mute mt-2">{{ _("Sin fecha de nacimiento en el Perfil: se usa la banda de edad más amplia.") }}</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <div class="grid gap-4 content-start">
+    {% if d.food_positive or d.food_negative %}
+    <section class="card">
+      <h2 class="h2">{{ _("Alimentos") }}</h2>
+      {% if d.food_positive %}
+      <h3 class="text-xs text-mute mb-1">{{ _("A favor") }}</h3>
+      <ul class="flex flex-wrap gap-1.5 mb-3">{% for f in d.food_positive %}<li class="chip text-ink"><span class="text-accent mr-1" aria-hidden="true">+</span>{{ f }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if d.food_negative %}
+      <h3 class="text-xs text-mute mb-1">{{ _("En contra") }}</h3>
+      <ul class="flex flex-wrap gap-1.5">{% for f in d.food_negative %}<li class="chip text-ink"><span class="text-bad mr-1" aria-hidden="true">−</span>{{ f }}</li>{% endfor %}</ul>
+      {% endif %}
+    </section>
+    {% elif d.note_raw %}
+    <section class="card"><h2 class="h2">{{ _("Notas") }}</h2><p class="text-sm">{{ d.note_raw }}</p></section>
+    {% endif %}
+
+    <section class="card">
+      <h2 class="h2">{{ _("Rangos") }}</h2>
+      {% if not d.legend %}<p class="text-sm text-mute">{{ _("Sin rango estándar para este marcador.") }}</p>{% endif %}
+      <ul class="grid gap-2 text-sm">
+        {% for l in d.legend %}
+        <li class="flex gap-2">
+          {% if l.kind == "lab_standard" %}<span class="mt-1 w-3 h-3 rounded-sm bg-ink/15 shrink-0" aria-hidden="true"></span>
+          {% elif l.kind == "borderline" %}<span class="mt-1 w-3 h-3 rounded-sm bg-warn/30 shrink-0" aria-hidden="true"></span>
+          {% else %}<span class="mt-2 w-3 border-t-2 border-dashed border-accent shrink-0" aria-hidden="true"></span>{% endif %}
+          <div>
+            <div><span class="font-medium">{{ l.name }}</span> <span class="num">{{ l.text }}</span>{% if l.label %} · {{ l.label }}{% endif %}{% if l.who %} <span class="text-mute">({{ l.who }})</span>{% endif %}</div>
+            <div class="text-xs text-mute">{{ _("Importada de tus notas") if l.source == "seed_csv" else (l.source or _("Sin fuente")) }}{% if l.drawn is defined and not l.drawn %} · {{ _("coincide con el estándar, no se dibuja aparte") }}{% endif %}</div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="text-xs text-mute mt-3">{{ _("Puntos de partida de guías e insertos; no reemplazan el rango de tu laboratorio ni el criterio médico.") }}</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if d.points %}
+<script src="/static/vendor/echarts.min.js"></script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById("labs-chart-data").textContent);
+  const L = JSON.parse(document.getElementById("labs-chart-i18n").textContent);
+  const T = { surface: "#14171c", grid: "#262b33", mute: "#8b95a3", ink: "#e8ecf1", line: "#8b95a3",
+              accent: "#3ddc97", warn: "#f5b942" };
+  // Estado = color + forma: nunca solo color.
+  const ST = {
+    optimal: { c: "#3ddc97", s: "circle", g: "●" },
+    in_range: { c: "#5aa9ff", s: "diamond", g: "◆" },
+    borderline: { c: "#f5b942", s: "triangle", g: "▲" },
+    out_of_range: { c: "#ff6b6b", g: "✕",
+      s: "path://M3,0L10,7L17,0L20,3L13,10L20,17L17,20L10,13L3,20L0,17L7,10L0,3Z" },
+  };
+  const MES = L.months;
+  const fmt = (v) => Number(v.toFixed(D.decimals)).toString();
+  const vals = D.points.map((p) => p.value);
+  const iMax = vals.indexOf(Math.max(...vals)), iMin = vals.indexOf(Math.min(...vals)), iLast = vals.length - 1;
+  const labeled = new Set([iLast, iMax, iMin]);
+
+  const data = D.points.map((p, i) => ({
+    value: [p.date, p.value], p,
+    symbol: ST[p.status].s, symbolSize: p.status === "out_of_range" ? 11 : 12,
+    itemStyle: { color: ST[p.status].c, borderColor: T.surface, borderWidth: 2 },
+    label: { show: labeled.has(i), position: "top", distance: 8, color: T.ink, fontSize: 11,
+             formatter: () => fmt(p.value) },
+  }));
+
+  const area = (segs, fill, name, pos) => segs.map((s, i) => [
+    { xAxis: s.start, yAxis: s.low, itemStyle: { color: fill },
+      label: { show: i === 0, position: pos, color: T.mute, fontSize: 10,
+               formatter: `${name} ${s.text}` } },
+    { xAxis: s.end, yAxis: s.high },
+  ]);
+
+  const tgt = D.target;
+  const tLines = tgt ? [tgt.high, tgt.low].filter((v) => v !== null && v !== undefined).map((y, i) => ({
+    yAxis: y,
+    label: { show: i === 0, position: "insideEndTop", color: T.ink, fontSize: 11,
+             formatter: `${L.target} ${tgt.text}` + (tgt.label ? ` · ${tgt.label}` : "") },
+  })) : [];
+
+  const el = document.getElementById("labs-chart");
+  const narrow = el.clientWidth < 520;
+  const chart = echarts.init(el, null, { renderer: "svg" });
+  chart.setOption({
+    backgroundColor: "transparent",
+    textStyle: { fontFamily: "ui-sans-serif, system-ui, sans-serif" },
+    grid: { left: 8, right: 16, top: 24, bottom: 8, containLabel: true },
+    xAxis: {
+      type: "time", min: D.x[0], max: D.x[1], splitNumber: narrow ? 3 : 6,
+      minInterval: (narrow ? 180 : 90) * 864e5,
+      axisLine: { lineStyle: { color: T.grid } }, axisTick: { show: false }, splitLine: { show: false },
+      axisLabel: { color: T.mute, fontSize: 11, hideOverlap: true,
+                   formatter: (v) => { const d = new Date(v); return `${MES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`; } },
+    },
+    yAxis: {
+      type: "value", min: D.y[0], max: D.y[1], splitNumber: 4,
+      axisLine: { show: false }, axisTick: { show: false },
+      splitLine: { lineStyle: { color: T.grid, width: 1, type: "solid" } },
+      axisLabel: { color: T.mute, fontSize: 11 },
+    },
+    tooltip: {
+      trigger: "axis", backgroundColor: "#1b1f26", borderColor: T.grid, textStyle: { color: T.ink, fontSize: 12 },
+      axisPointer: { type: "line", lineStyle: { color: T.mute, width: 1 } },
+      formatter: (ps) => {
+        const p = ps[0].data.p, s = ST[p.status];
+        return `<div style="color:${T.mute}">${p.label}</div>` +
+          `<div style="font-weight:600">${fmt(p.value)} ${D.unit}</div>` +
+          `<div><span style="color:${s.c}">${s.g}</span> ${p.status_label}</div>` +
+          (p.needs_review ? `<div style="color:${T.warn}">${L.review}</div>` : "");
+      },
+    },
+    series: [{
+      type: "line", data, showAllSymbol: true, z: 3,
+      lineStyle: { color: T.line, width: 2, cap: "round", join: "round" },
+      emphasis: { scale: 1.3 },
+      markArea: { silent: true, data: [...area(D.std, "rgba(232,236,241,0.07)", L.std, "insideBottomLeft"),
+                                       ...area(D.borderline, "rgba(245,185,66,0.14)", L.borderline, "insideTopLeft")] },
+      markLine: { silent: true, symbol: "none", data: tLines,
+                  lineStyle: { color: T.accent, width: 1.5, type: [6, 4] } },
+    }],
+  });
+  window.addEventListener("resize", () => chart.resize());
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "labs/_macros.html" import status_chip, subnav %}
+{% block content %}
+{{ subnav(sub) }}
+<p class="text-sm text-mute mb-4">{{ _("Pautas de alimentos de tus notas para los marcadores cuyo último valor está fuera de la meta. Las metas de macros llegan más adelante.") }}</p>
+{% if not items %}
+<div class="card text-sm text-mute">{{ _("Ningún marcador con pautas está fuera de meta.") }}</div>
+{% endif %}
+<div class="grid gap-3 md:grid-cols-2">
+  {% for it in items %}
+  <article class="card">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <a href="/examenes/{{ it.key }}" class="font-medium hover:text-accent">{{ it.name }}</a>
+      <span class="text-sm num">{{ it.value | num(it.decimals) }} {{ it.unit }}{% if it.target_text %} <span class="text-mute">· {{ _("meta {range}", range=it.target_text) }}</span>{% endif %}</span>
+    </div>
+    <div class="mt-1">{{ status_chip(it.status, it.status_label) }}</div>
+    {% if it.food_positive %}
+    <h3 class="text-xs text-mute uppercase tracking-wide mt-3 mb-1">{{ _("A favor") }}</h3>
+    <ul class="flex flex-wrap gap-1.5">{% for f in it.food_positive %}<li class="chip text-ink"><span class="text-accent mr-1" aria-hidden="true">+</span>{{ f }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if it.food_negative %}
+    <h3 class="text-xs text-mute uppercase tracking-wide mt-3 mb-1">{{ _("En contra") }}</h3>
+    <ul class="flex flex-wrap gap-1.5">{% for f in it.food_negative %}<li class="chip text-ink"><span class="text-bad mr-1" aria-hidden="true">−</span>{{ f }}</li>{% endfor %}</ul>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

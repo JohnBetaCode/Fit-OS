@@ -1,0 +1,90 @@
+# Fit-OS — one app container (FastAPI + scheduler + outbox, SQLite in ${DATA_DIR}) plus optional sidecars:
+#   profile `edge`  Caddy in front of the dashboard: HTTPS (internal CA) + basic_auth   → ops/caddy/Caddyfile
+#   profile `waha`  a WhatsApp gateway of its own, if you don't already run WAHA for other apps
+# Enable profiles with COMPOSE_PROFILES in .env (e.g. `COMPOSE_PROFILES=edge,waha`). See docs/deployment.md.
+#
+# WhatsApp traffic goes over the external docker network `wa-shared` (`make network` creates it), so one
+# WAHA can serve several apps. The app service is called `fitos`, never `app`: other apps' WAHA webhooks
+# commonly point at http://app:8000 and a second `app` alias on the shared network could steal them.
+name: fit-os
+services:
+  fitos:
+    build: ./app
+    image: fit-os/app:local
+    container_name: fit-os
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      TZ: ${TZ:-UTC}
+      GIT_SHA: ${GIT_SHA:-dev}
+      GIT_BRANCH: ${GIT_BRANCH:-}
+    # No --proxy-headers: nothing may rewrite request.client from a header.
+    command: ["uvicorn", "fitos.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
+    ports:
+      - "127.0.0.1:${APP_PORT:-8090}:8000"   # local ops only; people come in through `caddy`
+    volumes:
+      - ${DATA_DIR:-./data}:/data
+      - ./catalog:/catalog:ro   # biomarkers, program templates, exercise enrichment (versioned)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    mem_limit: 384m
+    networks: [default, wa]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: fit-os-caddy
+    profiles: [edge]
+    restart: unless-stopped
+    depends_on: [fitos]
+    environment:
+      PROXY_SECRET: ${PROXY_SECRET:-}
+    ports:
+      - "${EDGE_PORT:-8444}:8444"
+      - "127.0.0.1:${EDGE_LOCAL_PORT:-8445}:8445"   # plain HTTP for a local TLS proxy (tailscale serve)
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    mem_limit: 64m
+    networks: [default]
+
+  waha:
+    # Multi-arch image; on small ARM boards `devlikeapro/waha:noweb-arm` is lighter.
+    image: ${WAHA_IMAGE:-devlikeapro/waha:latest}
+    container_name: fit-os-waha
+    profiles: [waha]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WAHA_PORT:-3000}:3000"   # dashboard (scan the QR here) and API, localhost only
+    environment:
+      WHATSAPP_DEFAULT_ENGINE: NOWEB
+      WHATSAPP_START_SESSION: ${WAHA_SESSION:-default}
+      WHATSAPP_RESTART_ALL_SESSIONS: "True"
+      # Global webhook to Fit-OS (set WAHA_HOOK_MODE=global in .env). message.any = your own messages too:
+      # you write in the group from your own number, so they arrive as fromMe.
+      WHATSAPP_HOOK_URL: http://fitos:8000/webhooks/waha
+      WHATSAPP_HOOK_EVENTS: message.any,session.status
+      WHATSAPP_HOOK_HMAC_KEY: ${WAHA_WEBHOOK_HMAC_KEY:-}
+      WAHA_API_KEY: ${WAHA_API_KEY:-}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:-}
+      WAHA_LOCAL_STORE_BASE_DIR: /app/.sessions
+      TZ: ${TZ:-UTC}
+    volumes:
+      - waha_sessions:/app/.sessions   # keeps the WhatsApp login: scan the QR once
+    mem_limit: 768m
+    networks: [wa]
+
+volumes:
+  caddy_data: {}
+  waha_sessions: {}
+
+networks:
+  default: {}
+  wa:
+    name: ${WA_NETWORK:-wa-shared}
+    external: true   # `make network` (docker network create wa-shared)

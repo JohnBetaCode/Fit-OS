@@ -1,0 +1,21 @@
+{% for ex in items %}
+  <a href="/ejercicios/{{ ex.id }}" class="card !p-2 flex flex-col gap-2 hover:border-accent/60">
+    <div class="aspect-square rounded-xl bg-white overflow-hidden">
+      <img src="/media/thumbs/{{ ex.media_thumb }}" alt="" loading="lazy" class="w-full h-full object-contain"
+           onerror="this.style.visibility='hidden'">
+    </div>
+    <div class="text-sm leading-tight line-clamp-2">{{ ex.display_name }}</div>
+    <div class="flex flex-wrap gap-1">
+      {% if ex.favorite %}<span class="chip !text-warn">★</span>{% endif %}
+      {% if ex.primary_muscle %}<span class="chip">{{ muscle_es.get(ex.primary_muscle, ex.primary_muscle) }}</span>{% endif %}
+      <span class="chip">{{ equipment_es.get(ex.equipment_tag, ex.equipment_tag) }}</span>
+    </div>
+  </a>
+{% endfor %}
+{% if next_offset is not none %}
+  <div id="more-{{ next_offset }}" class="col-span-full text-center text-xs text-mute py-4"
+       hx-get="/ejercicios?{{ qs }}{% if qs %}&{% endif %}offset={{ next_offset }}&frag=items"
+       hx-trigger="revealed" hx-swap="outerHTML">
+    <a href="/ejercicios?{{ qs }}{% if qs %}&{% endif %}offset={{ next_offset }}" class="btn">{{ _("Cargar más") }}</a>
+  </div>
+{% endif %}

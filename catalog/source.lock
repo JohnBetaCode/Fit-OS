@@ -1,0 +1,6 @@
+# Exercise catalog source (read by `fitos catalog fetch`).
+# To pin a version: `git ls-remote https://github.com/hasaneyldrm/exercises-dataset HEAD`
+# (or `git -C $DATA_DIR/catalog/src rev-parse HEAD` after a fetch) and paste the sha into `commit`.
+# With `HEAD` the default branch is followed (pull on every fetch).
+repo: https://github.com/hasaneyldrm/exercises-dataset
+commit: 7455efae41b330c265e7cd4b78dfa848e7ce5ebd

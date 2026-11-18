@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fitos"
+version = "0.1.0"
+description = "Fit-OS: coach personal de gimnasio por WhatsApp + dashboard, autoalojado (Docker Compose, amd64/arm64)."
+requires-python = ">=3.12"
+dependencies = []  # ver requirements.txt (instaladas en la imagen)
+
+[project.scripts]
+fitos = "fitos.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9", "pytest-asyncio>=0.24,<1", "ruff>=0.7,<1"]
+
+[tool.setuptools.packages.find]
+include = ["fitos*"]
+
+[tool.setuptools.package-data]
+fitos = ["web/templates/*.html", "web/templates/**/*.html", "web/static/**/*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501", "B008", "SIM108"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -1,0 +1,45 @@
+{# Estado: color + forma (segundo canal) + texto. El texto va en tinta, nunca en el color del estado. #}
+{% set STATUS = {
+  "optimal": ("●", "text-accent", "#3ddc97"),
+  "in_range": ("◆", "text-info", "#5aa9ff"),
+  "borderline": ("▲", "text-warn", "#f5b942"),
+  "out_of_range": ("✕", "text-bad", "#ff6b6b"),
+} %}
+
+{% macro status_chip(status, label) -%}
+  {%- if status -%}
+  <span class="inline-flex items-center gap-1 text-xs text-ink whitespace-nowrap"><span class="{{ STATUS[status][1] }}" aria-hidden="true">{{ STATUS[status][0] }}</span>{{ label }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro delta(d, tone, unit, decimals) -%}
+  {%- if d is not none -%}
+  <span class="text-xs text-mute num">
+    <span class="{{ 'text-accent' if tone == 'good' else ('text-bad' if tone == 'bad' else 'text-mute') }}" aria-hidden="true">{{ '▲' if d > 0 else ('▼' if d < 0 else '＝') }}</span>
+    {{ '+' if d > 0 else '' }}{{ d | num(decimals) }} {{ unit }}
+  </span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro spark(s, status) -%}
+  <svg width="{{ s.w }}" height="{{ s.h }}" viewBox="0 0 {{ s.w }} {{ s.h }}" aria-hidden="true" class="shrink-0">
+    <polyline points="{{ s.points }}" fill="none" stroke="#8b95a3" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+    <circle cx="{{ s.last[0] }}" cy="{{ s.last[1] }}" r="3.5" fill="{{ STATUS[status][2] }}" stroke="#14171c" stroke-width="2" />
+  </svg>
+{%- endmacro %}
+
+{% macro subnav(sub) -%}
+  <nav class="tabnav flex gap-1 mb-4" aria-label="{{ _("Secciones de exámenes") }}">
+    <a href="/examenes" class="{{ 'on' if sub == 'resumen' }}">{{ _("Resumen") }}</a>
+    <a href="/examenes/nutricion" class="{{ 'on' if sub == 'nutricion' }}">{{ _("Nutrición") }}</a>
+  </nav>
+{%- endmacro %}
+
+{% macro legend_status() -%}
+  <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-mute">
+    <span>{{ status_chip("optimal", _("En meta")) }}</span>
+    <span>{{ status_chip("in_range", _("En rango, fuera de meta")) }}</span>
+    <span>{{ status_chip("borderline", _("Limítrofe")) }}</span>
+    <span>{{ status_chip("out_of_range", _("Fuera de rango")) }}</span>
+  </div>
+{%- endmacro %}

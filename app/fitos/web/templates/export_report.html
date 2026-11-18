@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="{{ lang() }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fit-OS · {{ _("Reporte") }} {{ generated.strftime("%Y-%m-%d") }}</title>
+<style>
+  :root { --ink: #16181d; --mute: #5f6672; --line: #dfe2e7; --accent: #0f7b5f; --bad: #b42318; --warn: #a15c00; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: #fff;
+         margin: 0 auto; padding: 32px 24px; max-width: 900px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--ink); }
+  h3 { font-size: 13px; margin: 16px 0 6px; color: var(--mute); text-transform: uppercase; letter-spacing: .04em; }
+  .mute { color: var(--mute); }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+  .kpi { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .kpi b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--mute); font-weight: 600; }
+  td.n, th.n { text-align: right; }
+  .ok { color: var(--accent); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+  footer { margin-top: 32px; font-size: 12px; color: var(--mute); }
+  @media (max-width: 640px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  @media print { body { padding: 0; } h2 { break-after: avoid; } table, .kpi { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<h1>{{ profile.display_name or "Fit-OS" }}</h1>
+<div class="mute">{{ _("Reporte de progreso") }} · {{ fmt_date(generated.date()) }}{% if age %} · {{ _("{n} años", n=age) }}{% endif %}{% if profile.height_cm %} · {{ profile.height_cm|num(0) }} cm{% endif %}</div>
+<div class="mute">{{ _("Objetivo") }}: <b>{{ goal }}</b> · {{ _("Experiencia") }}: {{ experience }}{% if profile.goal_notes %} · {{ profile.goal_notes }}{% endif %}</div>
+
+<div class="kpis">
+  <div class="kpi"><span class="mute">{{ _("Entrenos") }}</span><b>{{ workouts }}</b></div>
+  <div class="kpi"><span class="mute">{{ _("Sets de trabajo") }}</span><b>{{ sets }}</b></div>
+  <div class="kpi"><span class="mute">{{ _("Racha (semanas)") }}</span><b>{{ consistency.streak }}</b></div>
+  <div class="kpi"><span class="mute">{{ _("Peso") }}</span><b>{% if weight %}{{ weight[-1].value|kg }} kg{% else %}—{% endif %}</b>
+    {% if weight|length > 1 %}<span class="mute">{{ _("desde {kg} kg ({date})", kg=weight[0].value|kg, date=fmt_date(weight[0].measured_on)) }}</span>{% endif %}</div>
+</div>
+
+<h2>{{ _("Últimas 8 semanas") }}</h2>
+<table>
+  <thead><tr><th>{{ _("Semana") }}</th><th class="n">{{ _("Entrenos") }}</th><th class="n">{{ _("Sets") }}</th><th class="n">{{ _("Tonelaje") }}</th><th class="n">{{ _("Cardio") }}</th><th>{{ _("Récords") }}</th></tr></thead>
+  <tbody>{% for w in weeks %}
+  <tr><td>{{ fmt_date(w.start) }}</td><td class="n">{{ w.sessions|length }}/{{ w.target }}</td><td class="n">{{ w.sets }}</td><td class="n">{{ w.tonnage|num(0) }} kg</td><td class="n">{{ w.minutes or "—" }}{% if w.minutes %} min{% endif %}</td><td>{{ w.prs|join(", ") or "—" }}</td></tr>
+  {% endfor %}</tbody>
+</table>
+
+<h2>{{ _("Fuerza (1RM estimado)") }}</h2>
+{% if lifts %}
+<table>
+  <thead><tr><th>{{ _("Ejercicio") }}</th><th class="n">{{ _("Primero") }}</th><th class="n">{{ _("Mejor") }}</th><th class="n">{{ _("Último") }}</th><th class="n">{{ _("Sesiones") }}</th></tr></thead>
+  <tbody>{% for l in lifts %}
+  <tr><td>{{ l.name }}</td><td class="n">{{ l.first[1]|kg }} kg <span class="mute">{{ fmt_date(l.first[0]) }}</span></td><td class="n"><b>{{ l.best[1]|kg }} kg</b></td><td class="n">{{ l.last[1]|kg }} kg <span class="mute">{{ fmt_date(l.last[0]) }}</span></td><td class="n">{{ l.n }}</td></tr>
+  {% endfor %}</tbody>
+</table>
+{% else %}<p class="mute">{{ _("Aún no hay sets con peso.") }}</p>{% endif %}
+
+{% if prs %}
+<h3>{{ _("Últimos récords") }}</h3>
+<table><tbody>{% for p in prs %}
+  <tr><td>{{ fmt_date(p.date) }}</td><td>{{ p.exercise }}</td><td class="n">{{ p.reps }} × {{ p.weight_kg|kg }} kg</td><td class="n">{% if p.e1rm_kg %}e1RM {{ p.e1rm_kg|kg }} kg{% endif %}</td></tr>
+{% endfor %}</tbody></table>
+{% endif %}
+
+<h2>{{ _("Peso corporal") }}</h2>
+{% if weight %}
+<table>
+  <thead><tr><th>{{ _("Fecha") }}</th><th class="n">kg</th></tr></thead>
+  <tbody>{% for m in weight[-12:]|reverse %}<tr><td>{{ fmt_date(m.measured_on) }}</td><td class="n">{{ m.value|kg }}</td></tr>{% endfor %}</tbody>
+</table>
+{% else %}<p class="mute">{{ _("Sin registros de peso.") }}</p>{% endif %}
+
+<h2>{{ _("Exámenes") }}</h2>
+{% if labs and labs.categories %}
+  {% if labs.last_label %}<p class="mute">{{ _("Último examen: {date}", date=labs.last_label) }}</p>{% endif %}
+  {% for c in labs.categories %}
+  <h3>{{ c.name }}</h3>
+  <table><tbody>{% for card in c.cards %}{% if card.value is defined and card.value is not none %}
+    <tr><td>{{ card.name }}</td><td class="n"><b>{{ card.value|num(card.decimals) }}</b> {{ card.unit }}</td>
+      <td class="{% if card.status in ('optimal', 'in_range') %}ok{% elif card.status == 'borderline' %}warn{% elif card.status %}bad{% endif %}">{{ card.status_label or "" }}</td>
+      <td class="mute">{{ card.target_text or card.std_text or "" }}</td><td class="mute">{{ card.date }}</td></tr>
+  {% endif %}{% endfor %}</tbody></table>
+  {% endfor %}
+{% else %}<p class="mute">{{ _("Sin exámenes cargados.") }}</p>{% endif %}
+
+<footer>{{ _("Generado por Fit-OS el {date}. Contiene datos de salud: guárdalo en un lugar privado.", date=generated.strftime("%Y-%m-%d %H:%M")) }}</footer>
+</body>
+</html>

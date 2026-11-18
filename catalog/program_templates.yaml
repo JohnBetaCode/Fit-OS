@@ -1,0 +1,250 @@
+# Program templates (design §7.1, research §4). A program is a rotation of days; each slot is filled with the
+# best eligible exercise for the day's equipment profile (pattern + muscle).
+# Compounds 6–10 reps, isolation 10–15, RIR 2. Starting goal: ~10–12 direct hard sets per large muscle per
+# week (secondary muscles count 0.5), cap 20, every muscle at least twice a week.
+version: 1
+
+default_for_days:
+  2: full_body_3
+  3: full_body_3
+  4: upper_lower_4
+  5: ppl_upper_lower_5
+  6: ppl_6
+
+defaults: &defaults
+  compound_reps: [6, 10]
+  isolation_reps: [10, 15]
+  target_rir: 2
+  weekly_sets_per_muscle: [10, 12]
+  weekly_sets_cap: 20
+  deload_every_weeks: 6
+
+templates:
+  full_body_3:
+    name: Cuerpo completo ×3
+    split_kind: full_body
+    days_per_week: 3
+    config: *defaults
+    days:
+      - name: Cuerpo completo A
+        focus: [quads, chest, lats, hamstrings]
+        slots:
+          - {slot: squat, pattern: squat, muscle: quads, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: pull_vertical, pattern: pull_vertical, muscle: lats, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hinge, pattern: hinge, muscle: hamstrings, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: lateral_raise, pattern: lateral_raise, muscle: delts, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: core, pattern: core_flexion, muscle: abs, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Cuerpo completo B
+        focus: [quads, delts, upper_back, glutes]
+        slots:
+          - {slot: lunge, pattern: lunge, muscle: quads, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_vertical, pattern: push_vertical, muscle: delts, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hip_thrust, pattern: hip_thrust, muscle: glutes, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: fly, pattern: chest_fly, muscle: chest, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: biceps, pattern: elbow_flexion, muscle: biceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Cuerpo completo C
+        focus: [quads, chest, upper_back, hamstrings]
+        slots:
+          - {slot: squat, pattern: squat, muscle: quads, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: leg_curl, pattern: knee_flexion, muscle: hamstrings, sets: 4, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: lateral_raise, pattern: lateral_raise, muscle: delts, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: triceps, pattern: elbow_extension, muscle: triceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: core, pattern: core_stability, muscle: abs, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+
+  upper_lower_4:
+    name: Torso / Pierna ×4
+    split_kind: upper_lower
+    days_per_week: 4
+    config: *defaults
+    days:
+      - name: Torso A
+        focus: [chest, upper_back, delts, lats]
+        slots:
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_vertical, pattern: push_vertical, muscle: delts, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: pull_vertical, pattern: pull_vertical, muscle: lats, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: biceps, pattern: elbow_flexion, muscle: biceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: triceps, pattern: elbow_extension, muscle: triceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: rear_delt, pattern: rear_delt, muscle: delts, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Pierna A
+        focus: [quads, hamstrings, calves]
+        slots:
+          - {slot: squat, pattern: squat, muscle: quads, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hinge, pattern: hinge, muscle: hamstrings, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: leg_extension, pattern: knee_extension, muscle: quads, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: leg_curl, pattern: knee_flexion, muscle: hamstrings, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: core, pattern: core_flexion, muscle: abs, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Torso B
+        focus: [lats, chest, delts]
+        slots:
+          - {slot: pull_vertical, pattern: pull_vertical, muscle: lats, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: lateral_raise, pattern: lateral_raise, muscle: delts, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: fly, pattern: chest_fly, muscle: chest, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: triceps, pattern: elbow_extension, muscle: triceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: biceps, pattern: elbow_flexion, muscle: biceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Pierna B
+        focus: [hamstrings, glutes, quads, calves]
+        slots:
+          - {slot: hinge, pattern: hinge, muscle: hamstrings, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: lunge, pattern: lunge, muscle: quads, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hip_thrust, pattern: hip_thrust, muscle: glutes, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: leg_extension, pattern: knee_extension, muscle: quads, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: core, pattern: core_stability, muscle: abs, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+
+  ppl_upper_lower_5:
+    name: Empuje / Tirón / Pierna + Torso / Pierna ×5
+    split_kind: ppl_upper_lower
+    days_per_week: 5
+    config: *defaults
+    days:
+      - name: Empuje
+        focus: [chest, delts, triceps]
+        slots:
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_vertical, pattern: push_vertical, muscle: delts, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: fly, pattern: chest_fly, muscle: chest, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: lateral_raise, pattern: lateral_raise, muscle: delts, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: triceps, pattern: elbow_extension, muscle: triceps, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Tirón
+        focus: [lats, upper_back, biceps]
+        slots:
+          - {slot: pull_vertical, pattern: pull_vertical, muscle: lats, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: rear_delt, pattern: rear_delt, muscle: delts, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: biceps, pattern: elbow_flexion, muscle: biceps, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: core, pattern: core_flexion, muscle: abs, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Pierna A
+        focus: [quads, hamstrings, calves]
+        slots:
+          - {slot: squat, pattern: squat, muscle: quads, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hinge, pattern: hinge, muscle: hamstrings, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: leg_extension, pattern: knee_extension, muscle: quads, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: leg_curl, pattern: knee_flexion, muscle: hamstrings, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Torso
+        focus: [chest, upper_back, lats, delts]
+        slots:
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: pull_vertical, pattern: pull_vertical, muscle: lats, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_vertical, pattern: push_vertical, muscle: delts, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: biceps, pattern: elbow_flexion, muscle: biceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: triceps, pattern: elbow_extension, muscle: triceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Pierna B
+        focus: [hamstrings, glutes, quads, calves]
+        slots:
+          - {slot: hinge, pattern: hinge, muscle: hamstrings, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: lunge, pattern: lunge, muscle: quads, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hip_thrust, pattern: hip_thrust, muscle: glutes, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: leg_curl, pattern: knee_flexion, muscle: hamstrings, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: core, pattern: core_stability, muscle: abs, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+
+  ppl_6:
+    name: Empuje / Tirón / Pierna ×6
+    split_kind: ppl
+    days_per_week: 6
+    config: *defaults
+    days:
+      - name: Empuje A
+        focus: [chest, delts, triceps]
+        slots:
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_vertical, pattern: push_vertical, muscle: delts, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: fly, pattern: chest_fly, muscle: chest, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: lateral_raise, pattern: lateral_raise, muscle: delts, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: triceps, pattern: elbow_extension, muscle: triceps, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Tirón A
+        focus: [lats, upper_back, biceps]
+        slots:
+          - {slot: pull_vertical, pattern: pull_vertical, muscle: lats, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: rear_delt, pattern: rear_delt, muscle: delts, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: biceps, pattern: elbow_flexion, muscle: biceps, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: core, pattern: core_flexion, muscle: abs, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Pierna A
+        focus: [quads, hamstrings, calves]
+        slots:
+          - {slot: squat, pattern: squat, muscle: quads, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hinge, pattern: hinge, muscle: hamstrings, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: leg_extension, pattern: knee_extension, muscle: quads, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: leg_curl, pattern: knee_flexion, muscle: hamstrings, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Empuje B
+        focus: [chest, delts, triceps]
+        slots:
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: press_vertical, pattern: push_vertical, muscle: delts, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: fly, pattern: chest_fly, muscle: chest, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: lateral_raise, pattern: lateral_raise, muscle: delts, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: triceps, pattern: elbow_extension, muscle: triceps, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Tirón B
+        focus: [upper_back, lats, biceps]
+        slots:
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: pull_vertical, pattern: pull_vertical, muscle: lats, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: rear_delt, pattern: rear_delt, muscle: delts, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: biceps, pattern: elbow_flexion, muscle: biceps, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: core, pattern: core_stability, muscle: abs, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+      - name: Pierna B
+        focus: [hamstrings, glutes, quads, calves]
+        slots:
+          - {slot: hinge, pattern: hinge, muscle: hamstrings, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: lunge, pattern: lunge, muscle: quads, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hip_thrust, pattern: hip_thrust, muscle: glutes, sets: 3, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: leg_curl, pattern: knee_flexion, muscle: hamstrings, sets: 2, rep_min: 10, rep_max: 15, target_rir: 2}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 10, rep_max: 15, target_rir: 2}
+
+  # A body-part split that pairs groups the way many gym-goers train: a big group plus the small ones it
+  # leaves fresh (chest + shoulders + biceps, back + triceps, legs + abs). Cardio first as the warm-up; the
+  # important lifts come early so "I have to go" (finish) cuts accessories, not the main work.
+  combo_3:
+    name: Pecho+hombro+bíceps / Espalda+tríceps / Pierna+abdomen
+    split_kind: body_part_combo
+    days_per_week: 4
+    config: *defaults
+    days:
+      - name: Pecho + hombro + bíceps
+        focus: [chest, delts, biceps]
+        slots:
+          - {slot: cardio, pattern: cardio, sets: 1, rep_min: 1, rep_max: 1, target_rir: 2, duration_min: [15, 20], preferred_exercise_ids: ["3666"]}
+          - {slot: press_horizontal, pattern: push_horizontal, muscle: chest, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2, preferred_exercise_ids: ["0025"]}
+          - {slot: press_incline, pattern: push_horizontal, muscle: chest, sets: 3, rep_min: 8, rep_max: 12, target_rir: 2, preferred_exercise_ids: ["0314"]}
+          - {slot: press_vertical, pattern: push_vertical, muscle: delts, sets: 3, rep_min: 8, rep_max: 12, target_rir: 2}
+          - {slot: fly, pattern: chest_fly, muscle: chest, sets: 3, rep_min: 10, rep_max: 15, target_rir: 1}
+          - {slot: lateral_raise, pattern: lateral_raise, muscle: delts, sets: 3, rep_min: 10, rep_max: 15, target_rir: 1}
+          - {slot: biceps, pattern: elbow_flexion, muscle: biceps, sets: 3, rep_min: 8, rep_max: 12, target_rir: 1}
+          - {slot: biceps_2, pattern: elbow_flexion, muscle: biceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 1}
+      - name: Espalda + tríceps
+        focus: [lats, upper_back, triceps, delts]
+        slots:
+          - {slot: cardio, pattern: cardio, sets: 1, rep_min: 1, rep_max: 1, target_rir: 2, duration_min: [15, 20], preferred_exercise_ids: ["3666"]}
+          - {slot: pull_vertical, pattern: pull_vertical, muscle: lats, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: row, pattern: pull_horizontal, muscle: upper_back, sets: 3, rep_min: 8, rep_max: 12, target_rir: 2}
+          - {slot: pull_vertical_2, pattern: pull_vertical, muscle: lats, sets: 3, rep_min: 8, rep_max: 12, target_rir: 2}
+          - {slot: triceps, pattern: elbow_extension, muscle: triceps, sets: 3, rep_min: 8, rep_max: 12, target_rir: 1}
+          - {slot: rear_delt, pattern: rear_delt, muscle: delts, sets: 3, rep_min: 12, rep_max: 15, target_rir: 1}
+          - {slot: triceps_2, pattern: elbow_extension, muscle: triceps, sets: 2, rep_min: 10, rep_max: 15, target_rir: 1}
+          - {slot: lower_back, pattern: hinge, muscle: lower_back, sets: 2, rep_min: 12, rep_max: 15, target_rir: 2}
+      - name: Pierna + abdomen
+        focus: [quads, hamstrings, glutes, calves, abs]
+        slots:
+          - {slot: cardio, pattern: cardio, sets: 1, rep_min: 1, rep_max: 1, target_rir: 2, duration_min: [15, 20], preferred_exercise_ids: ["3666"]}
+          - {slot: squat, pattern: squat, muscle: quads, sets: 4, rep_min: 6, rep_max: 10, target_rir: 2}
+          - {slot: hinge, pattern: hinge, muscle: hamstrings, sets: 3, rep_min: 8, rep_max: 10, target_rir: 2}
+          - {slot: leg_curl, pattern: knee_flexion, muscle: hamstrings, sets: 3, rep_min: 10, rep_max: 12, target_rir: 1}
+          - {slot: leg_extension, pattern: knee_extension, muscle: quads, sets: 3, rep_min: 10, rep_max: 15, target_rir: 1}
+          - {slot: abduction, pattern: hip_abduction, sets: 3, rep_min: 12, rep_max: 15, target_rir: 1}
+          - {slot: calves, pattern: calf_raise, muscle: calves, sets: 3, rep_min: 12, rep_max: 20, target_rir: 1}
+          - {slot: core, pattern: core_flexion, muscle: abs, sets: 3, rep_min: 12, rep_max: 20, target_rir: 2}

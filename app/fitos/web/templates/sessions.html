@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="h2">{{ _("Entrenos") }}</div>
+{% if deleted %}<div class="card mb-3 border-accent/50 text-sm">🗑 {{ _("Entreno borrado.") }}</div>{% endif %}
+{% if rows %}
+<div class="grid gap-2">
+  {% for s, sm in rows %}
+  <a href="/entrenos/{{ s.id }}" class="card flex items-center gap-4 hover:border-accent/60">
+    <div class="w-16 text-center"><div class="text-xs text-mute capitalize">{{ wday(s.date) }}</div><div class="text-xl font-bold num">{{ s.date.day }}</div></div>
+    <div class="flex-1">
+      <div class="font-semibold">{{ _(s.planned.focus_label) if s.planned else _("Sesión") }}</div>
+      <div class="text-sm text-mute num">{{ _("{n} sets", n=sm.get('sets', 0)) }} · {{ (sm.get('tonnage_kg', 0) or 0)|num(0) }} kg · {{ sm.get('duration_min') or '—' }} min{% if s.session_rpe %} · RPE {{ s.session_rpe }}{% endif %}</div>
+    </div>
+    {% if sm.get('prs') %}<span class="chip text-warn border-warn/40">🏆 {{ sm.get('prs')|length }}</span>{% endif %}
+    <span class="chip">{{ {"active": _("en curso"), "finishing": _("cerrando"), "completed": _("hecha")}.get(s.state, s.state) }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card text-mute text-sm">{{ _("Aún no hay entrenos. Escribe <b>hoy</b> en el grupo de WhatsApp y luego <b>1</b> para empezar.")|safe }}</div>
+{% endif %}
+{% endblock %}

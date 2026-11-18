@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="h2">{{ _("Integraciones") }}</div>
+<div class="grid gap-3 md:grid-cols-2">
+  <section class="card">
+    <div class="flex items-center justify-between"><div class="font-semibold">💬 {{ _("WhatsApp (WAHA compartido)") }}</div>
+      <span class="chip {% if waha.status == 'WORKING' and waha.hook_present %}text-accent border-accent/40{% else %}text-warn border-warn/40{% endif %}">{{ waha.status or _("sin chequear") }}</span></div>
+    <ul class="text-sm text-mute mt-2 space-y-1">
+      <li>{{ _("Webhook de Fit-OS en la sesión:") }} <b class="text-ink">{{ _("sí") if waha.hook_present else _("no") }}</b></li>
+      <li>{{ _("Grupo configurado:") }} <b class="text-ink">{{ _("sí") if gym_chat else _("no (WA_GYM_CHAT_ID)") }}</b></li>
+    </ul>
+  </section>
+  <section class="card">
+    <div class="flex items-center justify-between"><div class="font-semibold">🧠 Claude (coach)</div>
+      <span class="chip">{{ llm_mode }}</span></div>
+    <p class="text-sm text-mute mt-2">{{ _("Gasto de hoy:") }} <b class="text-ink num">US$ {{ "%.3f"|format(llm_spent) }}</b> {{ _("de {budget}", budget="%.2f"|format(budget)) }}</p>
+  </section>
+  {% for name, icon, desc in [("Whoop","⌚",_("Recuperación, HRV, sueño y strain (OAuth, cada hora)")),
+                               ("Apple Health","🍎",_("Peso, pasos, sueño y FC vía la app Health Auto Export")),
+                               ("Withings","⚖️",_("Peso, % grasa y masa muscular de tu báscula")),
+                               ("Garmin","🛰️",_("Actividades y resúmenes de salud (Personal API)"))] %}
+  <section class="card opacity-70">
+    <div class="flex items-center justify-between"><div class="font-semibold">{{ icon }} {{ name }}</div><span class="chip">{{ _("Próximamente") }}</span></div>
+    <p class="text-sm text-mute mt-2">{{ desc }}</p>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+{% if saved %}<div class="card mb-4 border-accent/50 text-sm">✅ {{ _("Guardado.") }}</div>{% endif %}
+<div class="grid gap-4 md:grid-cols-2">
+  <form method="post" action="/ajustes" class="card">
+    <div class="h2">{{ _("WhatsApp y rutina diaria") }}</div>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="col-span-2"><span class="label">{{ _("Idioma") }}</span><select name="language" class="input" aria-label="{{ _("Idioma") }}">
+        {% for code, name in LANG_NAMES.items() %}<option value="{{ code }}" lang="{{ code }}" {% if code == lang() %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+      <label class="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" name="morning_enabled" {% if p.morning_enabled %}checked{% endif %}> {{ _("Mandar el plan del día por la mañana") }}</label>
+      <label class="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" name="weekly_summary_enabled" {% if p.weekly_summary_enabled %}checked{% endif %}> {{ _("Resumen de la semana los domingos a las") }} <input type="time" name="weekly_summary_hour" value="{{ p.weekly_summary_hour }}" class="input py-1 w-28"></label>
+      <label class="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" name="rest_alert" {% if p.rest_alert %}checked{% endif %}> {{ _("Avisar cuando termine el descanso entre sets") }}</label>
+      <label class="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" name="warmup_sets" {% if p.warmup_sets %}checked{% endif %}> {{ _("Sugerir series de calentamiento") }}</label>
+      <label><span class="label">{{ _("Hora del mensaje") }}</span><input type="time" name="morning_hour" value="{{ p.morning_hour }}" class="input"></label>
+      <label><span class="label">{{ _("Cierre del día") }}</span><input type="time" name="day_close_hour" value="{{ p.get('day_close_hour', '23:30') }}" class="input"></label>
+      <label><span class="label">{{ _("Silencio desde") }}</span><input type="time" name="quiet_start" value="{{ p.quiet_start }}" class="input"></label>
+      <label><span class="label">{{ _("Silencio hasta") }}</span><input type="time" name="quiet_end" value="{{ p.quiet_end }}" class="input"></label>
+      <label class="col-span-2"><span class="label">{{ _("Clip del ejercicio") }}</span><select name="clip_policy" class="input">
+        {% for k, v in [("first_time", _("La primera vez que hago el ejercicio")), ("always", _("Siempre")), ("on_demand", _("Solo si escribo «video»"))] %}<option value="{{ k }}" {% if p.clip_policy == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="col-span-2"><span class="label">{{ _("Tarjetas de ejercicios en WhatsApp") }}</span><select name="wa_cards" class="input">
+        {% for k, v in [("one", _("Una a la vez, al terminar cada ejercicio")), ("all", _("Todas al empezar: deslizo la de cada ejercicio para responder"))] %}<option value="{{ k }}" {% if p.wa_cards == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label><span class="label">{{ _("Descanso compuestos (s)") }}</span><input name="rest_seconds_compound" value="{{ p.rest_seconds_compound }}" class="input"></label>
+      <label><span class="label">{{ _("Descanso aislados (s)") }}</span><input name="rest_seconds_isolation" value="{{ p.rest_seconds_isolation }}" class="input"></label>
+      <label><span class="label">{{ _("Sets/semana por músculo: mín.") }}</span><input name="weekly_sets_target_min" value="{{ p.weekly_sets_target_min }}" class="input"></label>
+      <label><span class="label">{{ _("máx.") }}</span><input name="weekly_sets_target_max" value="{{ p.weekly_sets_target_max }}" class="input"></label>
+      <label class="col-span-2"><span class="label">{{ _("Tope diario de gasto en Claude (USD)") }}</span><input name="llm_daily_budget_usd" value="{{ p.llm_daily_budget_usd }}" class="input"></label>
+    </div>
+    <div class="flex justify-end mt-3"><button class="btn btn-accent">{{ _("Guardar") }}</button></div>
+  </form>
+
+  <section id="celular" class="card">
+    <div class="h2">📱 {{ _("En tu celular") }}</div>
+    <ol class="text-sm space-y-2 list-decimal pl-5">
+      <li>{{ _("El celular tiene que estar en tu red privada (por ejemplo, con la app de Tailscale abierta).") }}</li>
+      <li>{{ _("Abre {url} en el navegador y entra con tu usuario.", url=(portal or "https://<ip>:8444")) }}</li>
+      {% if cert_ok %}
+      <li>{{ _("Para quitar el aviso de seguridad, instala el certificado del servidor:") }}
+        <a href="/ajustes/certificado" class="text-accent">⬇️ fit-os-ca.crt</a>
+        <div class="text-xs text-mute mt-1">{{ _("iPhone: ábrelo, instálalo en Ajustes → General → VPN y gestión de dispositivos, y actívalo en Ajustes → General → Información → Ajustes de confianza de certificados. Android: Ajustes → Seguridad → Más ajustes → Encriptación y credenciales → Instalar un certificado → Certificado de CA.") }}</div>
+        <div class="text-xs text-mute mt-1">{{ _("Opcional: así el teléfono confía en todo lo que firme este servidor, así que hazlo solo si el servidor es tuyo.") }}</div></li>
+      {% endif %}
+      <li>{{ _("Agrégala a la pantalla de inicio: en iPhone, Compartir → Agregar a inicio; en Android, menú ⋮ → Instalar app. Se abre como una app, con su ícono y sin la barra del navegador.") }}</li>
+    </ol>
+  </section>
+
+  <section id="exportar" class="card">
+    <div class="h2">{{ _("Tus datos") }}</div>
+    <p class="text-sm text-mute mb-3">{{ _("Todo lo que registraste: entrenos y sets, récords, peso y medidas, exámenes, perfil y objetivos, programa y favoritos. CSV, JSON y un reporte para imprimir en PDF.") }}</p>
+    <div class="flex flex-wrap gap-2">
+      <a href="/ajustes/exportar" class="btn btn-accent">⬇️ {{ _("Exportar todo (ZIP)") }}</a>
+      <a href="/ajustes/reporte" target="_blank" class="btn">📄 {{ _("Reporte para imprimir") }}</a>
+    </div>
+    <p class="text-xs text-mute mt-2">{{ _("Contiene datos de salud: guárdalo en un lugar privado.") }}</p>
+  </section>
+  <form id="programa" method="post" action="/ajustes/programa" class="card">
+    <div class="h2">{{ _("Programa") }}</div>
+    {% if program.program %}
+      <div class="font-semibold">{{ _(program.program.name) }}</div>
+      <p class="text-xs text-mute mb-2">{{ _("Rotación de {n} días; la siguiente sesión está marcada.", n=program.days|length) }}</p>
+      <ol class="text-sm space-y-2 mb-3">
+        {% for d in program.days %}
+        <li class="{% if d.next %}text-accent{% endif %}"><b>{{ _(d.name) }}</b>{% if d.next %} ← {{ _("próxima") }}{% endif %}
+          <div class="text-xs text-mute">{% for s in d.slots %}{{ muscle_label(s.get('muscle')) if s.get('muscle') else pattern_label(s.get('pattern')) }} {{ s.get('sets') }}×{{ s.get('rep_min') }}–{{ s.get('rep_max') }}{% if not loop.last %} · {% endif %}{% endfor %}</div></li>
+        {% endfor %}
+      </ol>
+    {% else %}<p class="text-sm text-mute mb-3">{{ _("Sin programa activo: se crea al pedir el primer plan.") }}</p>{% endif %}
+    <div class="grid grid-cols-2 gap-3">
+      <label><span class="label">{{ _("Cambiar plantilla") }}</span><select name="template_key" class="input"><option value="">— {{ _("igual") }} —</option>
+        {% for k, v in program.templates.items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select></label>
+      <label><span class="label">{{ _("RIR objetivo") }}</span><input name="target_rir" value="{{ (program.program.config or {}).get('target_rir', '') if program.program else '' }}" class="input" placeholder="2"></label>
+    </div>
+    <div class="flex justify-end mt-3"><button class="btn btn-accent">{{ _("Aplicar") }}</button></div>
+  </form>
+
+  <section class="card md:col-span-2">
+    <div class="h2">{{ _("Salud del sistema") }} <span class="chip ml-2">{{ health.sha }}</span></div>
+    <div class="grid sm:grid-cols-3 gap-3 text-sm">
+      <div><div class="text-mute text-xs">{{ _("WhatsApp (sesión)") }}</div><div>{{ health.waha.status or _("sin chequear") }} · webhook {{ "✅" if health.waha.hook_present else "❌" }}</div></div>
+      <div><div class="text-mute text-xs">{{ _("Grupo configurado") }}</div><div>{{ "✅" if health.gym_chat else "❌ " ~ _("falta WA_GYM_CHAT_ID") }}</div></div>
+      <div><div class="text-mute text-xs">{{ _("Último mensaje recibido") }}</div><div>{{ health.last_in.created_at.strftime('%Y-%m-%d %H:%M UTC') if health.last_in else "—" }}</div></div>
+      <div><div class="text-mute text-xs">Outbox</div><div>{{ _("con mensajes en cola") if health.queued else _("vacía") }}{% if health.failed %} · <span class="text-bad">{{ _("{n} fallidos", n=health.failed|length) }}</span>{% endif %}</div></div>
+      <div><div class="text-mute text-xs">Coach</div><div>{{ health.llm_mode }} · {{ _("US$ {amount} hoy", amount="%.3f"|format(health.llm_spent)) }}</div></div>
+      <div><div class="text-mute text-xs">Webhook</div><div class="text-xs num">{% for k, v in health.stats.items() %}{{ k }}={{ v }} {% endfor %}</div></div>
+    </div>
+    {% if health.failed %}<ul class="text-xs text-bad mt-2">{% for f in health.failed %}<li>#{{ f.id }} {{ f.error }}</li>{% endfor %}</ul>{% endif %}
+    <table class="tbl mt-3"><thead><tr><th>{{ _("Job") }}</th><th>{{ _("Periodo") }}</th><th>{{ _("Resultado") }}</th></tr></thead><tbody>
+      {% for j in health.jobs %}<tr><td>{{ j.job }}</td><td class="num text-mute">{{ j.period_key }}</td><td class="{% if not j.ok %}text-bad{% endif %}">{{ j.detail or ("ok" if j.ok else "error") }}</td></tr>{% endfor %}
+    </tbody></table>
+  </section>
+</div>
+{% endblock %}

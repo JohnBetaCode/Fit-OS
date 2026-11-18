@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid gap-3">
+  {% for key, label, href in tabs if key not in ("hoy", "entrenar", "semana", "progreso") %}
+    <a href="{{ href }}" class="card flex items-center justify-between hover:border-accent/60"><span>{{ label }}</span><span class="text-mute">›</span></a>
+  {% endfor %}
+  {% if user and not is_dev %}<form method="post" action="/salir"><button class="card w-full flex items-center justify-between hover:border-accent/60 text-left"><span>{{ _("Salir") }} <span class="text-mute text-sm">· {{ user }}</span></span><span class="text-mute">↩</span></button></form>{% endif %}
+  {% if is_dev %}<a href="/dev/wa" class="card flex items-center justify-between hover:border-accent/60"><span>{{ _("Simulador de WhatsApp") }}</span><span class="chip">dev</span></a>{% endif %}
+</div>
+{% endblock %}

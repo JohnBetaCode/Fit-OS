@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "labs/_macros.html" import status_chip, delta, spark, subnav, legend_status %}
+{% block content %}
+{{ subnav(sub) }}
+{% set c = ov.counts %}
+<section class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5" aria-label="{{ _("Resumen de exámenes") }}">
+  <div class="card"><div class="text-xs text-mute">{{ _("Fuera de meta") }}</div><div class="text-2xl font-semibold mt-1">{{ c.out_of_target }}</div><div class="text-xs text-mute">{{ _("de {n} marcadores", n=c.markers) }}</div></div>
+  <div class="card"><div class="text-xs text-mute">{{ _("Fuera de rango") }}</div><div class="text-2xl font-semibold mt-1">{{ c.out_of_range }}</div>{% if c.borderline %}<div class="text-xs text-mute">{{ _("+ {n} limítrofe", n=c.borderline) if c.borderline == 1 else _("+ {n} limítrofes", n=c.borderline) }}</div>{% endif %}</div>
+  <div class="card"><div class="text-xs text-mute">{{ _("Último examen") }}</div><div class="text-lg font-semibold mt-1">{{ ov.last_label or "—" }}</div></div>
+  <div class="card"><div class="text-xs text-mute">{{ _("Próximo sugerido") }}</div><div class="text-lg font-semibold mt-1">{{ ov.next_label or "—" }}</div></div>
+</section>
+
+{% set pending = ov.pending %}
+{% include "labs/_review.html" %}
+
+{% if not c.markers %}
+<div class="card text-sm text-mute">{{ _("Aún no hay exámenes. Importa la semilla con <code class='text-ink'>fitos labs import-seed &lt;csv&gt;</code>.")|safe }}</div>
+{% endif %}
+
+<div class="mb-4">{{ legend_status() }}</div>
+
+{% for cat in ov.categories %}
+<section class="mb-6">
+  <h2 class="h2">{{ cat.name }}</h2>
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    {% for k in cat.cards %}
+    <a href="/examenes/{{ k.key }}" class="card block hover:border-accent/60 transition">
+      <div class="flex items-start justify-between gap-2">
+        <div class="font-medium leading-tight">{{ k.name }}{% if k.derived %} <span class="chip ml-1">{{ _("calculado") }}</span>{% endif %}</div>
+        {% if k.needs_review %}<span class="chip border-warn/60 text-warn">{{ _("por confirmar") }}</span>{% endif %}
+      </div>
+      {% if k.value is defined %}
+      <div class="flex items-end justify-between gap-3 mt-2">
+        <div>
+          <div class="text-2xl font-semibold">{{ k.value | num(k.decimals) }} <span class="text-sm font-normal text-mute">{{ k.unit }}</span></div>
+          <div class="mt-1">{{ status_chip(k.status, k.status_label) }}</div>
+        </div>
+        {{ spark(k.spark, k.status) }}
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs text-mute">
+        <span>{{ k.date }}{% if k.target_text %} · {{ _("meta {range}", range=k.target_text) }}{% elif k.std_text %} · {{ _("rango {range}", range=k.std_text) }}{% endif %}</span>
+        {{ delta(k.delta, k.delta_tone, k.unit, k.decimals) }}
+      </div>
+      {% else %}
+      <div class="text-sm text-mute mt-2">{{ _("Sin datos") }}</div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

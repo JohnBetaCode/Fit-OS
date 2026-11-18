@@ -1,0 +1,6 @@
+<div id="actions" class="flex flex-wrap gap-2">
+  <button class="btn {% if ex.favorite %}btn-accent{% endif %}" hx-post="/ejercicios/{{ ex.id }}/favorito"
+          hx-target="#actions" hx-swap="outerHTML">{% if ex.favorite %}★ {{ _("Favorito") }}{% else %}☆ {{ _("Marcar favorito") }}{% endif %}</button>
+  <button class="btn {% if disliked %}!border-bad !text-bad{% endif %}" hx-post="/ejercicios/{{ ex.id }}/descartar"
+          hx-target="#actions" hx-swap="outerHTML">{% if disliked %}🚫 {{ _("No te lo propongo (deshacer)") }}{% else %}🚫 {{ _("No me lo propongas") }}{% endif %}</button>
+</div>

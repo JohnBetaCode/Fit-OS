@@ -1,0 +1,41 @@
+{# Valores por confirmar: Confirmar o Corregir (valor y marcador) vía HTMX. #}
+{% if pending %}
+<section id="labs-review" class="card border-warn/50 mb-5" aria-live="polite">
+  <div class="flex items-center gap-2 mb-3">
+    <span class="text-warn" aria-hidden="true">▲</span>
+    <h2 class="font-semibold">{{ _("{n} valor por confirmar", n=pending | length) if pending | length == 1 else _("{n} valores por confirmar", n=pending | length) }}</h2>
+  </div>
+  <ul class="grid gap-3">
+    {% for p in pending %}
+    <li class="bg-panel2 rounded-xl p-3">
+      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <a href="/examenes/{{ p.key }}" class="font-medium hover:text-accent">{{ p.name }}</a>
+        <span class="num">{{ p.value | num(p.decimals) }} {{ p.unit }}</span>
+        <span class="text-xs text-mute">{{ p.date }}</span>
+      </div>
+      {% if p.note %}<p class="text-xs text-mute mt-1">{{ p.note }}</p>{% endif %}
+      <div class="flex flex-wrap items-end gap-2 mt-3">
+        <form method="post" action="/examenes/resultados/{{ p.id }}/confirmar" hx-post="/examenes/resultados/{{ p.id }}/confirmar">
+          <button class="btn btn-accent" type="submit">{{ _("Confirmar") }}</button>
+        </form>
+        <details class="w-full sm:w-auto">
+          <summary class="btn cursor-pointer list-none">{{ _("Corregir") }}</summary>
+          <form method="post" action="/examenes/resultados/{{ p.id }}/corregir" hx-post="/examenes/resultados/{{ p.id }}/corregir"
+                class="grid sm:grid-cols-[8rem_14rem_auto] gap-2 mt-2 items-end">
+            <label><span class="label">{{ _("Valor") }}</span>
+              <input class="input num" name="value" inputmode="decimal" value="{{ "%g" % p.value }}" required></label>
+            <label><span class="label">{{ _("Marcador") }}</span>
+              <select class="input" name="key">
+                {% for m in markers if not m.derived_from %}
+                <option value="{{ m.key }}" {{ 'selected' if m.key == p.key }}>{{ m.display_name }}</option>
+                {% endfor %}
+              </select></label>
+            <button class="btn" type="submit">{{ _("Guardar") }}</button>
+          </form>
+        </details>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}

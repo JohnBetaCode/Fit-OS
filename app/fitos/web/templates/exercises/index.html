@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+{% set f = filters %}
+<form id="filters" class="grid gap-3 mb-4" action="/ejercicios" method="get"
+      hx-get="/ejercicios" hx-target="#results" hx-push-url="true"
+      hx-trigger="input changed delay:300ms from:input[name=q], change">
+  <input class="input" type="search" name="q" value="{{ f.q }}" placeholder="{{ _("Buscar ejercicio…") }}" autocomplete="off">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+    <select name="muscle" class="input" aria-label="{{ _("Músculo") }}">
+      <option value="">{{ _("Todos los músculos") }}</option>
+      {% for key, label in muscle_es.items() %}<option value="{{ key }}" {% if f.muscle == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <select name="equipment" class="input" aria-label="{{ _("Equipo") }}">
+      <option value="">{{ _("Todo el equipo") }}</option>
+      {% for key, label in equipment_es.items() if key not in ("bench_flat", "bench_incline", "pullup_bar", "dip_bars", "rack", "preacher_bench", "box") %}
+        <option value="{{ key }}" {% if f.equipment == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="profile" class="input" aria-label="{{ _("Perfil de equipo") }}">
+      <option value="">{{ _("Cualquier perfil") }}</option>
+      {% for p in profiles %}<option value="{{ p.id }}" {% if f.profile == p.id|string %}selected{% endif %}>{{ equipment_name(p) }}</option>{% endfor %}
+    </select>
+    <select name="pattern" class="input" aria-label="{{ _("Patrón") }}">
+      <option value="">{{ _("Todos los patrones") }}</option>
+      {% for key, label in pattern_es.items() %}<option value="{{ key }}" {% if f.pattern == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="flex flex-wrap gap-4 text-sm">
+    <label class="inline-flex items-center gap-2"><input type="checkbox" name="staples" value="1" class="accent-accent" {% if f.staples %}checked{% endif %}> {{ _("Solo básicos") }}</label>
+    <label class="inline-flex items-center gap-2"><input type="checkbox" name="favs" value="1" class="accent-accent" {% if f.favs %}checked{% endif %}> {{ _("Favoritos") }}</label>
+    <noscript><button class="btn">{{ _("Filtrar") }}</button></noscript>
+  </div>
+</form>
+
+<div id="results">{% include "exercises/_results.html" %}</div>
+
+<p class="text-xs text-mute mt-6">{{ _("Animaciones") }} © <a href="https://gymvisual.com/" class="underline" target="_blank" rel="noopener">Gym visual</a></p>
+{% endblock %}

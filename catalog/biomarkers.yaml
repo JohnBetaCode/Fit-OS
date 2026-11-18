@@ -1,0 +1,491 @@
+# Fit-OS biomarker dictionary (docs/design.md §9.1). Versioned; contains NO user data.
+#
+# Default ranges are starting points taken from Roche reagent inserts and guidelines (ATP III, ADA, AHA,
+# Endocrine Society); they don't replace the range printed by your lab or medical judgment.
+# Bound convention: only `high` → v < high; only `low` → v ≥ low; both → low ≤ v ≤ high.
+# `kind`: lab_standard | borderline (the user's own goal, `user_target`, comes with the seed, not here).
+# `sex`: male | female | any. `age_min`/`age_max` inclusive; omitted = no limit.
+# `unit_conversions`: factor to convert that unit to the canonical one (value × factor).
+version: 1
+biomarkers:
+  # ── Lipids ───────────────────────────────────────────────────────────────
+  - key: ldl_c
+    name_es: Colesterol LDL
+    name_en: LDL cholesterol
+    loinc: "13457-7"
+    category: Lípidos
+    canonical_unit: mg/dL
+    unit_conversions: {mmol/L: 38.67}
+    aliases: [LDL, LDL-C, LDL cholesterol, Colesterol LDL, LDL colesterol, c-LDL, Colesterol de baja densidad]
+    direction: lower
+    decimals: 0
+    sort_order: 10
+    description_es: Colesterol que viaja en partículas LDL; su exceso se deposita en las arterias.
+    description_en: Cholesterol carried in LDL particles; in excess it builds up in the arteries.
+    ranges:
+      - {kind: lab_standard, sex: any, high: 100, source: NCEP ATP III (óptimo)}
+      - {kind: borderline, sex: any, low: 100, high: 129, source: NCEP ATP III (casi óptimo)}
+
+  - key: hdl_c
+    name_es: Colesterol HDL
+    name_en: HDL cholesterol
+    loinc: "2085-9"
+    category: Lípidos
+    canonical_unit: mg/dL
+    unit_conversions: {mmol/L: 38.67}
+    aliases: [HDL, HDL-C, HDL cholesterol, Colesterol HDL, HDL colesterol, c-HDL, Colesterol de alta densidad]
+    direction: higher
+    decimals: 0
+    sort_order: 20
+    description_es: Colesterol que las partículas HDL retiran de los tejidos hacia el hígado.
+    description_en: Cholesterol that HDL particles carry from the tissues back to the liver.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 40, source: NCEP ATP III / AHA}
+      - {kind: lab_standard, sex: female, low: 50, source: NCEP ATP III / AHA}
+
+  - key: triglycerides
+    name_es: Triglicéridos
+    name_en: Triglycerides
+    loinc: "2571-8"
+    category: Lípidos
+    canonical_unit: mg/dL
+    unit_conversions: {mmol/L: 88.57}
+    aliases: [Triglycerides, Triglyceride, TG, Triglicéridos, Trigliceridos]
+    direction: lower
+    decimals: 0
+    sort_order: 30
+    description_es: Grasa circulante que sube con el exceso de azúcares, alcohol y la resistencia a la insulina.
+    description_en: Circulating fat that rises with excess sugar, alcohol and insulin resistance.
+    ranges:
+      - {kind: lab_standard, sex: any, high: 150, source: NCEP ATP III}
+      - {kind: borderline, sex: any, low: 150, high: 199, source: NCEP ATP III (limítrofe alto)}
+
+  - key: tg_hdl_ratio
+    name_es: Relación TG/HDL
+    name_en: TG/HDL ratio
+    loinc: null
+    category: Lípidos
+    canonical_unit: ratio
+    aliases: [TG/HDL, TG/HDL ratio, TG:HDL, Triglycerides/HDL, Triglyceride/HDL ratio, Relación TG/HDL, Índice TG/HDL]
+    direction: lower
+    derived_from: [triglycerides, hdl_c]  # numerador ÷ denominador
+    decimals: 2
+    sort_order: 40
+    description_es: Cociente triglicéridos ÷ HDL, marcador indirecto de resistencia a la insulina (referencia común < 3,0).
+    description_en: Triglycerides ÷ HDL, an indirect marker of insulin resistance (common reference < 3.0).
+    ranges: []
+
+  - key: total_cholesterol
+    name_es: Colesterol total
+    name_en: Total cholesterol
+    loinc: "2093-3"
+    category: Lípidos
+    canonical_unit: mg/dL
+    unit_conversions: {mmol/L: 38.67}
+    aliases: [Total cholesterol, Cholesterol, Cholesterol total, Colesterol total, Colesterol, TC]
+    direction: lower
+    decimals: 0
+    sort_order: 50
+    description_es: Suma del colesterol de todas las lipoproteínas.
+    description_en: Sum of the cholesterol in all lipoproteins.
+    ranges:
+      - {kind: lab_standard, sex: any, high: 200, source: NCEP ATP III (deseable)}
+      - {kind: borderline, sex: any, low: 200, high: 239, source: NCEP ATP III (limítrofe alto)}
+
+  - key: apob
+    name_es: Apolipoproteína B
+    name_en: Apolipoprotein B
+    loinc: "1884-6"
+    category: Lípidos
+    canonical_unit: mg/dL
+    unit_conversions: {g/L: 100}
+    aliases: [ApoB, Apo B, Apo-B, Apolipoprotein B, Apolipoproteína B, Apolipoproteina B]
+    direction: lower
+    decimals: 0
+    sort_order: 60
+    description_es: Cuenta las partículas aterogénicas (una ApoB por partícula LDL, VLDL o Lp(a)).
+    description_en: Counts the atherogenic particles (one ApoB per LDL, VLDL or Lp(a) particle).
+    ranges:
+      - {kind: lab_standard, sex: any, high: 90, source: ESC/EAS 2019 (riesgo moderado)}
+
+  # ── Glucose and insulin ─────────────────────────────────────────────────
+  - key: glucose_fasting
+    name_es: Glucosa en ayunas
+    name_en: Fasting glucose
+    loinc: "1558-6"
+    category: Glucosa e insulina
+    canonical_unit: mg/dL
+    unit_conversions: {mmol/L: 18.016}
+    aliases: [Glucose, Fasting glucose, Glucose (fasting), Glucose fasting, Fasting Glucose, Glucosa, Glucosa en ayunas, Glicemia, Glucemia en ayunas, Glicemia basal]
+    direction: lower
+    decimals: 0
+    sort_order: 100
+    description_es: Azúcar en sangre tras 8 horas o más sin comer.
+    description_en: Blood sugar after 8 hours or more without eating.
+    ranges:
+      - {kind: lab_standard, sex: any, low: 70, high: 99, source: ADA 2024}
+      - {kind: borderline, sex: any, low: 100, high: 125, source: ADA 2024 (prediabetes)}
+
+  - key: insulin_fasting
+    name_es: Insulina en ayunas
+    name_en: Fasting insulin
+    loinc: "20448-7"
+    category: Glucosa e insulina
+    canonical_unit: µU/mL
+    unit_conversions: {pmol/L: 0.144, uU/mL: 1, mUI/L: 1, mU/L: 1, µUI/mL: 1}
+    aliases: [Insulin, Fasting insulin, Insulin (fasting), Insulin fasting, Fasting Insulin, Insulina, Insulina en ayunas, Insulina basal]
+    direction: lower
+    decimals: 1
+    sort_order: 110
+    description_es: Hormona que mete la glucosa en las células; alta en ayunas sugiere resistencia a la insulina.
+    description_en: Hormone that moves glucose into the cells; high when fasting suggests insulin resistance.
+    ranges:
+      - {kind: lab_standard, sex: any, low: 2.6, high: 24.9, source: Inserto Roche Elecsys Insulin}
+
+  - key: hba1c
+    name_es: Hemoglobina glicosilada
+    name_en: Hemoglobin A1c
+    loinc: "4548-4"
+    category: Glucosa e insulina
+    canonical_unit: "%"
+    aliases: [HbA1c, A1c, Hemoglobin A1c, Glycated hemoglobin, HbA1C, Hemoglobina glicosilada, Hemoglobina glicada, Hemoglobina A1c]
+    direction: lower
+    decimals: 1
+    sort_order: 120
+    description_es: Promedio de la glucosa de los últimos 2 a 3 meses.
+    description_en: Average glucose over the last 2 to 3 months.
+    ranges:
+      - {kind: lab_standard, sex: any, high: 5.7, source: ADA 2024}
+      - {kind: borderline, sex: any, low: 5.7, high: 6.4, source: ADA 2024 (prediabetes)}
+
+  - key: glucose_ogtt_30
+    name_es: Curva de glucosa 30′
+    name_en: OGTT glucose 30 min
+    loinc: null
+    category: Glucosa e insulina
+    canonical_unit: mg/dL
+    unit_conversions: {mmol/L: 18.016}
+    aliases: [OGTT 30, OGTT 30 min, OGTT 30', OGTT 30m, Glucose 30 min, Glucose 30', Glucose 30m, Glucose OGTT 30, Curva de glucosa 30, Glucosa 30 min, Glucosa 30']
+    direction: lower
+    decimals: 0
+    sort_order: 130
+    description_es: Glucosa 30 minutos después de tomar 75 g de glucosa; no tiene rango estándar.
+    description_en: Glucose 30 minutes after drinking 75 g of glucose; it has no standard range.
+    ranges: []
+
+  - key: glucose_ogtt_60
+    name_es: Curva de glucosa 60′
+    name_en: OGTT glucose 60 min
+    loinc: null
+    category: Glucosa e insulina
+    canonical_unit: mg/dL
+    unit_conversions: {mmol/L: 18.016}
+    aliases: [OGTT 60, OGTT 60 min, OGTT 60', OGTT 60m, OGTT 1h, Glucose 60 min, Glucose 60', Glucose 60m, Glucose 1h, Glucose OGTT 60, Curva de glucosa 60, Glucosa 60 min, Glucosa 60', Glucosa 1 hora]
+    direction: lower
+    decimals: 0
+    sort_order: 140
+    description_es: Glucosa una hora después de tomar 75 g de glucosa.
+    description_en: Glucose one hour after drinking 75 g of glucose.
+    ranges:
+      - {kind: lab_standard, sex: any, high: 155, source: "IADPSG (1 h, 75 g)"}
+
+  - key: glucose_ogtt_120
+    name_es: Curva de glucosa 120′
+    name_en: OGTT glucose 120 min
+    loinc: "1518-0"
+    category: Glucosa e insulina
+    canonical_unit: mg/dL
+    unit_conversions: {mmol/L: 18.016}
+    aliases: [OGTT 120, OGTT 120 min, OGTT 120', OGTT 120m, OGTT 2h, Glucose 120 min, Glucose 120', Glucose 120m, Glucose 2h, 2h glucose, Glucose OGTT 120, Curva de glucosa 120, Glucosa 120 min, Glucosa 120', Glucosa 2 horas, Glucosa postcarga]
+    direction: lower
+    decimals: 0
+    sort_order: 150
+    description_es: Glucosa dos horas después de tomar 75 g de glucosa; es el punto diagnóstico de la curva.
+    description_en: Glucose two hours after drinking 75 g of glucose; the diagnostic point of the curve.
+    ranges:
+      - {kind: lab_standard, sex: any, high: 140, source: "ADA 2024 (2 h, 75 g)"}
+      - {kind: borderline, sex: any, low: 140, high: 199, source: ADA 2024 (intolerancia a la glucosa)}
+
+  # ── Liver ────────────────────────────────────────────────────────────────
+  - key: alt
+    name_es: ALT (TGP)
+    name_en: Alanine aminotransferase
+    loinc: "1742-6"
+    category: Hígado
+    canonical_unit: U/L
+    unit_conversions: {UI/L: 1, IU/L: 1}
+    aliases: [ALT, ALT (GPT), GPT, SGPT, TGP, ALAT, Alanine aminotransferase, Alanina aminotransferasa, Transaminasa pirúvica]
+    direction: lower
+    decimals: 0
+    sort_order: 200
+    description_es: Enzima del hígado; sube con hígado graso, alcohol, fármacos o entrenamiento muy intenso.
+    description_en: Liver enzyme; rises with fatty liver, alcohol, medication or very intense training.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 0, high: 41, source: Inserto Roche ALTL (37 °C)}
+      - {kind: lab_standard, sex: female, low: 0, high: 33, source: Inserto Roche ALTL (37 °C)}
+
+  - key: ast
+    name_es: AST (TGO)
+    name_en: Aspartate aminotransferase
+    loinc: "1920-8"
+    category: Hígado
+    canonical_unit: U/L
+    unit_conversions: {UI/L: 1, IU/L: 1}
+    aliases: [AST, AST (GOT), GOT, SGOT, TGO, ASAT, Aspartate aminotransferase, Aspartato aminotransferasa, Transaminasa oxalacética]
+    direction: lower
+    decimals: 0
+    sort_order: 210
+    description_es: Enzima del hígado y del músculo; sube también tras sesiones de fuerza exigentes.
+    description_en: Liver and muscle enzyme; also rises after demanding strength sessions.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 0, high: 40, source: Inserto Roche ASTL (37 °C)}
+      - {kind: lab_standard, sex: female, low: 0, high: 32, source: Inserto Roche ASTL (37 °C)}
+
+  # ── Kidney ───────────────────────────────────────────────────────────────
+  - key: cystatin_c
+    name_es: Cistatina C
+    name_en: Cystatin C
+    loinc: "33863-2"
+    category: Riñón
+    canonical_unit: mg/L
+    aliases: [Cystatin C, Cystatin-C, CysC, Cistatina C, Cistatina]
+    direction: lower
+    decimals: 2
+    sort_order: 300
+    description_es: Proteína filtrada por el riñón que, a diferencia de la creatinina, casi no depende de la masa muscular.
+    description_en: Protein filtered by the kidney that, unlike creatinine, barely depends on muscle mass.
+    ranges:
+      - {kind: lab_standard, sex: any, age_max: 49, low: 0.61, high: 0.95, source: Inserto Roche Cystatin C Gen.2 (< 50 años)}
+      - {kind: lab_standard, sex: any, age_min: 50, low: 0.66, high: 1.11, source: Inserto Roche Cystatin C Gen.2 (≥ 50 años; verificar)}
+
+  - key: creatinine
+    name_es: Creatinina
+    name_en: Creatinine
+    loinc: "2160-0"
+    category: Riñón
+    canonical_unit: mg/dL
+    unit_conversions: {µmol/L: 0.01131, umol/L: 0.01131}
+    aliases: [Creatinine, Serum creatinine, CR, Creatinina, Creatinina sérica]
+    direction: range
+    decimals: 2
+    sort_order: 310
+    description_es: Desecho del músculo que filtra el riñón; con mucha masa muscular suele salir algo más alta.
+    description_en: Muscle waste product filtered by the kidney; with a lot of muscle mass it tends to read a bit higher.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 0.7, high: 1.3, source: Inserto Roche CREJ2 (Jaffé)}
+      - {kind: lab_standard, sex: female, low: 0.5, high: 1.1, source: Inserto Roche CREJ2 (Jaffé)}
+
+  - key: uric_acid
+    name_es: Ácido úrico
+    name_en: Uric acid
+    loinc: "3084-1"
+    category: Riñón
+    canonical_unit: mg/dL
+    unit_conversions: {µmol/L: 0.01681, umol/L: 0.01681}
+    aliases: [Uric acid, Urate, Ácido úrico, Acido urico, Uricemia]
+    direction: lower
+    decimals: 1
+    sort_order: 320
+    description_es: Producto final de las purinas; alto se asocia a gota, fructosa y síndrome metabólico.
+    description_en: End product of purines; high levels are linked to gout, fructose and metabolic syndrome.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 3.4, high: 7.0, source: Inserto Roche UA2}
+      - {kind: lab_standard, sex: female, low: 2.4, high: 5.7, source: Inserto Roche UA2}
+
+  # ── Hormones ────────────────────────────────────────────────────────────
+  - key: testosterone_total
+    name_es: Testosterona total
+    name_en: Total testosterone
+    loinc: "2986-8"
+    category: Hormonas
+    canonical_unit: ng/dL
+    unit_conversions: {ng/mL: 100, nmol/L: 28.84}
+    aliases: [Testosterone, Total testosterone, Testosterone total, Testosterone (total), Testosterona, Testosterona total]
+    direction: range
+    decimals: 0
+    sort_order: 400
+    description_es: Principal andrógeno; influye en la masa muscular, la energía y la libido.
+    description_en: Main androgen; affects muscle mass, energy and libido.
+    ranges:
+      - {kind: lab_standard, sex: male, age_min: 20, age_max: 49, low: 249, high: 836, source: Inserto Roche Elecsys Testosterone II (hombres 20–49)}
+      - {kind: lab_standard, sex: male, age_min: 50, low: 193, high: 740, source: Inserto Roche Elecsys Testosterone II (hombres ≥ 50)}
+
+  - key: testosterone_free
+    name_es: Testosterona libre
+    name_en: Free testosterone
+    loinc: "2991-8"
+    category: Hormonas
+    canonical_unit: pg/mL
+    unit_conversions: {ng/dL: 10, pmol/L: 0.2884}
+    aliases: [Free testosterone, Testosterone free, Testosterone (free), Free T, Testosterona libre]
+    direction: range
+    decimals: 2
+    sort_order: 410
+    description_es: Fracción de testosterona no unida a proteínas; el rango depende del método, se usa el del informe.
+    description_en: Fraction of testosterone not bound to proteins; the range depends on the method, so the report's is used.
+    ranges: []
+
+  - key: estradiol
+    name_es: Estradiol
+    name_en: Estradiol
+    loinc: "2243-4"
+    category: Hormonas
+    canonical_unit: pg/mL
+    unit_conversions: {pmol/L: 0.2724}
+    aliases: [Estradiol, E2, Estradiol (E2), 17-beta estradiol, 17β-estradiol]
+    direction: range
+    decimals: 0
+    sort_order: 420
+    description_es: Estrógeno principal; en hombres sale en buena parte de la testosterona por aromatización.
+    description_en: Main estrogen; in men much of it comes from testosterone through aromatization.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 11, high: 43, source: Inserto Roche Elecsys Estradiol III (hombres)}
+
+  - key: fsh
+    name_es: Hormona folículo estimulante
+    name_en: Follicle-stimulating hormone
+    loinc: "15067-2"
+    category: Hormonas
+    canonical_unit: mUI/mL
+    unit_conversions: {mIU/mL: 1, UI/L: 1, IU/L: 1}
+    aliases: [FSH, Follicle stimulating hormone, Follicle-stimulating hormone, Hormona folículo estimulante, Hormona foliculoestimulante]
+    direction: range
+    decimals: 1
+    sort_order: 430
+    description_es: Hormona de la hipófisis que regula la producción de espermatozoides u óvulos.
+    description_en: Pituitary hormone that regulates sperm or egg production.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 1.5, high: 12.4, source: Inserto Roche Elecsys FSH (hombres)}
+
+  - key: lh
+    name_es: Hormona luteinizante
+    name_en: Luteinizing hormone
+    loinc: "10501-5"
+    category: Hormonas
+    canonical_unit: mUI/mL
+    unit_conversions: {mIU/mL: 1, UI/L: 1, IU/L: 1}
+    aliases: [LH, Luteinizing hormone, Hormona luteinizante]
+    direction: range
+    decimals: 1
+    sort_order: 440
+    description_es: Hormona de la hipófisis que ordena a los testículos producir testosterona.
+    description_en: Pituitary hormone that tells the testes to produce testosterone.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 1.7, high: 8.6, source: Inserto Roche Elecsys LH (hombres)}
+
+  # ── Thyroid ─────────────────────────────────────────────────────────────
+  - key: tsh
+    name_es: TSH
+    name_en: Thyroid-stimulating hormone
+    loinc: "3016-3"
+    category: Tiroides
+    canonical_unit: µUI/mL
+    unit_conversions: {mIU/L: 1, mUI/L: 1, uIU/mL: 1, µIU/mL: 1}
+    aliases: [TSH, Thyrotropin, Thyroid stimulating hormone, Hormona estimulante de tiroides, Tirotropina]
+    direction: range
+    decimals: 2
+    sort_order: 500
+    description_es: Hormona que regula la tiroides; alta sugiere tiroides lenta y baja, acelerada.
+    description_en: Hormone that regulates the thyroid; high suggests a slow thyroid and low, an overactive one.
+    ranges:
+      - {kind: lab_standard, sex: any, low: 0.27, high: 4.2, source: Inserto Roche Elecsys TSH}
+
+  # ── Vitamins and minerals ───────────────────────────────────────────────
+  - key: vitamin_d_25oh
+    name_es: Vitamina D (25-OH)
+    name_en: 25-hydroxyvitamin D
+    loinc: "62292-8"
+    category: Vitaminas y minerales
+    canonical_unit: ng/mL
+    unit_conversions: {nmol/L: 0.4006}
+    aliases: [Vitamin D, Vitamin D 25-OH, 25-OH Vitamin D, 25(OH)D, 25-hydroxyvitamin D, Vit D, Vitamina D, Vitamina D 25-OH, 25-hidroxivitamina D]
+    direction: range
+    decimals: 1
+    sort_order: 600
+    description_es: Reserva de vitamina D; depende del sol y la dieta e interviene en hueso, músculo e inmunidad.
+    description_en: Vitamin D store; depends on sun and diet and plays a role in bone, muscle and immunity.
+    ranges:
+      - {kind: lab_standard, sex: any, low: 30, high: 100, source: Endocrine Society 2011 (suficiencia)}
+      - {kind: borderline, sex: any, low: 20, high: 29, source: Endocrine Society 2011 (insuficiencia)}
+
+  - key: vitamin_b12
+    name_es: Vitamina B12
+    name_en: Vitamin B12
+    loinc: "2132-9"
+    category: Vitaminas y minerales
+    canonical_unit: pg/mL
+    unit_conversions: {pmol/L: 1.355}
+    aliases: [Vitamin B12, B12, Cobalamin, Vit B12, Vitamina B12, Cobalamina]
+    direction: range
+    decimals: 0
+    sort_order: 610
+    description_es: Vitamina necesaria para la sangre y los nervios; viene casi solo de alimentos de origen animal.
+    description_en: Vitamin needed for blood and nerves; it comes almost only from animal foods.
+    ranges:
+      - {kind: lab_standard, sex: any, low: 197, high: 771, source: Inserto Roche Elecsys Vitamin B12 II}
+
+  - key: ferritin
+    name_es: Ferritina
+    name_en: Ferritin
+    loinc: "2276-4"
+    category: Vitaminas y minerales
+    canonical_unit: ng/mL
+    unit_conversions: {µg/L: 1, ug/L: 1}
+    aliases: [Ferritin, Serum ferritin, Ferritina]
+    direction: range
+    decimals: 0
+    sort_order: 620
+    description_es: Reserva de hierro del cuerpo; también sube con la inflamación.
+    description_en: The body's iron store; it also rises with inflammation.
+    ranges:
+      - {kind: lab_standard, sex: male, low: 30, high: 400, source: Inserto Roche Elecsys Ferritin (hombres)}
+      - {kind: lab_standard, sex: female, low: 13, high: 150, source: Inserto Roche Elecsys Ferritin (mujeres)}
+
+  # ── Inflammation and other ─────────────────────────────────────────────────
+  - key: hs_crp
+    name_es: Proteína C reactiva ultrasensible
+    name_en: High-sensitivity C-reactive protein
+    loinc: "30522-7"
+    category: Inflamación y otros
+    canonical_unit: mg/L
+    unit_conversions: {mg/dL: 10}
+    aliases: [hs-CRP, hsCRP, CRP, hs CRP, High sensitivity CRP, C-reactive protein, PCR, PCR ultrasensible, PCR-us, Proteína C reactiva, Proteína C reactiva ultrasensible]
+    direction: lower
+    decimals: 2
+    sort_order: 700
+    description_es: Marcador de inflamación de bajo grado; según la AHA, < 1 es riesgo cardiovascular bajo y 1–3 medio.
+    description_en: Low-grade inflammation marker; per the AHA, < 1 is low cardiovascular risk and 1–3 average.
+    ranges:
+      - {kind: lab_standard, sex: any, high: 3, source: AHA/CDC 2003}
+
+  - key: homocysteine
+    name_es: Homocisteína
+    name_en: Homocysteine
+    loinc: "13965-9"
+    category: Inflamación y otros
+    canonical_unit: µmol/L
+    unit_conversions: {umol/L: 1}
+    aliases: [Homocysteine, Hcy, Homocisteína, Homocisteina]
+    direction: lower
+    decimals: 1
+    sort_order: 710
+    description_es: Aminoácido que sube con déficit de B12, folato o B6 y se asocia a riesgo cardiovascular.
+    description_en: Amino acid that rises with B12, folate or B6 deficiency and is linked to cardiovascular risk.
+    ranges:
+      - {kind: lab_standard, sex: any, low: 5, high: 15, source: Inserto Roche Homocysteine}
+
+  - key: fibrinogen
+    name_es: Fibrinógeno
+    name_en: Fibrinogen
+    loinc: "3255-7"
+    category: Inflamación y otros
+    canonical_unit: mg/dL
+    unit_conversions: {g/L: 100}
+    aliases: [Fibrinogen, Fibrinógeno, Fibrinogeno]
+    direction: range
+    decimals: 0
+    sort_order: 720
+    description_es: Proteína de la coagulación que también sube con la inflamación.
+    description_en: Clotting protein that also rises with inflammation.
+    ranges:
+      - {kind: lab_standard, sex: any, low: 200, high: 400, source: Rango clínico habitual (Clauss)}

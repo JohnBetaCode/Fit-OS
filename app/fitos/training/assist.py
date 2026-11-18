@@ -1,0 +1,332 @@
+"""Assisted training: build today's workout from what you ask for, then adjust it before and during it.
+
+- Focus: the program's next day, or muscle groups ("chest + shoulders"). Each group becomes slots (the first
+  one per muscle asks for a compound lift, the rest for isolation) ranked by the planner (`rank_for_slot`:
+  injuries, dislikes, history, variety, external load).
+- Place and missing equipment: the place's tags minus what isn't there today ("no barbell").
+- Mode: `smart` takes the planner's first choice; `random` draws from its top few, so two days with the same
+  focus look different.
+- Then: swap (alternatives that fit today's equipment), another one at random, add (search or a random one for a
+  group), remove and reorder. Before the start these edit the proposed plan; during it they work on the live
+  session (an item with sets logged is never removed, only skipped).
+
+Loads always come from the usual progression on your history (`planner._target`).
+"""
+
+from __future__ import annotations
+
+import random
+from dataclasses import dataclass, field
+from datetime import date
+
+from sqlalchemy.orm import Session
+
+from ..core import prefs
+from ..core.models import EquipmentProfile, Exercise, PlannedItem, PlannedSession, WorkoutSession
+from ..i18n import _
+from . import service as tr
+from . import week as wk
+from .planner import (
+    ALL_TAGS,
+    _equipment_profile,
+    _history_ids,
+    _recent_ids,
+    _recently_planned,
+    _target,
+    rank_for_slot,
+)
+from .substitution import active_injured_joints, eligible, rank_alternatives
+
+# Focus chips → primary muscles (catalog `primary_muscle` keys), in the order they are filled
+GROUPS: dict[str, list[str]] = {
+    "chest": ["chest"],
+    "shoulders": ["delts"],
+    "back": ["lats", "upper_back"],
+    "biceps": ["biceps"],
+    "triceps": ["triceps"],
+    "legs": ["quads", "hamstrings", "glutes", "calves"],
+    "glutes": ["glutes", "hamstrings"],
+    "abs": ["abs"],
+    "full": ["quads", "chest", "lats", "hamstrings", "delts", "upper_back"],
+}
+GROUP_ES = {
+    "chest": "Pecho", "shoulders": "Hombro", "back": "Espalda", "biceps": "Bíceps", "triceps": "Tríceps",
+    "legs": "Pierna", "glutes": "Glúteo", "abs": "Abdomen", "full": "Cuerpo completo",
+}
+# What can be missing today, in words people use (equipment_tag / requires keys)
+MISSING_ES = {
+    "barbell": "Barra", "dumbbell": "Mancuernas", "cable": "Poleas", "machine": "Máquinas", "smith": "Smith",
+    "bench_flat": "Banco", "rack": "Rack", "pullup_bar": "Barra de dominadas", "kettlebell": "Kettlebell",
+}
+COMPOUND_REPS, ISOLATION_REPS = (6, 10), (10, 15)
+RANDOM_POOL = 5
+
+
+def group_labels() -> dict[str, str]:
+    return {k: _(v) for k, v in GROUP_ES.items()}
+
+
+def missing_labels() -> dict[str, str]:
+    return {k: _(v) for k, v in MISSING_ES.items()}
+
+
+@dataclass
+class Setup:
+    """What the person asked for (remembered as the next day's default)."""
+
+    on: date
+    equipment_profile_id: int | None = None
+    focus: str = "program"  # program | groups
+    groups: list[str] = field(default_factory=list)
+    count: int = 6
+    missing: list[str] = field(default_factory=list)
+    mode: str = "smart"  # smart | random
+
+    def as_pref(self) -> dict:
+        return {"equipment_profile_id": self.equipment_profile_id, "focus": self.focus, "groups": self.groups,
+                "count": self.count, "missing": self.missing, "mode": self.mode}
+
+
+def last_setup(db: Session, on: date) -> Setup:
+    saved = prefs.get(db, "assist_last") or {}
+    s = Setup(on=on)
+    for k in ("equipment_profile_id", "focus", "groups", "count", "missing", "mode"):
+        if k in saved:
+            setattr(s, k, saved[k])
+    return s
+
+
+def today_missing(db: Session, on: date) -> set[str]:
+    """Equipment marked as missing for that day (kept while the day's plan lasts)."""
+    saved = prefs.get(db, "assist_last") or {}
+    return set(saved.get("missing") or []) if saved.get("date") == on.isoformat() else set()
+
+
+def _tags(ep: EquipmentProfile | None, missing: set[str]) -> set[str]:
+    return (set(ep.tags or []) if ep else set(ALL_TAGS)) - missing
+
+
+def _slots(groups: list[str], count: int) -> list[dict]:
+    """Round-robin over the groups, cycling each group's muscles; the first slot of a muscle is compound."""
+    seqs = [list(GROUPS[g]) for g in groups if g in GROUPS]
+    if not seqs:
+        return []
+    out, seen, i = [], set(), 0
+    while len(out) < count and i < count * 4:
+        seq = seqs[i % len(seqs)]
+        muscle = seq[(i // len(seqs)) % len(seq)]
+        compound = muscle not in seen
+        seen.add(muscle)
+        lo, hi = COMPOUND_REPS if compound else ISOLATION_REPS
+        out.append({"slot": "assist", "muscle": muscle, "mechanic": "compound" if compound else "isolation",
+                    "sets": 3, "rep_min": lo, "rep_max": hi, "target_rir": 2})
+        i += 1
+    return out
+
+
+def _pick(ranked: list[Exercise], slot: dict, mode: str, rng: random.Random) -> Exercise | None:
+    if not ranked:
+        return None
+    want = slot.get("mechanic")
+    fitting = [e for e in ranked if e.mechanic == want] or ranked
+    if mode == "random":
+        return rng.choice(fitting[:RANDOM_POOL])
+    return fitting[0]
+
+
+def _context(db: Session, on: date):
+    prof = tr.get_profile(db)
+    return {"history_ids": _history_ids(db), "recent_ids": _recent_ids(db, on),
+            "injured": active_injured_joints(prof.injuries), "disliked": set(prof.disliked_exercise_ids or []),
+            "recently_planned": _recently_planned(db, on)}
+
+
+def build(db: Session, setup: Setup, rng: random.Random | None = None) -> PlannedSession:
+    """Today's (or `setup.on`'s) plan from the setup; replaces a plan that hasn't started."""
+    rng = rng or random.Random()
+    prof = tr.get_profile(db)
+    ep = _equipment_profile(db, setup.on, setup.equipment_profile_id, prof)
+    missing = set(setup.missing)
+    tags = _tags(ep, missing)
+    prefs.set_(db, "assist_last", {**setup.as_pref(), "date": setup.on.isoformat()})
+    if setup.focus == "program":
+        plan = tr.get_or_build_plan(db, setup.on, ep.id if ep else None, replace=True)
+        for item in list(plan.items):  # what the program picked but isn't there today
+            if not eligible(item.exercise, tags):
+                alt = _random_for(db, plan, item.slot or {}, tags, "smart", rng, exclude={item.exercise_id})
+                if alt is not None:
+                    wk.swap_item(db, item, alt.id)
+                else:
+                    wk.remove_item(db, item)
+        return plan
+    groups = [g for g in setup.groups if g in GROUPS]
+    if not groups:
+        raise ValueError(_("Elige al menos un grupo muscular."))
+    count = max(2, min(12, int(setup.count)))
+    ctx = _context(db, setup.on)
+    used: set[str] = set()
+    items = []
+    for slot in _slots(groups, count):
+        ranked = rank_for_slot(db, slot, tags, used=used, **ctx)
+        ranked = [e for e in ranked if e.id not in ctx["disliked"] and not (set(e.stress_joints or []) & ctx["injured"])]
+        ex = _pick(ranked, slot, setup.mode, rng)
+        if ex is None:
+            continue
+        used.add(ex.id)
+        items.append({"exercise": ex.id, "sets": slot["sets"], "reps": [slot["rep_min"], slot["rep_max"]],
+                      "rir": slot["target_rir"]})
+    if not items:
+        raise ValueError(_("No encontré ejercicios para eso con el equipo de hoy."))
+    focus = " + ".join(group_labels()[g] for g in groups)
+    return tr.put_custom_plan(db, setup.on, focus, items, equipment_profile_id=ep.id if ep else None,
+                              rationale=_("Armado en Entrenar ({mode}).", mode=_("al azar") if setup.mode == "random" else _("sugerido")))
+
+
+def empty_plan(db: Session, setup: Setup) -> PlannedSession:
+    """"I'll choose": an empty plan for the day (replacing one that hasn't started) to fill by search."""
+    from sqlalchemy import select  # noqa: PLC0415
+
+    prof = tr.get_profile(db)
+    ep = _equipment_profile(db, setup.on, setup.equipment_profile_id, prof)
+    prefs.set_(db, "assist_last", {**setup.as_pref(), "date": setup.on.isoformat()})
+    current = tr.plan_for(db, setup.on)
+    if current is not None and current.status in ("active", "completed"):
+        raise ValueError(_("El plan de ese día ya está {status}", status=current.status))
+    for old in db.scalars(select(PlannedSession).where(PlannedSession.date == setup.on,
+                                                      PlannedSession.status.in_(("proposed", "accepted", "skipped")))):
+        old.status = "replaced"
+    groups = [g for g in setup.groups if g in GROUPS] if setup.focus == "groups" else []
+    plan = PlannedSession(date=setup.on, focus_label=" + ".join(group_labels()[g] for g in groups) or _("Mi entreno"),
+                          equipment_profile_id=ep.id if ep else None, status="proposed", source="custom",
+                          rationale=_("Armado en Entrenar (a mano)."))
+    db.add(plan)
+    db.flush()
+    return plan
+
+
+def _plan_tags(db: Session, plan: PlannedSession) -> set[str]:
+    ep = db.get(EquipmentProfile, plan.equipment_profile_id) if plan.equipment_profile_id else None
+    return _tags(ep, today_missing(db, plan.date))
+
+
+def _random_for(db: Session, plan: PlannedSession, slot: dict, tags: set[str], mode: str, rng: random.Random,
+                exclude: set[str] = frozenset()) -> Exercise | None:
+    ctx = _context(db, plan.date)
+    used = {i.exercise_id for i in plan.items} | set(exclude)
+    ranked = rank_for_slot(db, {k: slot.get(k) for k in ("pattern", "muscle") if slot.get(k)}, tags, used=used, **ctx)
+    ranked = [e for e in ranked if e.id not in ctx["disliked"] and not (set(e.stress_joints or []) & ctx["injured"])]
+    return _pick(ranked, slot, mode, rng)
+
+
+def options(db: Session, item: PlannedItem, limit: int = 8) -> list[Exercise]:
+    """Alternatives for an item that fit today's equipment (place minus what's missing)."""
+    plan = item.session
+    original = db.get(Exercise, item.swapped_from_id or item.exercise_id) or item.exercise
+    ws = tr.active_session(db)
+    busy = set((ws.wa_context or {}).get("busy_stations") or []) if ws and ws.planned_session_id == plan.id else set()
+    ctx = _context(db, plan.date)
+    alts = rank_alternatives(
+        db, original, _plan_tags(db, plan), busy_stations=busy,
+        exclude_ids={i.exercise_id for i in plan.items} | ctx["disliked"], injured_joints=ctx["injured"],
+        recent_ids=ctx["recent_ids"], history_ids=ctx["history_ids"], limit=limit,
+    )
+    return [e for e, _score in alts]
+
+
+def _live(db: Session, plan: PlannedSession) -> WorkoutSession | None:
+    ws = tr.active_session(db)
+    return ws if ws and ws.planned_session_id == plan.id else None
+
+
+def swap(db: Session, item: PlannedItem, exercise_id: str, reason: str = "preference") -> PlannedItem:
+    ex = db.get(Exercise, exercise_id)
+    if ex is None:
+        raise LookupError(exercise_id)
+    ws = _live(db, item.session)
+    if ws is None:
+        return wk.swap_item(db, item, ex.id)
+    if tr.item_sets(ws, item):
+        raise ValueError(_("Ese ejercicio ya tiene series: agrega otro en vez de cambiarlo."))
+    return tr.swap_item(db, ws, item, ex, reason)
+
+
+def reroll(db: Session, item: PlannedItem, rng: random.Random | None = None) -> PlannedItem:
+    """Another exercise for the same muscle/pattern, at random among the good ones for today's equipment."""
+    plan = item.session
+    ex = _random_for(db, plan, item.slot or {"muscle": item.exercise.primary_muscle}, _plan_tags(db, plan), "random",
+                     rng or random.Random(), exclude={item.exercise_id, item.swapped_from_id or ""})
+    if ex is None:
+        raise ValueError(_("No encontré otro ejercicio para eso con el equipo de hoy."))
+    return swap(db, item, ex.id, "random")
+
+
+def add(db: Session, plan: PlannedSession, exercise_id: str | None = None, group: str | None = None,
+        rng: random.Random | None = None) -> PlannedItem:
+    """Add an exercise (by id, or a random one for a group) to the plan, before or during the workout."""
+    if exercise_id is None:
+        muscles = GROUPS.get(group or "")
+        if not muscles:
+            raise ValueError(_("Elige un grupo muscular."))
+        rng = rng or random.Random()
+        slot = {"muscle": rng.choice(muscles), "mechanic": "isolation"}
+        ex = _random_for(db, plan, slot, _plan_tags(db, plan), "random", rng)
+        if ex is None:
+            raise ValueError(_("No encontré ejercicios para eso con el equipo de hoy."))
+        exercise_id = ex.id
+    if plan.status in wk.EDITABLE:
+        return wk.add_item(db, plan, exercise_id)
+    if _live(db, plan) is None:
+        raise ValueError(_("Ese plan ya empezó o terminó: no se puede editar"))
+    ex = db.get(Exercise, exercise_id)
+    if ex is None:
+        raise LookupError(exercise_id)
+    lo, hi = COMPOUND_REPS if ex.mechanic == "compound" else ISOLATION_REPS
+    slot = {"slot": "added", "pattern": ex.movement_pattern, "muscle": ex.primary_muscle, "sets": 3,
+            "rep_min": lo, "rep_max": hi, "target_rir": 2}
+    ep = db.get(EquipmentProfile, plan.equipment_profile_id) if plan.equipment_profile_id else None
+    t = _target(db, ex, slot, ep, (ep.loads or {}) if ep else {})
+    item = PlannedItem(order_idx=len(plan.items), slot=slot, exercise_id=ex.id, sets=3, rep_min=t.rep_min,
+                       rep_max=t.rep_max, target_rir=2, target_weight_kg=t.weight_kg, target_note=t.note or None)
+    plan.items.append(item)
+    db.flush()
+    return item
+
+
+def remove(db: Session, item: PlannedItem) -> None:
+    """Before the start: out of the plan. During it: skipped (or refused if it already has sets)."""
+    plan = item.session
+    ws = _live(db, plan)
+    if ws is None:
+        wk.remove_item(db, item)
+        return
+    if tr.item_sets(ws, item):
+        raise ValueError(_("Ese ejercicio ya tiene series."))
+    was_current = tr.current_item(db, ws) is not None and tr.current_item(db, ws).id == item.id
+    item.status = "skipped"
+    if was_current:
+        tr.advance(db, ws, "skipped")
+
+
+def move(db: Session, item: PlannedItem, delta: int) -> None:
+    if item.session.status in wk.EDITABLE:
+        wk.move_item(db, item, delta)
+        return
+    plan = item.session
+    items = list(plan.items)
+    i = items.index(item)
+    j = max(0, min(len(items) - 1, i + delta))
+    if i != j:
+        items[i], items[j] = items[j], items[i]
+        for k, it in enumerate(items):
+            it.order_idx = k
+        plan.items.sort(key=lambda it: it.order_idx)
+
+
+def focus_on(db: Session, ws: WorkoutSession, item: PlannedItem) -> None:
+    """Make `item` the current exercise of the live session (you can do them in any order)."""
+    cur = tr.current_item(db, ws)
+    if cur is not None and cur.id != item.id and cur.status == "active":
+        cur.status = "pending"
+    if item.status in ("pending", "active"):
+        item.status = "active"
+    ws.wa_context = {**(ws.wa_context or {}), "current_item_id": item.id}

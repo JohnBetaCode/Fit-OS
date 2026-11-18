@@ -1,0 +1,14 @@
+{
+  "0001": {"name_es": "press de banca con mancuernas", "primary_muscle": "chest", "secondary_muscles": ["triceps", "delts"],
+           "movement_pattern": "push_horizontal", "mechanic": "compound", "laterality": "bilateral", "load_kind": "per_hand",
+           "requires": ["bench_flat"], "station": "dumbbells", "stress_joints": ["shoulder"], "is_staple": true, "difficulty": 1},
+  "0002": {"name_es": "dominadas", "primary_muscle": "lats", "secondary_muscles": ["biceps"],
+           "movement_pattern": "pull_vertical", "mechanic": "compound", "laterality": "bilateral", "load_kind": "bodyweight",
+           "requires": ["pullup_bar"], "station": "pullup_bar", "stress_joints": ["shoulder", "elbow"], "is_staple": true, "difficulty": 2},
+  "0003": {"name_es": "sentadilla trasera con barra", "primary_muscle": "quads", "secondary_muscles": ["glutes"],
+           "movement_pattern": "squat", "mechanic": "compound", "laterality": "bilateral", "load_kind": "total",
+           "requires": ["rack"], "station": "squat_rack", "stress_joints": ["knee", "lower_back"], "is_staple": true, "difficulty": 2},
+  "0004": {"name_es": "flexiones de pecho", "primary_muscle": "chest", "secondary_muscles": ["triceps"],
+           "movement_pattern": "push_horizontal", "mechanic": "compound", "laterality": "bilateral", "load_kind": "bodyweight",
+           "requires": [], "station": "none", "stress_joints": ["wrist"], "is_staple": false, "difficulty": 1}
+}
