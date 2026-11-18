@@ -54,6 +54,27 @@ def cmd_import(_args) -> int:
     return 0
 
 
+def cmd_search(args) -> int:
+    """`fitos catalog search "remo"`: exercise ids for plans, filtered by muscle, equipment or a place's equipment."""
+    from ..body.service import equipment_profiles
+    from ..core.db import session_scope
+    from .service import search
+
+    with session_scope() as db:
+        tags = None
+        if args.place:
+            ep = next((e for e in equipment_profiles(db) if args.place in (str(e.id), e.name.lower(), e.kind)), None)
+            if ep is None:
+                raise SystemExit(f"catalog search: no place {args.place!r}")
+            tags = ep.tags
+        rows = search(db, args.query, muscle=args.muscle or None, equipment_tag=args.equipment or None,
+                      profile_tags=tags, limit=args.limit)
+        for e in rows:
+            print(f"{e.id}\t{e.name_es}\t{e.primary_muscle}\t{e.equipment_tag}\t{e.mechanic or ''}"
+                  f"{chr(9) + 'staple' if e.is_staple else ''}")
+    return 0
+
+
 def register(sub) -> None:
     cat = sub.add_parser("catalog", help="catálogo de ejercicios").add_subparsers(
         dest="catalog_cmd", required=True
@@ -65,6 +86,13 @@ def register(sub) -> None:
     bm.add_argument("--limit", type=int, default=None)
     bm.add_argument("--no-audio", action="store_true", help="sin pista AAC muda")
     bm.set_defaults(fn=cmd_build_media, scope="none")
+    se = cat.add_parser("search", help="find exercise ids: name words, --muscle, --equipment, --place")
+    se.add_argument("query", nargs="?", default="")
+    se.add_argument("--muscle", default="")
+    se.add_argument("--equipment", default="")
+    se.add_argument("--place", default="", help="an equipment profile: id, name or gym/home")
+    se.add_argument("--limit", type=int, default=15)
+    se.set_defaults(fn=cmd_search)
     cat.add_parser("import", help="upsert de exercises (every account unless --user)").set_defaults(
         fn=cmd_import, scope="each"
     )

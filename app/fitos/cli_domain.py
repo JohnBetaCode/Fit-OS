@@ -22,14 +22,41 @@ def _plan_put(args) -> int:
     import yaml
 
     from .core.db import session_scope
-    from .training.service import put_custom_plan
+    from .training.service import active_program, put_custom_plan
 
     spec = yaml.safe_load(Path(args.path).read_text(encoding="utf-8"))
     on = spec["date"] if isinstance(spec["date"], date) else date.fromisoformat(str(spec["date"]))
     with session_scope() as db:
         plan = put_custom_plan(db, on, spec.get("focus") or "Custom", spec["items"],
                                equipment_profile_id=spec.get("equipment_profile_id"), rationale=spec.get("rationale"))
+        # `program_day: next` (or a day's name): finishing the plan moves the program's rotation like a planned day
+        want = spec.get("program_day")
+        prog = active_program(db)
+        if want and prog and prog.days:
+            day = (prog.days[prog.rotation_idx % len(prog.days)] if str(want) == "next"
+                   else next((d for d in prog.days if d.name.lower() == str(want).lower()), None))
+            if day is None:
+                raise SystemExit(f"plan put: no program day {want!r} (days: {', '.join(d.name for d in prog.days)})")
+            plan.program_day_id = day.id
         _print_plan(plan)
+        if args.dry_run:
+            db.rollback()
+            print("dry run: nothing saved")
+    return 0
+
+
+def _context(args) -> int:
+    """`fitos context`: what a coach needs to plan a day, as JSON (see coach/context.py)."""
+    import json
+    from datetime import date
+
+    from .coach.context import build
+    from .core.db import session_scope
+
+    with session_scope() as db:
+        data = build(db, days=args.days, on=date.fromisoformat(args.date) if args.date else None)
+        db.rollback()  # read-only, even for defaults it may create
+    print(json.dumps(data, ensure_ascii=False, indent=1, default=str))
     return 0
 
 
@@ -88,7 +115,12 @@ def register(sub) -> None:
     plan = sub.add_parser("plan").add_subparsers(dest="plan_cmd", required=True)
     put = plan.add_parser("put", help="hand-made plan for one day from a YAML file")
     put.add_argument("path")
+    put.add_argument("--dry-run", action="store_true", help="validate and print, save nothing")
     put.set_defaults(fn=_plan_put)
+    ctx = sub.add_parser("context", help="what a coach needs to plan a day (JSON)")
+    ctx.add_argument("--days", type=int, default=42, help="how many days of sessions (default 42)")
+    ctx.add_argument("--date", default="", help="plan for this date (default today)")
+    ctx.set_defaults(fn=_context)
     show = plan.add_parser("show", help="the plan of a day (default today)")
     show.add_argument("date", nargs="?")
     show.set_defaults(fn=_plan_show)

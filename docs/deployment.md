@@ -32,6 +32,9 @@ LABS_CSV=data/import/labs.csv
 | `make backup` | Encrypted DB backup now |
 | `make install-cron` | Nightly backup at `BACKUP_CRON` (server time) |
 | `make backup-check` | Fetches the newest backup, decrypts it locally with `AGE_KEY`, runs `PRAGMA integrity_check` |
+| `make context-remote U=me [DATE=…]` | What a coach needs to plan a day, as JSON (profile, program, recovery, week volume, history) |
+| `make catalog-search-remote U=me Q="…" [MUSCLE=…] [PLACE=gym]` | Exercise ids for a plan |
+| `make plan-remote U=me FILE=plan.yaml [DRY=1]` | Put a day's plan from a YAML kept out of git (`DRY=1` only checks it). The `plan-day` skill writes these |
 | `make remote-logs` | Last 200 log lines |
 | `make catalog-remote` | Downloads the dataset and builds the media on the server |
 | `make seed-remote` | `scp` your profile and labs files and imports them (never through git) |

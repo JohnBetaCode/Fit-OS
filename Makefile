@@ -16,7 +16,7 @@ LABS_CSV ?= data/import/labs.csv
 export REMOTE_HOST REMOTE_DATA AGE_KEY
 
 .PHONY: help venv test lint network dev down logs shell revision demo seed catalog user-add users \
-	status deploy rollback backup install-cron backup-check seed-remote catalog-remote demo-remote \
+	status deploy rollback backup install-cron backup-check seed-remote catalog-remote demo-remote context-remote catalog-search-remote plan-remote \
 	wa-groups waha-hook remote-logs _remote
 
 help: ## List the commands
@@ -109,6 +109,19 @@ catalog-remote: _remote ## Exercise bank on the server (download, GIF→MP4, imp
 
 demo-remote: _remote ## Synthetic demo data on the server (only into an empty DB)
 	$(REMOTE_EXEC) fitos demo seed'
+
+context-remote: _remote ## What a coach needs to plan a day, as JSON: make context-remote U=me [DATE=YYYY-MM-DD]
+	@$(REMOTE_EXEC) fitos context $(if $(DATE),--date $(DATE))'
+
+catalog-search-remote: _remote ## Exercise ids: make catalog-search-remote U=me Q="remo" [MUSCLE=lats] [PLACE=gym]
+	@$(REMOTE_EXEC) fitos catalog search "$(Q)" $(if $(MUSCLE),--muscle $(MUSCLE)) $(if $(PLACE),--place $(PLACE)) $(if $(EQUIPMENT),--equipment $(EQUIPMENT))'
+
+plan-remote: _remote ## Put a day's plan from a YAML (never in git): make plan-remote U=me FILE=/tmp/plan.yaml [DRY=1]
+	@[ -n "$(FILE)" ] || { echo "usage: make plan-remote U=<name> FILE=<plan.yaml> [DRY=1]"; exit 2; }
+	@ssh -n $(REMOTE_HOST) 'mkdir -p $(REMOTE_DATA)/import && chmod 700 $(REMOTE_DATA)'
+	@scp -q $(FILE) $(REMOTE_HOST):$(REMOTE_DATA)/import/plan-$(notdir $(FILE))
+	@$(REMOTE_EXEC) fitos plan put /data/import/plan-$(notdir $(FILE)) $(if $(DRY),--dry-run)'; rc=$$?; \
+		ssh -n $(REMOTE_HOST) 'rm -f $(REMOTE_DATA)/import/plan-$(notdir $(FILE))'; exit $$rc
 
 seed-remote: _remote ## Copy your profile and labs by scp (never git) and import them on the server
 	ssh -n $(REMOTE_HOST) 'mkdir -p $(REMOTE_DATA)/import && chmod 700 $(REMOTE_DATA)'
