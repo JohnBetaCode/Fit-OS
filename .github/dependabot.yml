@@ -1,3 +1,6 @@
+# Monthly version updates, grouped. Major versions (and new Python minors in the image) are left out on
+# purpose: they need a deliberate upgrade and a run on the server, which CI alone doesn't prove (the tests
+# use fakes for WhatsApp and Claude, and run on the Python in ci.yml). Security updates still arrive.
 version: 2
 updates:
   - package-ecosystem: pip
@@ -7,11 +10,21 @@ updates:
     groups:
       python:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /app
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
