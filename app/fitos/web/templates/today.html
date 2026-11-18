@@ -94,7 +94,7 @@
     </div>
     {% if rec %}
     <div class="flex items-center justify-between mt-1"><div class="h2 mb-0">🩹 {{ _("Recuperación") }}</div><a href="/progreso/cuerpo" class="text-xs text-accent">{{ _("Ver mapa") }} →</a></div>
-    <a href="/progreso/cuerpo" class="block my-2" aria-label="{{ _("Ver mapa") }}">{{ body_map(rec.fills, rec.tips, _("Mapa de recuperación por músculo")) }}</a>
+    <a href="/progreso/cuerpo" class="block my-2" aria-label="{{ _("Ver mapa") }}">{{ body_map(rec.figs, _("Mapa de recuperación por músculo"), uid="today") }}</a>
     <div class="flex flex-wrap justify-center gap-x-3 text-[11px] text-mute mb-3" aria-hidden="true">{% for k in ("ready", "fatigued", "recovering") %}<span><span class="swatch" style="background: var(--map-{{ k }})"></span> {{ rec_labels[k] }}</span>{% endfor %}</div>
     {% endif %}
     <div class="h2">{{ _("Sets duros por músculo") }}</div>

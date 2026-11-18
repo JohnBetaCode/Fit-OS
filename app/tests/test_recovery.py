@@ -79,3 +79,27 @@ def test_today_without_history_has_no_map(db):
 
 
 _ = date
+
+
+def test_figure_follows_the_profile_sex(db):
+    from fitos.body.service import ensure_defaults
+
+    prof = ensure_defaults(db)
+    prof.onboarded = True
+    prof.sex = "male"
+    db.commit()
+    with TestClient(app) as c:
+        assert 'viewBox="0 0 724 1448"' in c.get("/progreso/cuerpo").text
+        prof.sex = "female"
+        db.commit()
+        page = c.get("/progreso/cuerpo").text
+        assert 'viewBox="-50 -40 734 1538"' in page and 'data-m="lats upper_back"' in page
+
+
+def test_shared_region_shows_the_worst_muscle():
+    from fitos.web.bodymap import figures
+
+    fills = {"lats": "red", "upper_back": "green"}
+    back = figures("male", fills, {}, {"lats": 9.0, "upper_back": 1.0})[1]
+    region = next(p for p in back["parts"] if p["muscles"] == ["lats", "upper_back"])
+    assert region["fill"] == "red"

@@ -9,7 +9,7 @@
 </div>
 <div class="grid gap-4 md:grid-cols-5">
   <section class="card md:col-span-3">
-    {{ body_map(fills, tips, _("Mapa de recuperación por músculo") if view == "recuperacion" else _("Series duras por músculo esta semana")) }}
+    {{ body_map(figs, _("Mapa de recuperación por músculo") if view == "recuperacion" else _("Series duras por músculo esta semana")) }}
     <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3 text-xs text-mute" aria-hidden="true">
       {% if view == "recuperacion" %}
         {% for k in ("ready", "fatigued", "recovering") %}<span><span class="swatch" style="background: var(--map-{{ k }})"></span> {{ statuses[k] }}</span>{% endfor %}
@@ -70,10 +70,10 @@
   document.addEventListener("click", function (e) {
     var el = e.target.closest(".mus");
     if (!el) return;
-    var m = el.dataset.m;
-    document.querySelectorAll(".mus").forEach(function (x) { x.classList.toggle("on", x.dataset.m === m); });
-    document.querySelectorAll("#mlist > li").forEach(function (li) { li.classList.toggle("bg-panel2", li.id === "m-" + m); });
-    var row = document.getElementById("m-" + m);
+    var ms = el.dataset.m.split(" ");
+    document.querySelectorAll(".mus").forEach(function (x) { x.classList.toggle("on", x.dataset.m === el.dataset.m); });
+    document.querySelectorAll("#mlist > li").forEach(function (li) { li.classList.toggle("bg-panel2", ms.indexOf(li.id.slice(2)) >= 0); });
+    var row = document.getElementById("m-" + ms[0]);
     if (row) row.scrollIntoView({ block: "nearest", behavior: "smooth" });
   });
 </script>

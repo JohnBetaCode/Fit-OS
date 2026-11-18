@@ -21,6 +21,7 @@ Bundled in this repository (`app/fitos/web/static/vendor/`, license texts in `ve
 | [htmx](https://htmx.org/) | 2.0.4 | BSD Zero-Clause |
 | [Apache ECharts](https://echarts.apache.org/) | 5.6.0 | Apache-2.0 (with its `NOTICE`) |
 | [Tailwind CSS](https://tailwindcss.com/) browser build | 4.0.17 | MIT, © Tailwind Labs, Inc. |
+| Body figures (male/female, front/back) for the body map, converted to `vendor/body/body-paths.json` | from [react-native-body-highlighter](https://github.com/HichamELBSI/react-native-body-highlighter) | MIT, © 2022 ELABBASSI Hicham |
 
 Installed when the image is built (not redistributed here):
 

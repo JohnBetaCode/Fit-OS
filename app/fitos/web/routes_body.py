@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+from ..body.service import get_profile
 from ..catalog.service import muscle_label
 from ..core import prefs
 from ..core.db import get_db
@@ -13,6 +14,7 @@ from ..core.timeutil import local_today
 from ..i18n import _
 from ..training import assist, metrics, recovery
 from ..training.week import week_start
+from .bodymap import figures
 from .ui import render
 
 router = APIRouter()
@@ -43,7 +45,8 @@ def recovery_view(db: Session) -> dict:
               "since": _since(r), "ready_in_h": r.ready_in_h, "trained": r.last_trained is not None} for r in rows]
     groups = assist.group_labels()
     ready = recovery.ready_groups(rows, assist.GROUPS)
-    return {"fills": fills, "tips": tips, "items": items, "ready": [(g, groups[g]) for g in ready]}
+    figs = figures(get_profile(db).sex, fills, tips, {r.key: r.fatigue for r in rows})  # most fatigued shows
+    return {"figs": figs, "items": items, "ready": [(g, groups[g]) for g in ready]}
 
 
 def week_view(db: Session) -> dict:
@@ -57,7 +60,8 @@ def week_view(db: Session) -> dict:
                      "sets": round(float(sets.get(k, 0.0)), 1), "missing": max(0.0, lo - float(sets.get(k, 0.0))),
                      "pct": min(100, float(sets.get(k, 0.0)) / hi * 100)} for k, lvl in levels.items()),
                    key=lambda i: (i["sets"], i["label"]))
-    return {"fills": fills, "tips": tips, "items": items, "lo": lo, "hi": hi}
+    figs = figures(get_profile(db).sex, fills, tips, {k: -float(sets.get(k, 0.0)) for k in levels})  # least trained
+    return {"figs": figs, "items": items, "lo": lo, "hi": hi}
 
 
 @router.get("/progreso/cuerpo", response_class=HTMLResponse)
