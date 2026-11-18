@@ -3,7 +3,7 @@
 Recovery is an estimate from your own hard sets, not a measurement. Every hard set (RIR ≤ 4 or no RIR, no
 warm-ups) adds fatigue to its muscles (1.0 to the primary, 0.5 to each secondary) that fades exponentially:
 large muscles take longer (τ = 60 h) than small ones (τ = 40 h). With these constants ten hard sets of a large
-muscle are "recovering" (red) right after the workout, "fatigued" (orange) about a day later and "ready"
+muscle are "fatigued" (red) right after the workout, "recovering" (orange) about a day later and "ready"
 (green) after ~72 h. It is a heuristic (not validated), meant to roughly match the common advice of two to
 three days between hard sessions of the same muscle; tune RED, ORANGE and TAU_H if it disagrees with how you
 feel.
@@ -29,7 +29,7 @@ from .metrics import _is_hard
 
 LARGE = frozenset({"chest", "lats", "upper_back", "lower_back", "quads", "hamstrings", "glutes"})
 TAU_H = {True: 60.0, False: 40.0}  # large muscle?
-RED, ORANGE = 7.0, 3.0  # fatigue (≈ recent hard sets) at which a muscle is "recovering" / "fatigued"
+RED, ORANGE = 7.0, 3.0  # fatigue (≈ recent hard sets) at which a muscle is "fatigued" / "recovering"
 LOOKBACK_DAYS = 10  # older sets are below 1 % of their fatigue
 HISTORY_DAYS = 120  # how far back "last trained" looks
 
@@ -38,7 +38,7 @@ HISTORY_DAYS = 120  # how far back "last trained" looks
 class MuscleRecovery:
     key: str
     fatigue: float
-    status: str  # ready | fatigued | recovering
+    status: str  # ready | recovering (orange) | fatigued (red)
     last_trained: date | None
     ready_in_h: float  # hours until green (0 when ready)
 
@@ -52,7 +52,7 @@ def tau(muscle: str) -> float:
 
 
 def status_for(fatigue: float) -> str:
-    return "recovering" if fatigue >= RED else "fatigued" if fatigue >= ORANGE else "ready"
+    return "fatigued" if fatigue >= RED else "recovering" if fatigue >= ORANGE else "ready"
 
 
 def hours_to_ready(fatigue: float, muscle: str) -> float:
@@ -121,7 +121,7 @@ def ready_groups(rows: list[MuscleRecovery], groups: dict[str, list[str]]) -> li
         if g == "full":
             continue
         rs = [by[m] for m in muscles if m in by]
-        if (rs and rs[0].status == "ready" and all(r.status != "recovering" for r in rs)
+        if (rs and rs[0].status == "ready" and all(r.status != "fatigued" for r in rs)
                 and sum(r.status == "ready" for r in rs) * 2 >= len(rs)):
             ok.append((sum(r.fatigue for r in rs) / len(rs), g))
     return [g for _f, g in sorted(ok)]

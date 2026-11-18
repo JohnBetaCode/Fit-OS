@@ -26,8 +26,8 @@ def _squats(db, sets: int, hours_ago: float, rir: float = 2):
 def test_fatigue_fades_from_red_to_orange_to_green(db):
     _squats(db, 10, hours_ago=1)
     quads = _by_key(recovery.recovery(db, now=NOW))["quads"]
-    assert quads.status == "recovering" and 60 < quads.ready_in_h < 80
-    assert _by_key(recovery.recovery(db, now=NOW + timedelta(hours=30)))["quads"].status == "fatigued"
+    assert quads.status == "fatigued" and 60 < quads.ready_in_h < 80  # red
+    assert _by_key(recovery.recovery(db, now=NOW + timedelta(hours=30)))["quads"].status == "recovering"  # orange
     assert _by_key(recovery.recovery(db, now=NOW + timedelta(hours=80)))["quads"].status == "ready"
 
 
