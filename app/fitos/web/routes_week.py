@@ -16,7 +16,7 @@ from ..core.timeutil import local_today
 from ..i18n import _
 from ..training import week as wk
 from ..wa import cards
-from .ui import form_num, render
+from .ui import form_int, form_num, render
 
 router = APIRouter()
 
@@ -50,10 +50,11 @@ def _day_kinds() -> list[tuple[str, str, str]]:
 
 
 @router.post("/semana/dia")
-def week_day(on: str = Form(..., alias="date"), action: str = Form("build"), program_day_id: int | None = Form(None),
-             equipment_profile_id: int | None = Form(None), db: Session = Depends(get_db)):
+def week_day(on: str = Form(..., alias="date"), action: str = Form("build"), program_day_id: str = Form(""),
+             equipment_profile_id: str = Form(""), db: Session = Depends(get_db)):
     day = date.fromisoformat(on)
     try:
+        program_day_id, equipment_profile_id = form_int(program_day_id), form_int(equipment_profile_id)
         if action == "rest":
             wk.rest_day(db, day)
         else:

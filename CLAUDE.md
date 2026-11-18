@@ -70,5 +70,8 @@ Your own deployment (host, paths, group id, pending items) lives in the gitignor
   `caddy reload` reads the stale copy. `ops/server.sh` restarts Caddy when the files differ.
 - Tailwind v4: CSS outside `@layer` beats utilities. Component classes (`.input`, `.btn`…) live in
   `@layer components`, or `w-16`/`py-1` on an element are silently ignored.
+- Browsers send an empty optional field as `""`: a `int | None = Form(None)` / `float | None` parameter answers
+  422 (it broke logging bodyweight sets and finishing a workout). Take `str = Form("")` and parse with
+  `form_num` / `form_int` (`web/ui.py`); `test_forms.py` checks every route.
 
 If Claude makes the same mistake twice, the fix goes here.

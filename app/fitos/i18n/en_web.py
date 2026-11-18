@@ -622,4 +622,9 @@ EN: dict[str, str] = {
     "Ya terminaste el entreno de hoy. Si quieres otro, arma uno nuevo.":
         "You already finished today's workout. If you want another, build a new one.",
     "Yo los escojo": "I'll choose",
+    "Agregar otra serie": "Add another set",
+    "Hoy prefiero (opcional)": "Today I'd rather use (optional)",
+    "Listo": "Done",
+    "Quitar {name}": "Remove {name}",
+    "{done} de {total} ejercicios · {sets} series": "{done} of {total} exercises · {sets} sets",
 }

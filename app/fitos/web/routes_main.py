@@ -32,7 +32,7 @@ from ..i18n import LANGS, _, pick
 from ..training import service as tr
 from ..wa import cards
 from ..wa.outbox import gym_chat
-from .ui import form_num, render
+from .ui import form_int, form_num, render
 
 log = logging.getLogger("fitos.web")
 router = APIRouter()
@@ -107,10 +107,11 @@ def today_page(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/hoy/plan")
-def today_plan(request: Request, action: str = Form("build"), equipment_profile_id: int | None = Form(None),
+def today_plan(request: Request, action: str = Form("build"), equipment_profile_id: str = Form(""),
                db: Session = Depends(get_db)):
     today = local_today()
     try:
+        equipment_profile_id = form_int(equipment_profile_id)
         if action == "skip":
             tr.skip_today(db, today)
         elif action == "build":
@@ -191,13 +192,14 @@ def add_set(sid: int, exercise_id: str = Form(...), reps: int = Form(...), weigh
 
 
 @router.post("/entrenos/{sid}/editar")
-def edit_session(sid: int, on: str = Form(..., alias="date"), rpe: int | None = Form(None),
-                 duration_min: int | None = Form(None), notes: str = Form(""), db: Session = Depends(get_db)):
+def edit_session(sid: int, on: str = Form(..., alias="date"), rpe: str = Form(""),
+                 duration_min: str = Form(""), notes: str = Form(""), db: Session = Depends(get_db)):
     ws = db.get(WorkoutSession, sid)
     if not ws:
         raise HTTPException(404)
     try:
-        tr.update_session(db, ws, on=date.fromisoformat(on), rpe=rpe, duration_min=duration_min, notes=notes)
+        tr.update_session(db, ws, on=date.fromisoformat(on), rpe=form_int(rpe), duration_min=form_int(duration_min),
+                          notes=notes)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     return RedirectResponse(f"/entrenos/{sid}?saved=1", status_code=303)
@@ -563,10 +565,14 @@ def coach_page(request: Request, t: int | None = None, off: int = 0, db: Session
 
 
 @router.post("/coach", response_class=HTMLResponse)
-async def coach_send(request: Request, text: str = Form(...), thread_id: int | None = Form(None)):
+async def coach_send(request: Request, text: str = Form(...), thread_id_raw: str = Form("", alias="thread_id")):
     from ..coach.agent import coach_reply
     from ..core.db import session_scope
 
+    try:
+        thread_id = form_int(thread_id_raw)
+    except ValueError:
+        thread_id = None
     text = text.strip()[:2000]
     if not text:
         return RedirectResponse("/coach", status_code=303)

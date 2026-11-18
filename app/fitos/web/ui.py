@@ -90,6 +90,12 @@ def form_num(v: str | None) -> float | None:
         raise ValueError(_("Valores fuera de rango")) from e
 
 
+def form_int(v: str | None) -> int | None:
+    """Like `form_num`, for whole numbers (ids, RPE, minutes)."""
+    n = form_num(v)
+    return None if n is None else int(n)
+
+
 def version(acc: Any) -> str:
     """Footer: the short commit for everyone; admins also see the branch it came from."""
     s = get_settings()

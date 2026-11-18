@@ -26,8 +26,9 @@ from ..training import assist
 from ..training import service as tr
 from ..training import week as wk
 from ..wa import cards
+from ..wa.outbox import gym_chat
 from ..wa.parser import SetEntry
-from .ui import form_num, render
+from .ui import form_int, form_num, render
 
 router = APIRouter()
 
@@ -80,7 +81,8 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
     body.ensure_defaults(db)
     today = local_today()
     ws = tr.active_session(db)
-    common = {"groups": assist.group_labels(), "missing_labels": assist.missing_labels(), "w": cards.weight_text,
+    common = {"groups": assist.group_labels(), "missing_labels": assist.missing_labels(),
+              "prefer_labels": assist.prefer_labels(), "w": cards.weight_text,
               "rep_range": cards.rep_range, "error": error}
     if ws is not None and ws.planned is not None and not nuevo:
         current = tr.current_item(db, ws)
@@ -117,6 +119,7 @@ async def train_build(request: Request, db: Session = Depends(get_db)):
         focus="groups" if form.get("focus") == "groups" else "program",
         groups=[g for g in assist.GROUPS if form.get(f"g_{g}")],
         count=int(form.get("count") or 6), missing=[m for m in assist.MISSING_ES if form.get(f"m_{m}")],
+        prefer=[t for t in assist.PREFER_ES if form.get(f"p_{t}")],
         mode=form.get("mode") if form.get("mode") in ("smart", "random", "manual") else "smart",
     )
     try:
@@ -149,7 +152,7 @@ def train_start(plan_id: int = Form(...), db: Session = Depends(get_db)):
 @router.post("/entreno/items/{item_id}")
 def train_item(item_id: int, action: str = Form("save"), sets: int = Form(3), rep_min: int = Form(8),
                rep_max: int = Form(12), rir: int = Form(2), weight_kg: str = Form(""),
-               exercise_id: str = Form(""), db: Session = Depends(get_db)):
+               exercise_id: str = Form(""), next: str = Form(""), db: Session = Depends(get_db)):
     it = _item(db, item_id)
     plan = it.session
     try:
@@ -172,6 +175,8 @@ def train_item(item_id: int, action: str = Form("save"), sets: int = Form(3), re
             wk.update_item(db, it, sets=sets, rep_min=rep_min, rep_max=rep_max, rir=rir, weight_kg=form_num(weight_kg))
     except (ValueError, LookupError) as e:
         return _back(plan, error=_err(e))
+    if next == "/":  # from Today
+        return RedirectResponse("/", status_code=303)
     return _back(plan)
 
 
@@ -225,7 +230,12 @@ def train_log(item_id: int = Form(...), reps: str = Form(""), weight_kg: str = F
         return _back(error=_err(ValueError(_("Escribe las repeticiones."))))
     assist.focus_on(db, ws, it)
     tr.log_sets(db, ws, it, [entry], raw_text="web")
-    return _back(descanso=_rest_seconds(db, it) if not mins else 0)
+    rest = 0 if mins else _rest_seconds(db, it)
+    if rest and gym_chat():  # also "rest is over" in the WhatsApp group: it rings with the phone locked
+        from ..wa.session_flow import _schedule_rest
+
+        _schedule_rest(db, ws, it, rest)
+    return _back(descanso=rest)
 
 
 @router.post("/entreno/series/{set_id}/borrar")
@@ -247,10 +257,14 @@ def train_next(db: Session = Depends(get_db)):
 
 
 @router.post("/entreno/terminar")
-def train_finish(rpe: int | None = Form(None), db: Session = Depends(get_db)):
+def train_finish(rpe: str = Form(""), db: Session = Depends(get_db)):
     ws = tr.active_session(db)
     if ws is None:
         return _back()
-    tr.finish_session(db, ws, rpe if rpe and 1 <= rpe <= 10 else None)
+    try:
+        n = form_int(rpe)
+    except ValueError:
+        n = None
+    tr.finish_session(db, ws, n if n and 1 <= n <= 10 else None)
     db.flush()
     return RedirectResponse(f"/entrenos/{ws.id}?fin=1", status_code=303)

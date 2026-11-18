@@ -148,3 +148,38 @@ def test_setup_remembers_the_last_choice(db, world):
                                   groups=["legs"], count=5, mode="random"))
     s = assist.last_setup(db, DAY)
     assert (s.equipment_profile_id, s.focus, s.groups, s.count, s.mode) == (world["casa"], "groups", ["legs"], 5, "random")
+
+
+def test_variety_and_preferred_equipment(db, world):
+    plan = assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["gym"], focus="groups",
+                                         groups=["chest", "legs"], count=6, mode="smart"))
+    tags = [it.exercise.equipment_tag for it in plan.items]
+    assert max(tags.count(t) for t in set(tags)) <= assist.MAX_SAME_TAG + 1 and len(set(tags)) >= 3
+    plan = assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["gym"], focus="groups",
+                                         groups=["chest", "shoulders"], count=4, prefer=["dumbbell"]))
+    assert all(it.exercise.equipment_tag == "dumbbell" for it in plan.items)
+    # swaps list the best of each kind of equipment first
+    opts = assist.options(db, plan.items[0])
+    assert len({e.equipment_tag for e in opts[:3]}) >= 2
+
+
+def test_remove_from_today_and_log_several_cards(world):
+    with TestClient(app, follow_redirects=False) as c:
+        r = c.post("/entreno/armar", data={"equipment_profile_id": str(world["gym"]), "focus": "groups",
+                                           "g_chest": "1", "g_back": "1", "count": "4"})
+        pid = int(r.headers["location"].split("=")[1])
+        with session_scope() as s:
+            items = [it.id for it in s.get(PlannedSession, pid).items]
+        r = c.post(f"/entreno/items/{items[3]}", data={"action": "remove", "next": "/"})
+        assert r.headers["location"] == "/"
+        c.post("/entreno/empezar", data={"plan_id": pid})
+        live = c.get("/entreno").text
+        assert live.count('name="item_id"') == 3  # every pending card can take a set
+        r = c.post("/entreno/series", data={"item_id": items[2], "reps": "10", "weight_kg": "30", "rir": ""})
+        assert "descanso=" in r.headers["location"]
+    with session_scope() as s:
+        from fitos.core.models import Timer
+
+        ws = s.query(WorkoutSession).one()
+        assert [st.planned_item_id for st in ws.sets] == [items[2]]  # logged on a card that wasn't current
+        assert s.query(Timer).filter_by(kind="rest", status="pending").count() == 1  # WhatsApp rest alert

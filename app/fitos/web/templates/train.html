@@ -1,13 +1,28 @@
 {% extends "base.html" %}
-{% macro thumb(ex) -%}
-  {% if ex.media_thumb %}<a href="/ejercicios/{{ ex.id }}" class="shrink-0 w-14 h-14 rounded-lg bg-panel2 overflow-hidden block"><img src="/media/thumbs/{{ ex.media_thumb }}" alt="" loading="lazy" class="w-full h-full object-contain"></a>
-  {%- else %}<div class="shrink-0 w-14 h-14 rounded-lg bg-panel2 flex items-center justify-center text-xl">🏋️</div>{% endif %}
+{% macro media(ex, size="w-20 h-20") -%}
+  {% if ex.media_mp4 %}<video class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain" data-src="/media/mp4/{{ ex.media_mp4 }}"{% if ex.media_thumb %} poster="/media/thumbs/{{ ex.media_thumb }}"{% endif %} muted loop playsinline autoplay preload="none" aria-label="{{ ex.display_name }}"></video>
+  {%- elif ex.media_thumb %}<img src="/media/thumbs/{{ ex.media_thumb }}" alt="" loading="lazy" class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain">
+  {%- else %}<div class="shrink-0 {{ size }} rounded-lg bg-panel2 flex items-center justify-center text-xl">🏋️</div>{% endif %}
+{%- endmacro %}
+{% macro log_form(it, prefill, n, compact=False) -%}
+  {% set timed = (it.slot or {}).get("duration_min") %}
+  <form method="post" action="/entreno/series" class="grid {% if timed %}grid-cols-2{% else %}grid-cols-4{% endif %} gap-2 mt-3 items-end">
+    <input type="hidden" name="item_id" value="{{ it.id }}">
+    {% if timed %}
+    <label><span class="label">{{ _("Minutos") }}</span><input name="minutes" value="{{ timed[0] if timed is iterable else timed }}" class="input" inputmode="decimal" required></label>
+    {% else %}
+    <label><span class="label">{{ _("Reps") }}</span><input name="reps" value="{{ prefill.reps if prefill and prefill.reps else it.rep_max }}" class="input {% if not compact %}text-lg{% endif %}" inputmode="numeric" required></label>
+    <label><span class="label">kg</span><input name="weight_kg" value="{{ (prefill.weight_kg|kg) if prefill and prefill.weight_kg else (it.target_weight_kg|kg if it.target_weight_kg else '') }}" class="input {% if not compact %}text-lg{% endif %}" inputmode="decimal"></label>
+    <label><span class="label">RIR</span><select name="rir" class="input {% if not compact %}text-lg{% endif %}"><option value="">—</option>{% for r in range(0, 5) %}<option value="{{ r }}" {% if prefill and prefill.rir == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
+    {% endif %}
+    <button class="btn {% if not compact %}btn-accent py-2.5{% endif %} justify-center">✓ {{ _("Serie {n}", n=n + 1) }}</button>
+  </form>
 {%- endmacro %}
 {% macro add_box(plan) -%}
   <section class="card">
     <div class="h2">➕ {{ _("Agregar ejercicio") }}</div>
     <input type="search" name="q" placeholder="{{ _("Busca por nombre (p. ej. press, curl, remo)") }}" class="input"
-           hx-get="/entreno/planes/{{ plan.id }}/buscar" hx-trigger="input changed delay:300ms" hx-target="#add-{{ plan.id }}">
+           hx-get="/entreno/planes/{{ plan.id }}/buscar" hx-trigger="input changed delay:300ms" hx-target="#add-{{ plan.id }}" hx-select="unset" hx-swap="innerHTML">
     <div id="add-{{ plan.id }}"></div>
     <form method="post" action="/entreno/planes/{{ plan.id }}/agregar" class="flex gap-2 mt-3">
       <select name="group" class="input" aria-label="{{ _("Grupo muscular") }}">{% for k, v in groups.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
@@ -47,6 +62,10 @@
       <fieldset><legend class="label">{{ _("¿Falta algo hoy? (máquina ocupada, no hay barra…)") }}</legend>
         <div class="flex flex-wrap gap-2">
           {% for k, v in missing_labels.items() %}<label class="chip cursor-pointer has-[:checked]:border-bad has-[:checked]:text-ink"><input type="checkbox" name="m_{{ k }}" value="1" class="sr-only" {% if k in setup.missing %}checked{% endif %}>{{ _("sin {thing}", thing=v|lower) }}</label>{% endfor %}
+        </div></fieldset>
+      <fieldset><legend class="label">{{ _("Hoy prefiero (opcional)") }}</legend>
+        <div class="flex flex-wrap gap-2">
+          {% for k, v in prefer_labels.items() %}<label class="chip cursor-pointer has-[:checked]:border-accent has-[:checked]:text-ink"><input type="checkbox" name="p_{{ k }}" value="1" class="sr-only" {% if k in setup.prefer %}checked{% endif %}>{{ v }}</label>{% endfor %}
         </div></fieldset>
     </section>
 
@@ -91,7 +110,7 @@
     {% for r in rows %}{% set it = r.it %}
     <article class="card">
       <div class="flex gap-3">
-        {{ thumb(it.exercise) }}
+        {{ media(it.exercise) }}
         <div class="min-w-0 flex-1">
           <div class="font-semibold">{{ loop.index }}. {{ it.exercise.display_name }}</div>
           <div class="text-sm num">{{ it.sets }} × {{ rep_range(it) }}{% set wt = w(it.target_weight_kg, it.exercise) %}{% if wt %} · {{ wt }}{% endif %} · RIR {{ it.target_rir }}</div>
@@ -125,40 +144,26 @@
 </div>
 
 {% else %}{# live #}
-{% if rest %}
-<div id="rest" class="sticky top-14 z-20 card mb-3 border-accent/60 flex items-center gap-3" role="timer" aria-live="polite">
-  <span>⏱️ {{ _("Descanso") }}</span><b id="rest-left" class="text-xl num">{{ rest }}</b><span class="text-mute text-sm">s</span>
-  <button type="button" class="btn py-1 text-xs ml-auto" onclick="document.getElementById('rest').remove()">{{ _("Saltar") }}</button>
-</div>
-<script>
-  (function () {
-    var left = {{ rest|int }}, el = document.getElementById("rest-left");
-    var t = setInterval(function () {
-      left -= 1; if (!el) { clearInterval(t); return; }
-      el.textContent = Math.max(0, left);
-      if (left <= 0) { clearInterval(t); el.parentElement.classList.add("border-accent"); el.textContent = "✓";
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]); }
-    }, 1000);
-  })();
-</script>
-{% endif %}
+<div id="live" hx-boost="true" hx-target="#live" hx-select="#live" hx-swap="outerHTML" hx-push-url="false">
+{% if rest %}<span data-rest="{{ rest|int }}" hidden></span>{% endif %}
 <div class="flex flex-wrap items-baseline gap-3 mb-4">
   <h1 class="text-2xl font-bold">{{ _(plan.focus_label) }}</h1>
   <span class="chip text-accent border-accent/50">{{ _("en curso") }}</span>
   {% if plan.date != ws.started_at.date() %}<span class="text-sm text-mute">{{ fmt_date(plan.date) }}</span>{% endif %}
+  <span class="text-sm text-mute ml-auto num">{{ _("{done} de {total} ejercicios · {sets} series", done=rows|selectattr("it.status", "equalto", "done")|list|length, total=rows|length, sets=ws.sets|length) }}</span>
 </div>
 <div class="grid gap-4 lg:grid-cols-3">
   <div class="lg:col-span-2 grid gap-3 content-start">
     {% for r in rows %}{% set it = r.it %}
-    {% if r.current %}
-    <article class="card border-accent/60" id="actual">
+    {% set closed = it.status in ("done", "skipped") %}
+    <article class="card {% if r.current %}border-accent/60{% elif closed %}opacity-75{% endif %}" id="item-{{ it.id }}">
       <div class="flex gap-3">
-        {{ thumb(it.exercise) }}
+        {{ media(it.exercise, "w-24 h-24" if r.current else "w-16 h-16") }}
         <div class="min-w-0 flex-1">
-          <div class="font-semibold text-lg">{{ it.exercise.display_name }}</div>
+          <div class="font-semibold {% if r.current %}text-lg{% endif %}">{% if it.status == "done" %}✅ {% elif it.status == "skipped" %}⏭️ {% endif %}{{ it.exercise.display_name }}</div>
           <div class="text-sm num">{{ _("Meta:") }} {{ it.sets }} × {{ rep_range(it) }}{% set wt = w(it.target_weight_kg, it.exercise) %}{% if wt %} · {{ wt }}{% endif %} · RIR {{ it.target_rir }}</div>
           {% if r.last %}<div class="text-xs text-mute">{{ r.last }}</div>{% endif %}
-          {% if it.target_note %}<div class="text-xs text-mute mt-1">💡 {{ it.target_note }}</div>{% endif %}
+          {% if it.target_note and r.current %}<div class="text-xs text-mute mt-1">💡 {{ it.target_note }}</div>{% endif %}
         </div>
       </div>
       {% if r.sets %}
@@ -167,43 +172,35 @@
         <li class="flex items-center gap-2 num"><span class="text-mute w-6">{{ loop.index }}.</span>
           {% if s.duration_s %}{{ (s.duration_s / 60)|round(1) }} min{% else %}{{ s.reps }} × {{ s.weight_kg|kg if s.weight_kg else _("peso corporal") }}{% if s.weight_kg %} kg{% endif %}{% if s.rir is not none %} · RIR {{ s.rir|kg }}{% endif %}{% endif %}
           {% if s.pr_flags %}<span title="PR">🏆</span>{% endif %}
-          <form method="post" action="/entreno/series/{{ s.id }}/borrar" class="ml-auto"><button class="text-xs text-mute hover:text-bad" aria-label="{{ _("Borrar serie") }}">✖</button></form></li>
+          <form method="post" action="/entreno/series/{{ s.id }}/borrar" class="ml-auto"><button class="text-xs text-mute hover:text-bad px-1" aria-label="{{ _("Borrar serie") }}">✖</button></form></li>
         {% endfor %}
       </ol>
       {% endif %}
-      {% set timed = (it.slot or {}).get("duration_min") %}
-      <form method="post" action="/entreno/series" class="grid {% if timed %}grid-cols-2{% else %}grid-cols-4{% endif %} gap-2 mt-3 items-end">
-        <input type="hidden" name="item_id" value="{{ it.id }}">
-        {% if timed %}
-        <label><span class="label">{{ _("Minutos") }}</span><input name="minutes" value="{{ (timed[0] if timed is iterable else timed) }}" class="input" inputmode="decimal" required></label>
+      {% if it.status != "skipped" %}
+        {% if closed %}
+        <details class="mt-2"><summary class="text-xs text-mute cursor-pointer">{{ _("Agregar otra serie") }}</summary>{{ log_form(it, r.prefill, r.sets|length, compact=True) }}</details>
         {% else %}
-        <label><span class="label">{{ _("Reps") }}</span><input name="reps" value="{{ r.prefill.reps if r.prefill and r.prefill.reps else it.rep_max }}" class="input text-lg" inputmode="numeric" required></label>
-        <label><span class="label">kg</span><input name="weight_kg" value="{{ (r.prefill.weight_kg|kg) if r.prefill and r.prefill.weight_kg else (it.target_weight_kg|kg if it.target_weight_kg else '') }}" class="input text-lg" inputmode="decimal"></label>
-        <label><span class="label">RIR</span><select name="rir" class="input text-lg"><option value="">—</option>{% for n in range(0, 5) %}<option value="{{ n }}" {% if r.prefill and r.prefill.rir == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+        {{ log_form(it, r.prefill, r.sets|length, compact=not r.current) }}
         {% endif %}
-        <button class="btn btn-accent justify-center py-2.5">✓ {{ _("Serie {n}", n=r.sets|length + 1) }}</button>
-      </form>
-      <div class="flex flex-wrap gap-2 mt-3">
-        <form method="post" action="/entreno/siguiente"><button class="btn {% if r.sets|length >= it.sets %}btn-accent{% endif %}">{{ _("Siguiente ejercicio") }} →</button></form>
+      {% endif %}
+      <div class="flex flex-wrap items-center gap-1 mt-2">
+        {% if r.current %}<form method="post" action="/entreno/siguiente"><button class="btn py-1 {% if r.sets|length >= it.sets %}btn-accent{% endif %}">{{ _("Siguiente ejercicio") }} →</button></form>{% endif %}
+        {% if not closed and not r.sets %}
+        <button type="button" class="btn py-1 text-xs" hx-get="/entreno/items/{{ it.id }}/opciones" hx-target="#opt-{{ it.id }}" hx-select="unset" hx-swap="innerHTML">🔀 {{ _("Cambiar") }}</button>
+        <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="reroll"><button class="btn py-1 text-xs">🎲 {{ _("Otro") }}</button></form>
+        <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="remove"><button class="btn py-1 text-xs">✖ {{ _("Quitar") }}</button></form>
+        {% endif %}
+        {% if not closed %}
+        <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="up"><button class="btn py-1 text-xs" aria-label="{{ _("Subir") }}">↑</button></form>
+        <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="down"><button class="btn py-1 text-xs" aria-label="{{ _("Bajar") }}">↓</button></form>
+        {% endif %}
       </div>
-      {{ item_tools(it, can_change=not r.sets) }}
+      <div id="opt-{{ it.id }}"></div>
     </article>
-    {% else %}
-    <article class="card py-3 {% if it.status in ('done', 'skipped') %}opacity-70{% endif %}">
-      <div class="flex items-center gap-3">
-        <span class="w-6 text-center">{% if it.status == "done" %}✅{% elif it.status == "skipped" %}⏭️{% else %}{{ loop.index }}{% endif %}</span>
-        <div class="min-w-0 flex-1">
-          <div class="font-medium truncate">{{ it.exercise.display_name }}</div>
-          <div class="text-xs text-mute num">{% if r.sets %}{{ _("{n} series hechas", n=r.sets|length) }}{% else %}{{ it.sets }} × {{ rep_range(it) }}{% set wt = w(it.target_weight_kg, it.exercise) %}{% if wt %} · {{ wt }}{% endif %}{% endif %}</div>
-        </div>
-        <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="focus"><button class="btn py-1 text-xs">{{ _("Hacer ahora") }}</button></form>
-      </div>
-    </article>
-    {% endif %}
     {% endfor %}
   </div>
   <div class="grid gap-3 content-start">
-    <form method="post" action="/entreno/terminar" class="card grid gap-2" onsubmit="return confirm('{{ _("¿Terminar el entreno?") }}')">
+    <form method="post" action="/entreno/terminar" class="card grid gap-2" hx-boost="false" onsubmit="return confirm('{{ _("¿Terminar el entreno?") }}')">
       <div class="h2">🏁 {{ _("Terminar") }}</div>
       <label><span class="label">{{ _("¿Qué tan duro fue? (1–10, opcional)") }}</span><select name="rpe" class="input"><option value="">—</option>{% for n in range(1, 11) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select></label>
       <button class="btn btn-accent justify-center">{{ _("Terminar entreno") }}</button>
@@ -211,5 +208,83 @@
     {{ add_box(plan) }}
   </div>
 </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if view == "live" %}
+<div id="rest-bar" class="fixed inset-x-0 bottom-16 md:bottom-4 z-40 px-4" hidden>
+  <div class="max-w-md mx-auto card border-accent/60 flex items-center gap-3 shadow-lg py-2" role="timer" aria-live="polite">
+    <span>⏱️ {{ _("Descanso") }}</span><b id="rest-left" class="text-2xl num">0:00</b>
+    <button type="button" class="btn py-1 text-xs ml-auto" data-rest-add="30">+30 s</button>
+    <button type="button" class="btn py-1 text-xs" data-rest-stop>{{ _("Listo") }}</button>
+  </div>
+</div>
+<script>
+(function () {
+  var KEY = "fitos_rest_end", ctx = null, iv = null, fired = false;
+  function store(k, v) { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  // Audio needs a tap on this page before it may play (phones): unlock on any tap.
+  function unlock() { try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === "suspended") ctx.resume(); } catch (e) {} }
+  document.addEventListener("pointerdown", unlock, { passive: true });
+  function beep() {
+    if (!ctx) return;
+    var t = ctx.currentTime;
+    [0, 0.3, 0.6].forEach(function (d) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "square"; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.35, t + d + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.22);
+      o.connect(g); g.connect(ctx.destination); o.start(t + d); o.stop(t + d + 0.25);
+    });
+  }
+  var bar = document.getElementById("rest-bar"), label = document.getElementById("rest-left");
+  function fmt(s) { return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function tick() {
+    var end = +load(KEY) || 0;
+    if (!end) { bar.hidden = true; clearInterval(iv); iv = null; return; }
+    var left = Math.ceil((end - Date.now()) / 1000);
+    bar.hidden = false;
+    if (left > 0) { label.textContent = fmt(left); return; }
+    label.textContent = "✓";
+    if (!fired && document.visibilityState === "visible") {  // also when coming back after it ended
+      fired = true; beep(); if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+    }
+    if (left < -90) stop();
+  }
+  function run() { if (!iv) iv = setInterval(tick, 500); tick(); }
+  function start(sec) { store(KEY, String(Date.now() + sec * 1000)); fired = false; run(); }
+  function stop() { store(KEY, null); fired = true; tick(); }
+  bar.addEventListener("click", function (e) {
+    var add = e.target.closest("[data-rest-add]");
+    if (add) { var end = Math.max(+load(KEY) || 0, Date.now()); store(KEY, String(end + 1000 * +add.dataset.restAdd)); fired = false; run(); }
+    if (e.target.closest("[data-rest-stop]")) stop();
+  });
+  document.addEventListener("visibilitychange", tick);
+  // Exercise animations: load and play only the ones on screen.
+  var io = "IntersectionObserver" in window ? new IntersectionObserver(function (es) {
+    es.forEach(function (en) {
+      var v = en.target;
+      if (en.isIntersecting) { if (!v.src && v.dataset.src) v.src = v.dataset.src; v.play && v.play().catch(function () {}); }
+      else if (v.pause) v.pause();
+    });
+  }, { rootMargin: "200px" }) : null;
+  function setup() {
+    var m = document.querySelector("[data-rest]");
+    if (m) { start(+m.dataset.rest); m.remove(); } else if (load(KEY)) run();
+    document.querySelectorAll("video[data-src]").forEach(function (v) {
+      if (io) io.observe(v); else v.src = v.dataset.src;
+    });
+  }
+  document.addEventListener("htmx:afterSettle", setup);
+  setup();
+})();
+</script>
+{% else %}
+<script>
+  document.querySelectorAll("video[data-src]").forEach(function (v) { v.src = v.dataset.src; });
+</script>
 {% endif %}
 {% endblock %}

@@ -16,6 +16,7 @@ Loads always come from the usual progression on your history (`planner._target`)
 from __future__ import annotations
 
 import random
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -58,12 +59,20 @@ MISSING_ES = {
     "barbell": "Barra", "dumbbell": "Mancuernas", "cable": "Poleas", "machine": "Máquinas", "smith": "Smith",
     "bench_flat": "Banco", "rack": "Rack", "pullup_bar": "Barra de dominadas", "kettlebell": "Kettlebell",
 }
+# Equipment people say they'd rather use today (equipment_tag keys)
+PREFER_ES = {"dumbbell": "Mancuernas", "machine": "Máquinas", "cable": "Poleas", "barbell": "Barra",
+             "bodyweight": "Peso corporal"}
+MAX_SAME_TAG = 2  # after this many exercises with the same equipment, others go first (variety)
 COMPOUND_REPS, ISOLATION_REPS = (6, 10), (10, 15)
 RANDOM_POOL = 5
 
 
 def group_labels() -> dict[str, str]:
     return {k: _(v) for k, v in GROUP_ES.items()}
+
+
+def prefer_labels() -> dict[str, str]:
+    return {k: _(v) for k, v in PREFER_ES.items()}
 
 
 def missing_labels() -> dict[str, str]:
@@ -80,20 +89,27 @@ class Setup:
     groups: list[str] = field(default_factory=list)
     count: int = 6
     missing: list[str] = field(default_factory=list)
+    prefer: list[str] = field(default_factory=list)
     mode: str = "smart"  # smart | random
 
     def as_pref(self) -> dict:
         return {"equipment_profile_id": self.equipment_profile_id, "focus": self.focus, "groups": self.groups,
-                "count": self.count, "missing": self.missing, "mode": self.mode}
+                "count": self.count, "missing": self.missing, "prefer": self.prefer, "mode": self.mode}
 
 
 def last_setup(db: Session, on: date) -> Setup:
     saved = prefs.get(db, "assist_last") or {}
     s = Setup(on=on)
-    for k in ("equipment_profile_id", "focus", "groups", "count", "missing", "mode"):
+    for k in ("equipment_profile_id", "focus", "groups", "count", "missing", "prefer", "mode"):
         if k in saved:
             setattr(s, k, saved[k])
     return s
+
+
+def today_prefer(db: Session, on: date) -> set[str]:
+    """Equipment preferred for that day's plan (empty = no preference)."""
+    saved = prefs.get(db, "assist_last") or {}
+    return set(saved.get("prefer") or []) if saved.get("date") == on.isoformat() else set()
 
 
 def today_missing(db: Session, on: date) -> set[str]:
@@ -124,11 +140,17 @@ def _slots(groups: list[str], count: int) -> list[dict]:
     return out
 
 
-def _pick(ranked: list[Exercise], slot: dict, mode: str, rng: random.Random) -> Exercise | None:
+def _pick(ranked: list[Exercise], slot: dict, mode: str, rng: random.Random,
+          used_tags: Counter | None = None, prefer: set[str] = frozenset()) -> Exercise | None:
+    """The planner's order, nudged: the slot's mechanic first, preferred equipment first, and equipment already
+    used `MAX_SAME_TAG` times last (so a day isn't all machines). `random` draws from the top few."""
     if not ranked:
         return None
+    used_tags = used_tags or Counter()
     want = slot.get("mechanic")
     fitting = [e for e in ranked if e.mechanic == want] or ranked
+    fitting = sorted(fitting, key=lambda e: (bool(prefer) and e.equipment_tag not in prefer,
+                                             used_tags[e.equipment_tag] >= MAX_SAME_TAG))
     if mode == "random":
         return rng.choice(fitting[:RANDOM_POOL])
     return fitting[0]
@@ -151,7 +173,13 @@ def build(db: Session, setup: Setup, rng: random.Random | None = None) -> Planne
     prefs.set_(db, "assist_last", {**setup.as_pref(), "date": setup.on.isoformat()})
     if setup.focus == "program":
         plan = tr.get_or_build_plan(db, setup.on, ep.id if ep else None, replace=True)
-        for item in list(plan.items):  # what the program picked but isn't there today
+        prefer = set(setup.prefer)
+        for item in list(plan.items):  # what the program picked but isn't there today, or isn't preferred
+            if prefer and eligible(item.exercise, tags) and item.exercise.equipment_tag not in prefer:
+                alt = _random_for(db, plan, item.slot or {}, tags, "smart", rng, exclude={item.exercise_id})
+                if alt is not None and alt.equipment_tag in prefer:
+                    wk.swap_item(db, item, alt.id)
+                continue
             if not eligible(item.exercise, tags):
                 alt = _random_for(db, plan, item.slot or {}, tags, "smart", rng, exclude={item.exercise_id})
                 if alt is not None:
@@ -165,14 +193,17 @@ def build(db: Session, setup: Setup, rng: random.Random | None = None) -> Planne
     count = max(2, min(12, int(setup.count)))
     ctx = _context(db, setup.on)
     used: set[str] = set()
+    used_tags: Counter = Counter()
+    prefer = set(setup.prefer)
     items = []
     for slot in _slots(groups, count):
         ranked = rank_for_slot(db, slot, tags, used=used, **ctx)
         ranked = [e for e in ranked if e.id not in ctx["disliked"] and not (set(e.stress_joints or []) & ctx["injured"])]
-        ex = _pick(ranked, slot, setup.mode, rng)
+        ex = _pick(ranked, slot, setup.mode, rng, used_tags, prefer)
         if ex is None:
             continue
         used.add(ex.id)
+        used_tags[ex.equipment_tag] += 1
         items.append({"exercise": ex.id, "sets": slot["sets"], "reps": [slot["rep_min"], slot["rep_max"]],
                       "rir": slot["target_rir"]})
     if not items:
@@ -215,7 +246,8 @@ def _random_for(db: Session, plan: PlannedSession, slot: dict, tags: set[str], m
     used = {i.exercise_id for i in plan.items} | set(exclude)
     ranked = rank_for_slot(db, {k: slot.get(k) for k in ("pattern", "muscle") if slot.get(k)}, tags, used=used, **ctx)
     ranked = [e for e in ranked if e.id not in ctx["disliked"] and not (set(e.stress_joints or []) & ctx["injured"])]
-    return _pick(ranked, slot, mode, rng)
+    used_tags = Counter(i.exercise.equipment_tag for i in plan.items if i.exercise_id not in exclude)
+    return _pick(ranked, slot, mode, rng, used_tags, today_prefer(db, plan.date))
 
 
 def options(db: Session, item: PlannedItem, limit: int = 8) -> list[Exercise]:
@@ -228,9 +260,20 @@ def options(db: Session, item: PlannedItem, limit: int = 8) -> list[Exercise]:
     alts = rank_alternatives(
         db, original, _plan_tags(db, plan), busy_stations=busy,
         exclude_ids={i.exercise_id for i in plan.items} | ctx["disliked"], injured_joints=ctx["injured"],
-        recent_ids=ctx["recent_ids"], history_ids=ctx["history_ids"], limit=limit,
+        recent_ids=ctx["recent_ids"], history_ids=ctx["history_ids"], limit=limit * 4,
     )
-    return [e for e, _score in alts]
+    return _diverse([e for e, _score in alts], limit, today_prefer(db, plan.date))
+
+
+def _diverse(ranked: list[Exercise], limit: int, prefer: set[str] = frozenset()) -> list[Exercise]:
+    """Best of each kind of equipment first (preferred kinds before the rest), then the remaining by score:
+    a list of swaps shows dumbbells and machines, not eight cable variations."""
+    firsts: dict[str, Exercise] = {}
+    for e in ranked:
+        firsts.setdefault(e.equipment_tag, e)
+    head = sorted(firsts.values(), key=lambda e: (bool(prefer) and e.equipment_tag not in prefer, ranked.index(e)))
+    rest = [e for e in ranked if e not in head]
+    return (head + rest)[:limit]
 
 
 def _live(db: Session, plan: PlannedSession) -> WorkoutSession | None:
