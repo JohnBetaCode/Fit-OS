@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_body_map.html" import body_map, map_styles %}
+{% block head %}{{ map_styles() }}{% endblock %}
+{% block content %}
+{% include "_progress_nav.html" %}
+<div class="flex flex-wrap items-center gap-2 mb-4" role="tablist" aria-label="{{ _("Vista del mapa") }}">
+  <a href="/progreso/cuerpo?vista=recuperacion" role="tab" aria-selected="{{ 'true' if view == 'recuperacion' else 'false' }}" class="btn {% if view == 'recuperacion' %}border-accent text-ink{% endif %}">🩹 {{ _("Recuperación") }}</a>
+  <a href="/progreso/cuerpo?vista=semana" role="tab" aria-selected="{{ 'true' if view == 'semana' else 'false' }}" class="btn {% if view == 'semana' %}border-accent text-ink{% endif %}">📅 {{ _("Esta semana") }}</a>
+</div>
+<div class="grid gap-4 md:grid-cols-5">
+  <section class="card md:col-span-3">
+    {{ body_map(fills, tips, _("Mapa de recuperación por músculo") if view == "recuperacion" else _("Series duras por músculo esta semana")) }}
+    <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3 text-xs text-mute" aria-hidden="true">
+      {% if view == "recuperacion" %}
+        {% for k in ("ready", "fatigued", "recovering") %}<span><span class="swatch" style="background: var(--map-{{ k }})"></span> {{ statuses[k] }}</span>{% endfor %}
+      {% else %}
+        {% for k in ("none", "low", "mid", "target", "over") %}<span><span class="swatch" style="background: var(--map-{{ k }})"></span> {{ levels[k] }}</span>{% endfor %}
+      {% endif %}
+    </div>
+    <p class="text-xs text-mute mt-3">
+      {% if view == "recuperacion" %}{{ _("Estimación a partir de tus series duras de los últimos días (los músculos grandes tardan más en recuperarse). No es una medida fisiológica: si te sientes distinto, hazle caso a tu cuerpo.") }}
+      {% else %}{{ _("Series duras de lunes a hoy: 1 al músculo principal y 0,5 a los secundarios. Meta: {lo}–{hi} por semana.", lo=lo, hi=hi) }}{% endif %}
+    </p>
+  </section>
+
+  <section class="card md:col-span-2">
+    {% if view == "recuperacion" %}
+      {% if ready %}
+      <div class="mb-3">
+        <div class="h2">🟢 {{ _("Listos para entrenar") }}</div>
+        <div class="flex flex-wrap gap-2">
+          {% for g, label in ready %}<a class="chip hover:border-accent hover:text-ink" href="/entreno?nuevo=1&grupos={{ g }}">{{ label }}</a>{% endfor %}
+          {% if ready|length > 1 %}<a class="btn py-1 text-xs" href="/entreno?nuevo=1&grupos={{ ready[:2]|map('first')|join(',') }}">💪 {{ _("Armar con {a} + {b}", a=ready[0][1], b=ready[1][1]) }}</a>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="h2">{{ _("Por músculo") }}</div>
+      <ul class="grid gap-1 text-sm" id="mlist">
+        {% for i in items %}
+        <li id="m-{{ i.key }}" class="flex items-center gap-2 rounded-lg px-1 py-1">
+          <span class="swatch" style="background: var(--map-{{ i.status }})"></span>
+          <span class="flex-1">{{ i.label }}</span>
+          <span class="text-xs {% if i.status == 'ready' %}text-mute{% else %}text-ink{% endif %}">{{ i.status_label }}{% if i.ready_in_h %} · {{ _("listo en ~{h} h", h=(i.ready_in_h|round(0)|int)) }}{% endif %}</span>
+          <span class="text-xs text-mute w-24 text-right">{{ i.since }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="h2">{{ _("Lo que falta esta semana") }}</div>
+      <ul class="grid gap-2 text-sm" id="mlist">
+        {% for i in items %}
+        <li id="m-{{ i.key }}" class="rounded-lg px-1 py-1">
+          <div class="flex items-center gap-2">
+            <span class="swatch" style="background: var(--map-{{ i.level }})"></span>
+            <span class="flex-1">{{ i.label }}</span>
+            <span class="num text-xs">{{ i.sets|num }} / {{ lo }}–{{ hi }}</span>
+          </div>
+          <div class="h-1.5 mt-1 rounded-full bg-panel2 overflow-hidden"><div class="h-full rounded-full" style="width: {{ i.pct }}%; background: var(--map-{{ i.level }})"></div></div>
+          <div class="text-xs text-mute mt-0.5">{{ i.level_label }}{% if i.missing %} · {{ _("faltan {n}", n=i.missing|num) }}{% endif %}</div>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Tap a muscle on the figure: highlight it there and in the list.
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest(".mus");
+    if (!el) return;
+    var m = el.dataset.m;
+    document.querySelectorAll(".mus").forEach(function (x) { x.classList.toggle("on", x.dataset.m === m); });
+    document.querySelectorAll("#mlist > li").forEach(function (li) { li.classList.toggle("bg-panel2", li.id === "m-" + m); });
+    var row = document.getElementById("m-" + m);
+    if (row) row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+</script>
+{% endblock %}

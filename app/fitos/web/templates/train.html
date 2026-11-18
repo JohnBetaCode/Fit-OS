@@ -74,6 +74,7 @@
       <label class="flex items-center gap-2 text-sm"><input type="radio" name="focus" value="program" {% if setup.focus != "groups" %}checked{% endif %}>
         {{ _("Lo que me toca en el programa") }}{% if next_day %}: <b>{{ _(next_day) }}</b>{% endif %}</label>
       <label class="flex items-center gap-2 text-sm"><input type="radio" name="focus" value="groups" id="focus-groups" {% if setup.focus == "groups" %}checked{% endif %}> {{ _("Elijo músculos:") }}</label>
+      {% if ready_groups %}<p class="text-xs text-mute pl-6">🟢 {{ _("Recuperados hoy:") }} {% for g in ready_groups %}<a class="text-accent" href="/entreno?nuevo=1&grupos={{ g }}">{{ groups[g] }}</a>{% if not loop.last %}, {% endif %}{% endfor %} · <a class="hover:text-ink" href="/progreso/cuerpo">{{ _("ver mapa") }}</a></p>{% endif %}
       <div class="flex flex-wrap gap-2 pl-6">
         {% for k, v in groups.items() %}<label class="chip cursor-pointer has-[:checked]:border-accent has-[:checked]:text-ink"><input type="checkbox" name="g_{{ k }}" value="1" class="sr-only" {% if k in setup.groups %}checked{% endif %} onchange="if(this.checked)document.getElementById('focus-groups').checked=true">{{ v }}</label>{% endfor %}
       </div>

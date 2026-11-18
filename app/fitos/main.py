@@ -23,6 +23,7 @@ from .web.routes import placeholder_router
 from .web.routes import router as web_router
 from .web.routes_admin import router as admin_router
 from .web.routes_auth import router as auth_router
+from .web.routes_body import router as body_router
 from .web.routes_exercises import router as exercises_router
 from .web.routes_labs import router as labs_router
 from .web.routes_main import router as main_router
@@ -109,6 +110,7 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(welcome_router)
 app.include_router(train_router)
+app.include_router(body_router)
 app.include_router(placeholder_router)
 
 

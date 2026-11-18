@@ -70,6 +70,20 @@ def _muscle_bars(db: Session, week_start: date) -> list[dict]:
     return rows
 
 
+def _recovery_card(db: Session) -> dict | None:
+    """The small body map on Today; None when nothing was trained in the last weeks."""
+    from .routes_body import recovery_view
+
+    view = recovery_view(db)
+    return view if any(i["trained"] for i in view["items"]) else None
+
+
+def _rec_labels() -> dict[str, str]:
+    from .routes_body import status_labels
+
+    return status_labels()
+
+
 # ── Hoy ─────────────────────────────────────────────────────────────────────
 
 
@@ -101,6 +115,7 @@ def today_page(request: Request, db: Session = Depends(get_db)):
         days=days, bars=bars[:8], load_pct=min(100, round(total_sets / max(target_sets, 1) * 100)),
         consistency=f"{len(week_sessions)}/{prof.days_per_week}", prs=m.recent_prs(db, 5),
         labs=_labs_alerts(db), profiles=body.equipment_profiles(db), w=cards.weight_text,
+        rec=_recovery_card(db), rec_labels=_rec_labels(),
         rep_range=cards.rep_range, onboarded=prof.onboarded, has_wa=bool(gym_chat()), has_catalog=db.scalar(
             select(Exercise.id).where(Exercise.enabled.is_(True)).limit(1)) is not None,
     )

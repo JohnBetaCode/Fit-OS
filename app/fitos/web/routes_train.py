@@ -77,7 +77,7 @@ def _rest_seconds(db: Session, item: PlannedItem) -> int:
 
 @router.get("/entreno", response_class=HTMLResponse)
 def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: int = 0, error: str = "",
-          db: Session = Depends(get_db)):
+          grupos: str = "", db: Session = Depends(get_db)):
     body.ensure_defaults(db)
     today = local_today()
     ws = tr.active_session(db)
@@ -100,11 +100,17 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
                       rows=[{"it": it, "last": _last_time(db, it.exercise_id)} for it in p.items],
                       missing=assist.today_missing(db, p.date), **common)
     setup = assist.last_setup(db, today)
+    picked = [g for g in grupos.split(",") if g in assist.GROUPS]
+    if picked:  # from the body map: "ready to train"
+        setup.focus, setup.groups = "groups", picked
+    from ..training import recovery
+
+    ready = recovery.ready_groups(recovery.recovery(db), assist.GROUPS)
     prog = tr.active_program(db)
     next_day = prog.days[prog.rotation_idx % len(prog.days)].name if prog and prog.days else None
     done_today = p is not None and p.status == "completed"
     return render(request, "train.html", "entrenar", view="setup", setup=setup, today=today, next_day=next_day,
-                  eps=body.equipment_profiles(db), done_today=done_today, **common)
+                  eps=body.equipment_profiles(db), done_today=done_today, ready_groups=ready, **common)
 
 
 @router.post("/entreno/armar")
