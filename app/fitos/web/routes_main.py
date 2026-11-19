@@ -497,7 +497,7 @@ async def settings_page(request: Request, saved: int = 0, db: Session = Depends(
 async def settings_save(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     for key, cast in [("morning_hour", str), ("quiet_start", str), ("quiet_end", str), ("clip_policy", str),
-                      ("wa_cards", str), ("weekly_summary_hour", str), ("rest_seconds_compound", int), ("rest_seconds_isolation", int),
+                      ("wa_cards", str), ("wa_mode", str), ("weekly_summary_hour", str), ("rest_seconds_compound", int), ("rest_seconds_isolation", int),
                       ("llm_daily_budget_usd", float), ("weekly_sets_target_min", int),
                       ("weekly_sets_target_max", int), ("day_close_hour", str)]:
         if form.get(key) not in (None, ""):

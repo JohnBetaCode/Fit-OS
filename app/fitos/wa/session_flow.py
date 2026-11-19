@@ -161,7 +161,8 @@ def _schedule_rest(db: Session, ws: WorkoutSession, item: PlannedItem | None, re
 
     for t in db.scalars(select(Timer).where(Timer.kind == "rest", Timer.status == "pending")):
         t.status = "cancelled"
-    if item is None or not prefs.get(db, "rest_alert") or cards.is_timed(item) or rest_s <= 0:
+    if (item is None or not prefs.get(db, "rest_alert") or prefs.get(db, "wa_mode") == "reports"
+            or cards.is_timed(item) or rest_s <= 0):
         return
     db.add(Timer(kind="rest", due_at=utcnow() + timedelta(seconds=rest_s),
                  payload={"ws": ws.id, "item": item.id, "n_sets": len(ws.sets)}))
@@ -653,7 +654,8 @@ async def check_timeouts() -> str | None:
             db.flush()
             enqueue_text(db, _("Cerré la sesión por inactividad.") + "\n" + _summary_text(db, ws), handler="timeout")
             return "closed"
-        if idle >= int(prefs.get(db, "session_idle_nudge_min")) and not ctx.get("nudged"):
+        if (idle >= int(prefs.get(db, "session_idle_nudge_min")) and not ctx.get("nudged")
+                and prefs.get(db, "wa_mode") != "reports"):
             ctx["nudged"] = True
             ws.wa_context = ctx
             enqueue_text(db, _("¿Seguimos o cierro la sesión? (escribe *fin* para cerrar)"), handler="nudge")

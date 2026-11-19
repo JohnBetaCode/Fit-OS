@@ -20,6 +20,7 @@ DEFAULTS: dict[str, Any] = {
     "weekly_summary_hour": "19:00",
     "warmup_sets": True,  # suggest a warm-up ramp on the first heavy lift of each muscle
     "rest_alert": True,  # "rest is over" message after each set
+    "wa_mode": "full",  # full: log sets in the group | reports: plan, day and week reports and photos only
     "wa_cards": "one",  # one: one exercise card at a time | all: every card when the session starts
     "llm_daily_budget_usd": 1.0,
     "session_idle_nudge_min": 45,

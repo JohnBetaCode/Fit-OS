@@ -56,9 +56,13 @@
           </div>
           <span class="hidden sm:inline text-sm text-mute num whitespace-nowrap">{{ detail }}</span>
           {% set logged = (ws.sets|selectattr("planned_item_id", "equalto", it.id)|list) if ws else [] %}
-          {% if it.status in ("pending", "active") and not logged and plan.status in ("proposed", "accepted", "active") %}
+          {% if it.status in ("pending", "active") and plan.status in ("proposed", "accepted", "active") %}
+          <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="done"><input type="hidden" name="next" value="/">
+            <button class="btn py-1 px-2 text-xs hover:border-accent" aria-label="{{ _("Marcar {name} como hecho", name=it.exercise.display_name) }}" title="{{ _("Hecho como estaba planeado") }}">✓</button></form>
+          {% if not logged %}
           <form method="post" action="/entreno/items/{{ it.id }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="next" value="/">
             <button class="text-mute hover:text-bad px-1" aria-label="{{ _("Quitar {name}", name=it.exercise.display_name) }}" title="{{ _("Quitar") }}">✖</button></form>
+          {% endif %}
           {% endif %}
         </li>
         {% endfor %}

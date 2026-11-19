@@ -70,6 +70,16 @@ def _last_time(db: Session, ex_id: str) -> str:
     return _("Última vez ({date}): {sets}", date=ws.date.strftime("%d/%m"), sets=txt) if txt else ""
 
 
+def _previous_sets(db: Session, ex_id: str) -> list[WorkoutSet]:
+    """The sets of that exercise in the last finished workout ("previous" column)."""
+    sid = db.scalar(select(WorkoutSession.id).join(WorkoutSet, WorkoutSet.session_id == WorkoutSession.id)
+                    .where(WorkoutSet.exercise_id == ex_id, WorkoutSession.state == "completed")
+                    .order_by(WorkoutSession.date.desc(), WorkoutSession.id.desc()).limit(1))
+    if sid is None:
+        return []
+    return [st for st in db.get(WorkoutSession, sid).sets if st.exercise_id == ex_id and not st.is_warmup]
+
+
 def _rest_seconds(db: Session, item: PlannedItem) -> int:
     key = "rest_seconds_compound" if item.exercise.mechanic == "compound" else "rest_seconds_isolation"
     return int(prefs.get(db, key) or 90)
@@ -89,11 +99,14 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
         rows = []
         for it in ws.planned.items:
             done = tr.item_sets(ws, it)
+            timed = bool((it.slot or {}).get("duration_min"))
+            prev = _previous_sets(db, it.exercise_id)
+            left = 0 if it.status == "skipped" else max(0, (1 if timed else it.sets) - len(done))
             rows.append({"it": it, "sets": done, "current": current is not None and it.id == current.id,
-                         "last": _last_time(db, it.exercise_id),
-                         "prefill": done[-1] if done else None})
+                         "timed": timed, "prev": prev, "left": left,
+                         "prefill": done[-1] if done else (prev[0] if prev else None)})
         return render(request, "train.html", "entrenar", view="live", ws=ws, plan=ws.planned, rows=rows,
-                      rest=descanso, **common)
+                      rest=descanso, note=ws.notes or "", **common)
     p = _plan(db, plan) if plan else tr.plan_for(db, today)
     if p is not None and p.status in wk.EDITABLE and not nuevo:
         return render(request, "train.html", "entrenar", view="review", plan=p,
@@ -172,6 +185,8 @@ def train_item(item_id: int, action: str = Form("save"), sets: int = Form(3), re
             assist.swap(db, it, exercise_id)
         elif action == "reroll":
             assist.reroll(db, it)
+        elif action == "done":  # ✓ as planned (Today or Train)
+            assist.complete_as_planned(db, plan, it)
         elif action == "focus":
             ws = tr.active_session(db)
             if ws is None or ws.planned_session_id != plan.id:
@@ -215,10 +230,13 @@ def train_add(plan_id: int, exercise_id: str = Form(""), group: str = Form(""), 
 
 @router.post("/entreno/series")
 def train_log(item_id: int = Form(...), reps: str = Form(""), weight_kg: str = Form(""), rir: str = Form(""),
-              minutes: str = Form(""), db: Session = Depends(get_db)):
+              minutes: str = Form(""), level: str = Form(""), speed_kmh: str = Form(""), incline_pct: str = Form(""),
+              steps: str = Form(""), distance_km: str = Form(""), db: Session = Depends(get_db)):
     it = _item(db, item_id)
     try:
         reps_n, kg, rir_n, mins = form_num(reps), form_num(weight_kg), form_num(rir), form_num(minutes)
+        cardio = {"level": form_num(level), "speed_kmh": form_num(speed_kmh), "incline_pct": form_num(incline_pct),
+                  "steps": form_int(steps), "distance_km": form_num(distance_km)}
     except ValueError as e:
         return _back(error=_err(e))
     ws = tr.active_session(db)
@@ -227,7 +245,8 @@ def train_log(item_id: int = Form(...), reps: str = Form(""), weight_kg: str = F
     if mins:
         if not 0 < mins <= 600:
             return _back(error=_err(ValueError(_("Valores fuera de rango"))))
-        entry = SetEntry(reps=None, weight_kg=None, duration_s=int(mins * 60))
+        assist.log_cardio(db, ws, it, mins, cardio)
+        return _back()
     elif reps_n:
         if not 1 <= reps_n <= 100 or (kg is not None and not 0 <= kg <= 500) or (rir_n is not None and not 0 <= rir_n <= 10):
             return _back(error=_err(ValueError(_("Valores fuera de rango"))))
@@ -237,7 +256,7 @@ def train_log(item_id: int = Form(...), reps: str = Form(""), weight_kg: str = F
     assist.focus_on(db, ws, it)
     tr.log_sets(db, ws, it, [entry], raw_text="web")
     rest = 0 if mins else _rest_seconds(db, it)
-    if rest and gym_chat():  # also "rest is over" in the WhatsApp group: it rings with the phone locked
+    if rest and gym_chat():  # "rest is over" in the group too (rings with the phone locked), unless reports only
         from ..wa.session_flow import _schedule_rest
 
         _schedule_rest(db, ws, it, rest)
@@ -262,8 +281,22 @@ def train_next(db: Session = Depends(get_db)):
     return _back()
 
 
+@router.post("/entreno/nota")
+def train_note(note: str = Form(""), sleep: str = Form(""), energy: str = Form(""), db: Session = Depends(get_db)):
+    """How the day feels (sleep, energy, free text), saved with the workout in progress."""
+    ws = tr.active_session(db)
+    if ws is None:
+        return _back(error=_err(ValueError(_("No hay un entreno en curso."))))
+    try:
+        sl, en = form_int(sleep), form_int(energy)
+    except ValueError:
+        sl = en = None
+    assist.save_note(ws, note, sl if sl and 1 <= sl <= 5 else None, en if en and 1 <= en <= 5 else None)
+    return _back(guardado=1)
+
+
 @router.post("/entreno/terminar")
-def train_finish(rpe: str = Form(""), db: Session = Depends(get_db)):
+def train_finish(rpe: str = Form(""), partial: str = Form(""), db: Session = Depends(get_db)):
     ws = tr.active_session(db)
     if ws is None:
         return _back()
@@ -271,6 +304,13 @@ def train_finish(rpe: str = Form(""), db: Session = Depends(get_db)):
         n = form_int(rpe)
     except ValueError:
         n = None
-    tr.finish_session(db, ws, n if n and 1 <= n <= 10 else None)
+    # partial (cardio only / cut short): the program's next day stays, so the missed work comes back
+    tr.finish_session(db, ws, n if n and 1 <= n <= 10 else None, advance_rotation=not partial)
+    if gym_chat():  # the day's report in the WhatsApp group
+        from ..wa.outbox import enqueue_text
+        from ..wa.session_flow import _summary_text
+
+        db.flush()
+        enqueue_text(db, _summary_text(db, ws), handler="summary")
     db.flush()
     return RedirectResponse(f"/entrenos/{ws.id}?fin=1", status_code=303)

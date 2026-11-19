@@ -17,6 +17,8 @@
       <label><span class="label">{{ _("Silencio hasta") }}</span><input type="time" name="quiet_end" value="{{ p.quiet_end }}" class="input"></label>
       <label class="col-span-2"><span class="label">{{ _("Clip del ejercicio") }}</span><select name="clip_policy" class="input">
         {% for k, v in [("first_time", _("La primera vez que hago el ejercicio")), ("always", _("Siempre")), ("on_demand", _("Solo si escribo «video»"))] %}<option value="{{ k }}" {% if p.clip_policy == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      <label class="col-span-2"><span class="label">{{ _("WhatsApp") }}</span><select name="wa_mode" class="input">
+        {% for k, v in [("full", _("Todo: registro las series en el grupo")), ("reports", _("Solo reportes: plan del día, resumen al terminar, resumen semanal y fotos"))] %}<option value="{{ k }}" {% if p.wa_mode == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
       <label class="col-span-2"><span class="label">{{ _("Tarjetas de ejercicios en WhatsApp") }}</span><select name="wa_cards" class="input">
         {% for k, v in [("one", _("Una a la vez, al terminar cada ejercicio")), ("all", _("Todas al empezar: deslizo la de cada ejercicio para responder"))] %}<option value="{{ k }}" {% if p.wa_cards == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
       <label><span class="label">{{ _("Descanso compuestos (s)") }}</span><input name="rest_seconds_compound" value="{{ p.rest_seconds_compound }}" class="input"></label>

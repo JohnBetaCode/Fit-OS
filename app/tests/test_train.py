@@ -113,10 +113,10 @@ def test_whole_workout_from_the_web(world):
         assert "usar" in c.get(f"/entreno/items/{items[0]}/opciones").text
         assert c.post("/entreno/empezar", data={"plan_id": pid}).headers["location"] == "/entreno"
         live = c.get("/entreno")
-        assert "en curso" in live.text and "Serie 1" in live.text
+        assert "en curso" in live.text and "Anotar serie 1" in live.text
         r = c.post("/entreno/series", data={"item_id": items[0], "reps": "8", "weight_kg": "60", "rir": "2"})
         assert "descanso=" in r.headers["location"]
-        assert "Serie 2" in c.get("/entreno").text
+        assert "Anotar serie 2" in c.get("/entreno").text
         c.post(f"/entreno/items/{items[2]}", data={"action": "focus"})
         c.post("/entreno/series", data={"item_id": items[2], "reps": "12", "weight_kg": "20", "rir": ""})
         r = c.post("/entreno/series", data={"item_id": items[2], "reps": "10", "weight_kg": "", "rir": ""})
@@ -174,7 +174,7 @@ def test_remove_from_today_and_log_several_cards(world):
         assert r.headers["location"] == "/"
         c.post("/entreno/empezar", data={"plan_id": pid})
         live = c.get("/entreno").text
-        assert live.count('name="item_id"') == 3  # every pending card can take a set
+        assert live.count('aria-label="Anotar serie 1"') == 3  # every pending card can take a set
         r = c.post("/entreno/series", data={"item_id": items[2], "reps": "10", "weight_kg": "30", "rir": ""})
         assert "descanso=" in r.headers["location"]
     with session_scope() as s:
@@ -183,3 +183,54 @@ def test_remove_from_today_and_log_several_cards(world):
         ws = s.query(WorkoutSession).one()
         assert [st.planned_item_id for st in ws.sets] == [items[2]]  # logged on a card that wasn't current
         assert s.query(Timer).filter_by(kind="rest", status="pending").count() == 1  # WhatsApp rest alert
+
+
+def _program_plan(db, world):
+    create_program_from_template(db, "upper_lower_4", 4)
+    db.commit()
+    return assist.build(db, assist.Setup(on=DAY, equipment_profile_id=world["gym"], focus="program"))
+
+
+def test_done_from_today_logs_the_plan_and_partial_finish_keeps_the_rotation(db, world, fake_wa):
+    from fitos.core import prefs
+    from fitos.core.models import Timer, WaMessage
+
+    plan = _program_plan(db, world)
+    prog = tr.active_program(db)
+    rot = prog.rotation_idx
+    first = plan.items[0]
+    db.commit()
+    with TestClient(app, follow_redirects=False) as c:
+        r = c.post(f"/entreno/items/{first.id}", data={"action": "done", "next": "/"})
+        assert r.headers["location"] == "/"
+        c.post("/entreno/nota", data={"sleep": "2", "energy": "2", "note": "dormí mal"})
+        prefs.set_(db, "wa_mode", "reports")
+        db.commit()
+        item2 = plan.items[1]
+        c.post("/entreno/series", data={"item_id": item2.id, "reps": "8", "weight_kg": "40", "rir": ""})
+        r = c.post("/entreno/terminar", data={"rpe": "", "partial": "1"})
+        assert r.headers["location"].startswith("/entrenos/")
+    db.expire_all()
+    ws = db.query(WorkoutSession).one()
+    assert ws.state == "completed" and ws.notes == "Sueño 2/5 · Energía 2/5. dormí mal"
+    planned = [st for st in ws.sets if st.planned_item_id == first.id]
+    assert len(planned) == first.sets and {st.reps for st in planned} == {first.rep_min}
+    assert tr.active_program(db).rotation_idx == rot  # partial: the same day comes back
+    assert db.query(Timer).filter_by(kind="rest", status="pending").count() == 0  # reports only: no rest alerts
+    assert db.query(WaMessage).filter_by(handler="summary").count() == 1  # but the day's report
+
+
+def test_cardio_logs_duration_and_machine_details(db, world):
+    plan = tr.put_custom_plan(db, DAY, "Cardio", [{"exercise": "goblet_squat", "sets": 1, "minutes": [15, 15]}])
+    tr.start_session(db, plan, source="web")
+    db.commit()
+    item = plan.items[0]
+    with TestClient(app, follow_redirects=False) as c:
+        live = c.get("/entreno").text
+        assert 'name="speed_kmh"' in live and 'name="steps"' in live
+        c.post("/entreno/series", data={"item_id": item.id, "minutes": "15", "level": "", "speed_kmh": "4,5",
+                                        "incline_pct": "15", "steps": "1000", "distance_km": ""})
+        assert "4.5 km/h" in c.get("/entreno").text
+    db.expire_all()
+    st = db.query(WorkoutSession).one().sets[0]
+    assert st.duration_s == 900 and st.extra == {"speed_kmh": 4.5, "incline_pct": 15.0, "steps": 1000}

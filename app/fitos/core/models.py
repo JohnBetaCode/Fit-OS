@@ -331,6 +331,8 @@ class WorkoutSet(Base):
     e1rm_kg: Mapped[float | None] = mapped_column(Float)
     pr_flags: Mapped[list[Any]] = mapped_column(JSON, default=list)
     raw_text: Mapped[str | None] = mapped_column(Text)
+    # cardio details: {"level": 8, "speed_kmh": 4.5, "incline_pct": 15, "steps": 1000, "distance_km": 1.2}
+    extra: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     logged_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     session: Mapped[WorkoutSession] = relationship(back_populates="sets")
     exercise: Mapped[Exercise] = relationship()

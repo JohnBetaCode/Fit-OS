@@ -287,7 +287,10 @@ def alternatives(db: Session, ws: WorkoutSession | None, item: PlannedItem, limi
     )
 
 
-def finish_session(db: Session, ws: WorkoutSession, rpe: int | None = None) -> WorkoutSession:
+def finish_session(db: Session, ws: WorkoutSession, rpe: int | None = None, *,
+                   advance_rotation: bool = True) -> WorkoutSession:
+    """Close the session. `advance_rotation=False` for a partial day (cardio only, cut short): the program's next
+    day stays the same, so the missed work comes back."""
     ws.state = "completed"
     ws.ended_at = ws.ended_at or utcnow()
     if rpe is not None:
@@ -299,7 +302,7 @@ def finish_session(db: Session, ws: WorkoutSession, rpe: int | None = None) -> W
                 it.status = "done" if item_sets(ws, it) else "skipped"
         plan.status = "completed"
         prog = active_program(db)
-        if prog and plan.program_day_id and prog.days:
+        if advance_rotation and prog and plan.program_day_id and prog.days:
             day_ids = [d.id for d in prog.days]
             if plan.program_day_id in day_ids:
                 prog.rotation_idx = (day_ids.index(plan.program_day_id) + 1) % len(day_ids)

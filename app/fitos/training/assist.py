@@ -373,3 +373,65 @@ def focus_on(db: Session, ws: WorkoutSession, item: PlannedItem) -> None:
     if item.status in ("pending", "active"):
         item.status = "active"
     ws.wa_context = {**(ws.wa_context or {}), "current_item_id": item.id}
+
+
+# ── Logging helpers for the web ──────────────────────────────────────────────────────────────────────────
+CARDIO_FIELDS = ("level", "speed_kmh", "incline_pct", "steps", "distance_km")
+
+
+def log_cardio(db: Session, ws: WorkoutSession, item: PlannedItem, minutes: float, extra: dict) -> None:
+    """A timed item (cardio): duration plus machine details (level, speed, incline, steps, distance)."""
+    from ..wa.parser import SetEntry  # noqa: PLC0415
+
+    focus_on(db, ws, item)
+    [st] = tr.log_sets(db, ws, item, [SetEntry(reps=None, weight_kg=None, duration_s=int(minutes * 60))],
+                       raw_text="web")
+    clean = {k: v for k, v in extra.items() if k in CARDIO_FIELDS and v is not None}
+    st.extra = clean or None
+
+
+def complete_as_planned(db: Session, plan: PlannedSession, item: PlannedItem) -> WorkoutSession:
+    """✓ from Today: log the item's planned sets with their targets (starting the workout if needed). Each set
+    can be corrected afterwards in Workouts. Sets already logged for the item are kept, only the missing ones
+    are added."""
+    from ..wa.parser import SetEntry  # noqa: PLC0415
+
+    ws = tr.active_session(db)
+    if ws is None or ws.planned_session_id != plan.id:
+        if plan.status not in wk.EDITABLE and plan.status != "active":
+            raise ValueError(_("Ese plan ya terminó."))
+        ws = tr.start_session(db, plan, source="web")
+        if ws.planned_session_id != plan.id:
+            raise ValueError(_("Hay otro entreno en curso: termínalo primero."))
+    done = len(tr.item_sets(ws, item))
+    dur = (item.slot or {}).get("duration_min")
+    focus_on(db, ws, item)
+    if dur:
+        if not done:
+            minutes = dur[-1] if isinstance(dur, list | tuple) else dur
+            tr.log_sets(db, ws, item, [SetEntry(reps=None, weight_kg=None, duration_s=int(float(minutes) * 60))],
+                        raw_text="plan")
+    else:
+        reps = item.rep_min  # the bottom of the range: claims no more than the plan asked
+        entries = [SetEntry(reps=reps, weight_kg=item.target_weight_kg, rir=item.target_rir)
+                   for _ in range(max(0, item.sets - done))]
+        if entries:
+            tr.log_sets(db, ws, item, entries, raw_text="plan")
+    item.status = "done"
+    nxt = tr.next_pending_item(plan)
+    ws.wa_context = {**(ws.wa_context or {}), "current_item_id": nxt.id if nxt else None}
+    if nxt:
+        nxt.status = "active"
+    return ws
+
+
+def save_note(ws: WorkoutSession, note: str, sleep: int | None, energy: int | None) -> None:
+    """How the day went: free text plus sleep and energy (1–5), kept with the workout."""
+    parts = []
+    if sleep:
+        parts.append(_("Sueño {n}/5", n=sleep))
+    if energy:
+        parts.append(_("Energía {n}/5", n=energy))
+    text = " · ".join(parts)
+    note = (note or "").strip()
+    ws.notes = (f"{text}. {note}" if text and note else text or note)[:1000] or None
