@@ -13,7 +13,6 @@ from ..core.db import get_db
 from ..core.timeutil import local_today
 from ..i18n import _
 from ..training import assist, metrics, recovery
-from ..training.week import week_start
 from .bodymap import figures
 from .ui import render
 
@@ -51,7 +50,7 @@ def recovery_view(db: Session) -> dict:
 
 def week_view(db: Session) -> dict:
     lo, hi = int(prefs.get(db, "weekly_sets_target_min")), int(prefs.get(db, "weekly_sets_target_max"))
-    sets = metrics.weekly_hard_sets_by_muscle(db, week_start(local_today()))
+    sets = metrics.recent_hard_sets_by_muscle(db, local_today())  # last 7 days, moving daily
     levels = recovery.week_levels(sets, lo, hi)
     lab = level_labels()
     fills = {k: f"var(--map-{lvl})" for k, lvl in levels.items()}

@@ -25,7 +25,8 @@ Look at:
 - `profile`: goal, experience, `session_minutes`, active `injuries`, `disliked_exercise_ids`, coach notes.
 - `program.next_day` and its `slots` (muscle/pattern, sets, rep range): the default focus for the day.
 - `recovery`: status per muscle (`fatigued` red, `recovering` orange, `ready` green) and `ready_in_h`.
-- `week.hard_sets_by_muscle` vs `week.target_hard_sets`: what's behind this week.
+- `week.hard_sets_by_muscle` vs `week.target_hard_sets`: hard sets in the last 7 days (a window that moves daily,
+  not the calendar week): what's behind.
 - `exercises`: what they already do, `last_top` set, `best`, `max_kg`. `sessions`: recent workouts set by set.
 - `plans`: what's already written for the coming days.
 - Logs they hand you (a PDF or notes from before the app): use them for loads, cite the date, never commit them.

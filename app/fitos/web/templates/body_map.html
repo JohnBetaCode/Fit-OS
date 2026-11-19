@@ -5,11 +5,11 @@
 {% include "_progress_nav.html" %}
 <div class="flex flex-wrap items-center gap-2 mb-4" role="tablist" aria-label="{{ _("Vista del mapa") }}">
   <a href="/progreso/cuerpo?vista=recuperacion" role="tab" aria-selected="{{ 'true' if view == 'recuperacion' else 'false' }}" class="btn {% if view == 'recuperacion' %}border-accent text-ink{% endif %}">🩹 {{ _("Recuperación") }}</a>
-  <a href="/progreso/cuerpo?vista=semana" role="tab" aria-selected="{{ 'true' if view == 'semana' else 'false' }}" class="btn {% if view == 'semana' %}border-accent text-ink{% endif %}">📅 {{ _("Esta semana") }}</a>
+  <a href="/progreso/cuerpo?vista=semana" role="tab" aria-selected="{{ 'true' if view == 'semana' else 'false' }}" class="btn {% if view == 'semana' %}border-accent text-ink{% endif %}">📅 {{ _("Últimos 7 días") }}</a>
 </div>
 <div class="grid gap-4 md:grid-cols-5">
   <section class="card md:col-span-3">
-    {{ body_map(figs, _("Mapa de recuperación por músculo") if view == "recuperacion" else _("Series duras por músculo esta semana")) }}
+    {{ body_map(figs, _("Mapa de recuperación por músculo") if view == "recuperacion" else _("Series duras por músculo en los últimos 7 días")) }}
     <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3 text-xs text-mute" aria-hidden="true">
       {% if view == "recuperacion" %}
         {% for k in ("ready", "recovering", "fatigued") %}<span><span class="swatch" style="background: var(--map-{{ k }})"></span> {{ statuses[k] }}</span>{% endfor %}
@@ -19,7 +19,7 @@
     </div>
     <p class="text-xs text-mute mt-3">
       {% if view == "recuperacion" %}{{ _("Estimación a partir de tus series duras de los últimos días (los músculos grandes tardan más en recuperarse). No es una medida fisiológica: si te sientes distinto, hazle caso a tu cuerpo.") }}
-      {% else %}{{ _("Series duras de lunes a hoy: 1 al músculo principal y 0,5 a los secundarios. Meta: {lo}–{hi} por semana.", lo=lo, hi=hi) }}{% endif %}
+      {% else %}{{ _("Series duras de los últimos 7 días, hoy incluido (la ventana se mueve cada día): 1 al músculo principal y 0,5 a los secundarios. Meta: {lo}–{hi} cada 7 días.", lo=lo, hi=hi) }}{% endif %}
     </p>
   </section>
 
@@ -46,7 +46,7 @@
         {% endfor %}
       </ul>
     {% else %}
-      <div class="h2">{{ _("Lo que falta esta semana") }}</div>
+      <div class="h2">{{ _("Lo que falta (últimos 7 días)") }}</div>
       <ul class="grid gap-2 text-sm" id="mlist">
         {% for i in items %}
         <li id="m-{{ i.key }}" class="rounded-lg px-1 py-1">

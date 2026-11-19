@@ -60,6 +60,20 @@ def weekly_hard_sets_by_muscle(db: Session, week_start: date) -> dict[str, float
     return dict(sorted(out.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
+ROLLING_DAYS = 7
+
+
+def rolling_start(today: date, days: int = ROLLING_DAYS) -> date:
+    """First day of the window that ends today (today included): it moves every day, no Monday reset."""
+    return today - timedelta(days=days - 1)
+
+
+def recent_hard_sets_by_muscle(db: Session, today: date, days: int = ROLLING_DAYS) -> dict[str, float]:
+    """Hard sets per muscle in the last `days` days, today included (the window behind the body map and the
+    Today/Progress bars). The Sunday report still uses the calendar week (`weekly_hard_sets_by_muscle`)."""
+    return weekly_hard_sets_by_muscle(db, rolling_start(today, days))
+
+
 def _set_e1rm(s: WorkoutSet) -> float | None:
     return s.e1rm_kg if s.e1rm_kg is not None else e1rm(s.weight_kg, s.reps, s.rir)
 

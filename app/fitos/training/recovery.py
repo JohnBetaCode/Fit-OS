@@ -8,8 +8,9 @@ muscle are "fatigued" (red) right after the workout, "recovering" (orange) about
 three days between hard sessions of the same muscle; tune RED, ORANGE and TAU_H if it disagrees with how you
 feel.
 
-Week coverage counts the same hard sets as the Today card (`metrics.weekly_hard_sets_by_muscle`) against the
-weekly target in Settings (10–20 by default).
+Coverage counts the same hard sets as the Today card over the last 7 days, today included
+(`metrics.recent_hard_sets_by_muscle`: a window that moves every day, no Monday reset), against the weekly target
+in Settings (10–20 by default).
 """
 
 from __future__ import annotations

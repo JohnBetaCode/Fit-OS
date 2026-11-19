@@ -20,7 +20,6 @@ from ..core.models import PlannedSession, WorkoutSession, WorkoutSet
 from ..core.timeutil import local_today
 from ..training import metrics, recovery
 from ..training import service as tr
-from ..training.week import week_start
 
 
 def _set(s: WorkoutSet) -> dict[str, Any]:
@@ -99,8 +98,9 @@ def build(db: Session, days: int = 42, on: date | None = None) -> dict[str, Any]
         "recovery": [{"muscle": r.key, "status": r.status, "fatigue": r.fatigue, "ready_in_h": r.ready_in_h,
                       "last_trained": r.last_trained.isoformat() if r.last_trained else None}
                      for r in recovery.recovery(db)],
-        "week": {"start": week_start(today).isoformat(), "target_hard_sets": [lo, hi],
-                 "hard_sets_by_muscle": metrics.weekly_hard_sets_by_muscle(db, week_start(today))},
+        "week": {"window": f"{metrics.rolling_start(today).isoformat()}..{today.isoformat()} (last 7 days, moving)",
+                 "target_hard_sets": [lo, hi],
+                 "hard_sets_by_muscle": metrics.recent_hard_sets_by_muscle(db, today)},
         "exercises": [_exercise_row(row) for row in metrics.exercise_table(db)],
         "sessions": _sessions(db, today - timedelta(days=days)),
         "plans": _plans(db, today),

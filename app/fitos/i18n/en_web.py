@@ -688,4 +688,10 @@ EN: dict[str, str] = {
     "Terminar como parcial (solo cardio): no avanza el programa": "Finish as partial (cardio only): the program doesn't move on",
     "Todo: registro las series en el grupo": "Everything: I log sets in the group",
     "Antes": "Previous",
+    "Lo que falta (últimos 7 días)": "What's missing (last 7 days)",
+    "Series duras de los últimos 7 días, hoy incluido (la ventana se mueve cada día): 1 al músculo principal y 0,5 a los secundarios. Meta: {lo}–{hi} cada 7 días.":
+        "Hard sets in the last 7 days, today included (the window moves every day): 1 for the main muscle and 0.5 for secondary ones. Target: {lo}–{hi} every 7 days.",
+    "Series duras por músculo en los últimos 7 días": "Hard sets by muscle in the last 7 days",
+    "Sets duros por músculo · últimos 7 días": "Hard sets per muscle · last 7 days",
+    "Últimos 7 días": "Last 7 days",
 }

@@ -63,7 +63,7 @@ def test_body_page_both_views_and_today_card(db):
         assert rec.status_code == 200 and "<svg" in rec.text and 'data-m="quads"' in rec.text
         assert "En recuperación" in rec.text and "Listos para entrenar" in rec.text
         week = c.get("/progreso/cuerpo?vista=semana")
-        assert week.status_code == 200 and "Lo que falta esta semana" in week.text and "Sin entrenar" in week.text
+        assert week.status_code == 200 and "Lo que falta (últimos 7 días)" in week.text and "Sin entrenar" in week.text
         assert "Mapa de recuperación por músculo" in c.get("/").text
         setup = c.get("/entreno?nuevo=1&grupos=chest,back")
         assert 'name="g_chest" value="1" class="sr-only" checked' in setup.text
@@ -103,3 +103,14 @@ def test_shared_region_shows_the_worst_muscle():
     back = figures("male", fills, {}, {"lats": 9.0, "upper_back": 1.0})[1]
     region = next(p for p in back["parts"] if p["muscles"] == ["lats", "upper_back"])
     assert region["fill"] == "red"
+
+
+def test_coverage_is_a_moving_7_day_window_not_the_calendar_week(db):
+    from fitos.training import metrics
+
+    make_exercise(db, "bench", muscle="chest", pattern="push_horizontal", tag="barbell")
+    today = date(2026, 11, 23)  # a Monday
+    log_session(db, date(2026, 11, 17), "bench", [(8, 60, 2)] * 4)  # 6 days ago (last week's Tuesday)
+    log_session(db, date(2026, 11, 16), "bench", [(8, 60, 2)] * 3)  # 7 days ago: out
+    assert metrics.recent_hard_sets_by_muscle(db, today)["chest"] == 4  # no Monday reset
+    assert "chest" not in metrics.weekly_hard_sets_by_muscle(db, today)  # the calendar week would say 0

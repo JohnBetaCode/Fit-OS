@@ -54,12 +54,13 @@ def _labs_alerts(db: Session) -> dict | None:
         return None
 
 
-def _muscle_bars(db: Session, week_start: date) -> list[dict]:
+def _muscle_bars(db: Session, today: date) -> list[dict]:
+    """Hard sets per muscle in the last 7 days (a window that moves daily: no Monday reset)."""
     from ..catalog.service import muscle_label
     from ..training import metrics as m
 
     lo, hi = int(prefs.get(db, "weekly_sets_target_min")), int(prefs.get(db, "weekly_sets_target_max"))
-    data = m.weekly_hard_sets_by_muscle(db, week_start)
+    data = m.recent_hard_sets_by_muscle(db, today)
     rows = []
     for key in cards.MUSCLE_ES:
         v = round(float(data.get(key, 0.0)), 1)
@@ -103,7 +104,7 @@ def today_page(request: Request, db: Session = Depends(get_db)):
     days = [{"label": letters[i], "date": ws_start + timedelta(days=i),
              "done": (ws_start + timedelta(days=i)) in week_sessions,
              "planned": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"][i] in (prof.schedule or {})} for i in range(7)]
-    bars = _muscle_bars(db, ws_start)
+    bars = _muscle_bars(db, today)
     total_sets = sum(b["value"] for b in bars)
     target_sets = int(prefs.get(db, "weekly_sets_target_min")) * 8
     place = None
@@ -238,7 +239,7 @@ def progress_page(request: Request, exercise_id: str | None = None, db: Session 
 
     prof = body.get_profile(db)
     today = local_today()
-    bars = _muscle_bars(db, _week_start(today))
+    bars = _muscle_bars(db, today)
     cons = m.consistency(db, weeks=12, target_per_week=prof.days_per_week)
     trained = db.execute(
         select(WorkoutSet.exercise_id, Exercise.name_es, Exercise.name_en, func.count(WorkoutSet.id)).join(Exercise)

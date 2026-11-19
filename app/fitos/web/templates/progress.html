@@ -19,7 +19,7 @@
 
 <div class="grid gap-4 md:grid-cols-2">
   <section class="card">
-    <div class="h2">{{ _("Sets duros por músculo · esta semana") }}</div>
+    <div class="h2">{{ _("Sets duros por músculo · últimos 7 días") }}</div>
     <p class="text-xs text-mute mb-3">{{ _("Banda productiva {lo}–{hi} sets (sombreada). Principal = 1, secundario = 0,5.", lo=lo, hi=hi) }}</p>
     {% for b in bars %}
     <div class="flex items-center gap-2 text-sm mb-1.5" title="{{ b.label }}: {{ _("{n} sets", n=b.value|num) }}">

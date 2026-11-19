@@ -101,7 +101,7 @@
     <a href="/progreso/cuerpo" class="block my-2" aria-label="{{ _("Ver mapa") }}">{{ body_map(rec.figs, _("Mapa de recuperación por músculo"), uid="today") }}</a>
     <div class="flex flex-wrap justify-center gap-x-3 text-[11px] text-mute mb-3" aria-hidden="true">{% for k in ("ready", "recovering", "fatigued") %}<span><span class="swatch" style="background: var(--map-{{ k }})"></span> {{ rec_labels[k] }}</span>{% endfor %}</div>
     {% endif %}
-    <div class="h2">{{ _("Sets duros por músculo") }}</div>
+    <div class="h2">{{ _("Sets duros por músculo · últimos 7 días") }}</div>
     {% for b in bars %}
     <div class="flex items-center gap-2 text-sm mb-1.5">
       <span class="w-24 text-mute truncate">{{ b.label }}</span>
