@@ -23,8 +23,24 @@
 <div class="card mb-4 border-warn/50 text-sm">{{ _("<b>Catálogo vacío.</b> Falta importar el banco de ejercicios (<code>make catalog</code> o <code>make catalog-remote</code>).")|safe }}</div>
 {% endif %}
 
-<div class="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
-  <section class="card md:col-span-2 min-w-0">
+{% if timeline.upcoming %}
+<section class="mb-4" aria-label="{{ _("Próximos días") }}">
+  <div class="h2">🗓️ {{ _("Próximos días") }}</div>
+  <div class="flex gap-2 overflow-x-auto pb-1">
+    {% for p in timeline.upcoming %}
+    <a href="/entreno?plan={{ p.id }}" class="card shrink-0 w-56 py-3 hover:border-accent/60">
+      <div class="text-xs text-mute capitalize">{{ fmt_date(p.date) }}</div>
+      <div class="font-semibold truncate">{{ _(p.focus_label) }}</div>
+      <div class="text-xs text-mute">{{ _("{n} ejercicios", n=p.items|length) }} · <span class="text-accent">{{ _("ver / editar") }} →</span></div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<div class="grid gap-4 md:grid-cols-3 items-start">
+  <div class="md:col-span-2 grid gap-4 min-w-0">
+  <section class="card min-w-0">
     {% if ws %}
       <div class="flex items-center justify-between mb-2">
         <div class="h2 mb-0">{{ _("Sesión en curso") }}</div>
@@ -89,6 +105,35 @@
     {% if ws %}<a href="/entreno" class="btn btn-accent mt-4">💪 {{ _("Seguir el entreno") }} →</a>{% endif %}
   </section>
 
+  <section class="card min-w-0">
+    <div class="flex items-center justify-between"><div class="h2 mb-0">📅 {{ _("Días anteriores") }}</div><a href="/entrenos" class="text-xs text-accent">{{ _("Ver todos") }} →</a></div>
+    {% if timeline.past %}
+    <ul class="mt-2 divide-y divide-line/60">
+      {% for s, sm in timeline.past %}
+      <li class="py-2 flex items-center gap-3">
+        <div class="w-12 text-center shrink-0"><div class="text-[11px] text-mute capitalize">{{ weekday_short(s.date) }}</div><div class="font-bold num">{{ s.date.day }}</div></div>
+        <a href="/entrenos/{{ s.id }}" class="flex-1 min-w-0 hover:text-accent">
+          <div class="font-medium truncate">{{ _(s.planned.focus_label) if s.planned else _("Sesión") }}</div>
+          <div class="text-xs text-mute num">{{ _("{n} sets", n=sm.get('sets', 0)) }} · {{ (sm.get('tonnage_kg', 0) or 0)|num(0) }} kg{% if s.session_rpe %} · RPE {{ s.session_rpe }}{% endif %}{% if s.notes %} · 📝{% endif %}</div>
+        </a>
+        {% if sm.get('prs') %}<span class="chip text-warn border-warn/40">🏆 {{ sm.get('prs')|length }}</span>{% endif %}
+        <form method="post" action="/entrenos/{{ s.id }}/reabrir"><button class="btn py-1 px-2 text-xs" title="{{ _("Reabrir para agregar o corregir ejercicios") }}" aria-label="{{ _("Reabrir para agregar o corregir ejercicios") }}">✏️</button></form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="text-sm text-mute mt-2">{{ _("Aquí aparecen tus entrenos terminados.") }}</p>{% endif %}
+  </section>
+
+  <section class="card min-w-0">
+    <div class="h2">{{ _("Últimos récords") }}</div>
+    {% if prs %}
+      <ul class="text-sm divide-y divide-line/60">
+      {% for pr in prs %}<li class="py-1.5 flex justify-between gap-2"><span class="truncate">🏆 {{ pr.exercise }}</span><span class="text-mute num whitespace-nowrap">{{ pr.reps }} × {{ pr.weight_kg|kg }} kg{% if pr.e1rm_kg %} · e1RM {{ pr.e1rm_kg|num }}{% endif %}</span></li>{% endfor %}
+      </ul>
+    {% else %}<p class="text-sm text-mute">{{ _("Los récords aparecen cuando repites un ejercicio y lo superas.") }}</p>{% endif %}
+  </section>
+  </div>
+  <div class="grid gap-4 min-w-0">
   <section class="card">
     <div class="h2">{{ _("Semana") }}</div>
     <div class="grid grid-cols-7 gap-1 text-center mb-4">
@@ -121,14 +166,6 @@
       </ul>
     {% else %}<p class="text-sm text-mute">{{ _("Sin avisos.") }}</p>{% endif %}
   </section>
-
-  <section class="card md:col-span-2">
-    <div class="h2">{{ _("Últimos récords") }}</div>
-    {% if prs %}
-      <ul class="text-sm divide-y divide-line/60">
-      {% for pr in prs %}<li class="py-1.5 flex justify-between gap-2"><span class="truncate">🏆 {{ pr.exercise }}</span><span class="text-mute num whitespace-nowrap">{{ pr.reps }} × {{ pr.weight_kg|kg }} kg{% if pr.e1rm_kg %} · e1RM {{ pr.e1rm_kg|num }}{% endif %}</span></li>{% endfor %}
-      </ul>
-    {% else %}<p class="text-sm text-mute">{{ _("Los récords aparecen cuando repites un ejercicio y lo superas.") }}</p>{% endif %}
-  </section>
+  </div>
 </div>
 {% endblock %}

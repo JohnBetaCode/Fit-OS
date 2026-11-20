@@ -22,6 +22,7 @@ from ..core.models import (
     ChatThread,
     EquipmentProfile,
     Exercise,
+    PlannedSession,
     ProgressPhoto,
     WorkoutSession,
     WorkoutSet,
@@ -71,6 +72,23 @@ def _muscle_bars(db: Session, today: date) -> list[dict]:
     return rows
 
 
+def _timeline(db: Session, today: date) -> dict:
+    """Today as a timeline: plans already written for the coming days, and the last finished workouts."""
+    from ..training.metrics import session_summary
+
+    upcoming = db.scalars(select(PlannedSession).where(PlannedSession.date > today,
+                                                       PlannedSession.status.in_(("proposed", "accepted")))
+                          .order_by(PlannedSession.date, PlannedSession.id.desc()).limit(7)).all()
+    seen, coming = set(), []
+    for p in upcoming:  # one per day (the newest)
+        if p.date not in seen:
+            seen.add(p.date)
+            coming.append(p)
+    past = db.scalars(select(WorkoutSession).where(WorkoutSession.date < today, WorkoutSession.state == "completed")
+                      .order_by(WorkoutSession.date.desc(), WorkoutSession.id.desc()).limit(10)).all()
+    return {"upcoming": coming, "past": [(s, session_summary(db, s.id)) for s in past]}
+
+
 def _recovery_card(db: Session) -> dict | None:
     """The small body map on Today; None when nothing was trained in the last weeks."""
     from .routes_body import recovery_view
@@ -116,7 +134,7 @@ def today_page(request: Request, db: Session = Depends(get_db)):
         days=days, bars=bars[:8], load_pct=min(100, round(total_sets / max(target_sets, 1) * 100)),
         consistency=f"{len(week_sessions)}/{prof.days_per_week}", prs=m.recent_prs(db, 5),
         labs=_labs_alerts(db), profiles=body.equipment_profiles(db), w=cards.weight_text,
-        rec=_recovery_card(db), rec_labels=_rec_labels(),
+        rec=_recovery_card(db), rec_labels=_rec_labels(), timeline=_timeline(db, today),
         rep_range=cards.rep_range, onboarded=prof.onboarded, has_wa=bool(gym_chat()), has_catalog=db.scalar(
             select(Exercise.id).where(Exercise.enabled.is_(True)).limit(1)) is not None,
     )

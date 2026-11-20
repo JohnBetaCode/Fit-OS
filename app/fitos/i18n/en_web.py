@@ -696,4 +696,10 @@ EN: dict[str, str] = {
     "Últimos 7 días": "Last 7 days",
     "Reabrir para agregar o corregir ejercicios": "Reopen to add or fix exercises",
     "Reabrir el de hoy": "Reopen today's",
+    "Próximos días": "Coming days",
+    "{n} ejercicios": "{n} exercises",
+    "ver / editar": "view / edit",
+    "Días anteriores": "Previous days",
+    "Ver todos": "See all",
+    "Aquí aparecen tus entrenos terminados.": "Your finished workouts show up here.",
 }

@@ -279,3 +279,21 @@ def test_reopen_add_and_finish_again_moves_the_program_once(db, world):
     ws = db.query(WorkoutSession).one()
     assert ws.state == "completed" and len(ws.sets) == 2 and ws.session_rpe == 7
     assert tr.active_program(db).rotation_idx == expected  # not moved twice
+
+
+def test_today_is_a_timeline_of_coming_and_previous_days(db, world):
+    from datetime import timedelta
+
+    from factories import log_session
+
+    from fitos.core.timeutil import local_today
+
+    today = local_today()
+    future = tr.put_custom_plan(db, today + timedelta(days=2), "Pecho + hombro", [{"exercise": "db_bench", "sets": 3}])
+    past = log_session(db, today - timedelta(days=1), "db_bench", [(10, 20, 2)] * 3)
+    db.commit()
+    with TestClient(app) as c:
+        page = c.get("/").text
+    assert "Próximos días" in page and f'href="/entreno?plan={future.id}"' in page
+    assert "Días anteriores" in page and f'href="/entrenos/{past.id}"' in page
+    assert f'action="/entrenos/{past.id}/reabrir"' in page
