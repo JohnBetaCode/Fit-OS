@@ -2,4 +2,5 @@
 
 EN: dict[str, str] = {
     "Idioma": "Language",
+    "Solo se puede reabrir un entreno terminado.": "Only a finished workout can be reopened.",
 }

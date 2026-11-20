@@ -234,3 +234,48 @@ def test_cardio_logs_duration_and_machine_details(db, world):
     db.expire_all()
     st = db.query(WorkoutSession).one().sets[0]
     assert st.duration_s == 900 and st.extra == {"speed_kmh": 4.5, "incline_pct": 15.0, "steps": 1000}
+
+
+async def test_idle_empty_session_is_discarded_not_completed(db, world):
+    from datetime import timedelta
+
+    from fitos.core.timeutil import utcnow
+    from fitos.wa.session_flow import check_timeouts
+
+    plan = _program_plan(db, world)
+    rot = tr.active_program(db).rotation_idx
+    ws = tr.start_session(db, plan, source="web")
+    ws.last_activity_at = utcnow() - timedelta(hours=3)
+    db.commit()
+    assert await check_timeouts() == "discarded"
+    db.expire_all()
+    assert db.query(WorkoutSession).count() == 0
+    assert tr.plan_for(db, DAY).status == "proposed"
+    assert tr.active_program(db).rotation_idx == rot  # an empty session doesn't move the program
+
+
+def test_reopen_add_and_finish_again_moves_the_program_once(db, world):
+    plan = _program_plan(db, world)
+    prog = tr.active_program(db)
+    day_ids = [d.id for d in prog.days]
+    expected = (day_ids.index(plan.program_day_id) + 1) % len(day_ids)
+    first = plan.items[0]
+    db.commit()
+    with TestClient(app, follow_redirects=False) as c:
+        c.post("/entreno/empezar", data={"plan_id": plan.id})
+        c.post("/entreno/series", data={"item_id": first.id, "reps": "8", "weight_kg": "50", "rir": "2"})
+        c.post("/entreno/terminar", data={"rpe": ""})
+        sid = db.query(WorkoutSession).one().id
+        assert "Reabrir" in c.get(f"/entrenos/{sid}").text
+        assert c.post(f"/entrenos/{sid}/reabrir").headers["location"] == "/entreno"
+        live = c.get("/entreno").text
+        assert "en curso" in live and "Anotar serie 1" in live
+        c.post(f"/entreno/planes/{plan.id}/agregar", data={"exercise_id": "pushdown"})
+        db.expire_all()
+        added = next(it for it in tr.plan_for(db, DAY).items if it.exercise_id == "pushdown")
+        c.post("/entreno/series", data={"item_id": added.id, "reps": "12", "weight_kg": "25", "rir": "1"})
+        c.post("/entreno/terminar", data={"rpe": "7"})
+    db.expire_all()
+    ws = db.query(WorkoutSession).one()
+    assert ws.state == "completed" and len(ws.sets) == 2 and ws.session_rpe == 7
+    assert tr.active_program(db).rotation_idx == expected  # not moved twice

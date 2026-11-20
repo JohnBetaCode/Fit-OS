@@ -650,6 +650,9 @@ async def check_timeouts() -> str | None:
         idle = (utcnow() - ws.last_activity_at).total_seconds() / 60
         ctx = dict(ws.wa_context or {})
         if idle >= int(prefs.get(db, "session_idle_close_min")):
+            if not ws.sets:  # opened but nothing logged: not a workout, the plan stays available
+                tr.discard_empty_session(db, ws)
+                return "discarded"
             tr.finish_session(db, ws, None)
             db.flush()
             enqueue_text(db, _("Cerré la sesión por inactividad.") + "\n" + _summary_text(db, ws), handler="timeout")

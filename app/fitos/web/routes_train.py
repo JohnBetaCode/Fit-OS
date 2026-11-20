@@ -121,7 +121,10 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
     ready = recovery.ready_groups(recovery.recovery(db), assist.GROUPS)
     prog = tr.active_program(db)
     next_day = prog.days[prog.rotation_idx % len(prog.days)].name if prog and prog.days else None
-    done_today = p is not None and p.status == "completed"
+    done_today = None
+    if p is not None and p.status == "completed":  # today's workout is closed: offer to reopen it
+        done_today = db.scalar(select(WorkoutSession.id).where(WorkoutSession.planned_session_id == p.id)
+                               .order_by(WorkoutSession.id.desc()).limit(1)) or True
     return render(request, "train.html", "entrenar", view="setup", setup=setup, today=today, next_day=next_day,
                   eps=body.equipment_profiles(db), done_today=done_today, ready_groups=ready, **common)
 

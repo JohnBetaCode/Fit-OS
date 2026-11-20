@@ -694,4 +694,6 @@ EN: dict[str, str] = {
     "Series duras por músculo en los últimos 7 días": "Hard sets by muscle in the last 7 days",
     "Sets duros por músculo · últimos 7 días": "Hard sets per muscle · last 7 days",
     "Últimos 7 días": "Last 7 days",
+    "Reabrir para agregar o corregir ejercicios": "Reopen to add or fix exercises",
+    "Reabrir el de hoy": "Reopen today's",
 }

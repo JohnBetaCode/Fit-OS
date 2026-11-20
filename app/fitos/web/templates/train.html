@@ -38,7 +38,8 @@
 <div class="max-w-2xl">
   <h1 class="text-2xl font-bold mb-1">🏋️ {{ _("Armemos tu entreno") }}</h1>
   <p class="text-sm text-mute mb-4">{{ _("Dime dónde estás y qué quieres trabajar; después puedes cambiar, agregar o quitar ejercicios.") }}</p>
-  {% if done_today %}<div class="card mb-4 border-accent/50 text-sm">✅ {{ _("Ya terminaste el entreno de hoy. Si quieres otro, arma uno nuevo.") }}</div>{% endif %}
+  {% if done_today %}<div class="card mb-4 border-accent/50 text-sm flex flex-wrap items-center gap-3">✅ {{ _("Ya terminaste el entreno de hoy. Si quieres otro, arma uno nuevo.") }}
+    {% if done_today is not sameas true %}<form method="post" action="/entrenos/{{ done_today }}/reabrir"><button class="btn py-1">↩️ {{ _("Reabrir el de hoy") }}</button></form>{% endif %}</div>{% endif %}
   <form method="post" action="/entreno/armar" class="grid gap-4">
     <section class="card grid gap-3">
       <div class="h2">📍 {{ _("¿Dónde entrenas hoy?") }}</div>

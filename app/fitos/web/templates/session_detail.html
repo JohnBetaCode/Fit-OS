@@ -14,6 +14,9 @@
   </div>
 </div>
 {% if ws.notes %}<p class="card text-sm mb-3 whitespace-pre-line">{{ ws.notes }}</p>{% endif %}
+{% if ws.state == "completed" %}
+<form method="post" action="/entrenos/{{ ws.id }}/reabrir" class="mb-3"><button class="btn">↩️ {{ _("Reabrir para agregar o corregir ejercicios") }}</button></form>
+{% endif %}
 <details class="card mb-3">
   <summary class="cursor-pointer font-semibold">✏️ {{ _("Editar entreno") }}</summary>
   <form method="post" action="/entrenos/{{ ws.id }}/editar" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">

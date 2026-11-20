@@ -221,6 +221,19 @@ def edit_session(sid: int, on: str = Form(..., alias="date"), rpe: str = Form(""
     return RedirectResponse(f"/entrenos/{sid}?saved=1", status_code=303)
 
 
+@router.post("/entrenos/{sid}/reabrir")
+def reopen_session(sid: int, db: Session = Depends(get_db)):
+    """Back to in progress, in Train, to add or fix exercises and sets."""
+    ws = db.get(WorkoutSession, sid)
+    if not ws:
+        raise HTTPException(404)
+    try:
+        tr.reopen_session(db, ws)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return RedirectResponse("/entreno", status_code=303)
+
+
 @router.post("/entrenos/{sid}/borrar")
 def delete_session(sid: int, db: Session = Depends(get_db)):
     ws = db.get(WorkoutSession, sid)

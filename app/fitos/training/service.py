@@ -309,6 +309,46 @@ def finish_session(db: Session, ws: WorkoutSession, rpe: int | None = None, *,
     return ws
 
 
+def discard_empty_session(db: Session, ws: WorkoutSession) -> None:
+    """A session that ends with no sets wasn't a workout: delete it and put its plan back up for grabs (the
+    program doesn't move)."""
+    if ws.sets:
+        raise ValueError("the session has sets")
+    plan = ws.planned
+    if plan is not None:
+        plan.status = "proposed"
+        for it in plan.items:
+            if it.status in ("active", "skipped", "done"):
+                it.status = "pending"
+    db.add(AuditLog(actor="system", tool="discard_empty_session", entity="workout_session", entity_id=str(ws.id),
+                    before={"date": ws.date.isoformat(), "state": ws.state}))
+    db.delete(ws)
+
+
+def reopen_session(db: Session, ws: WorkoutSession) -> WorkoutSession:
+    """Back to in progress, to add or fix what was done (finishing again recomputes the program's next day from
+    the plan, so it doesn't move twice)."""
+    if ws.state != "completed":
+        raise ValueError(_("Solo se puede reabrir un entreno terminado."))
+    other = active_session(db)
+    if other is not None and other.id != ws.id:
+        raise ValueError(_("Hay otro entreno en curso: termínalo primero."))
+    ws.state, ws.ended_at, ws.last_activity_at = "active", None, utcnow()
+    plan = ws.planned
+    nxt = None
+    if plan is not None:
+        plan.status = "active"
+        for it in plan.items:
+            if it.status == "skipped" and not item_sets(ws, it):
+                it.status = "pending"
+        nxt = next_pending_item(plan)
+        if nxt:
+            nxt.status = "active"
+    ws.wa_context = {**(ws.wa_context or {}), "current_item_id": nxt.id if nxt else None, "nudged": False}
+    db.add(AuditLog(actor="user", tool="reopen_session", entity="workout_session", entity_id=str(ws.id)))
+    return ws
+
+
 def close_day(db: Session) -> str | None:
     """Fin del día: planes no iniciados → skipped (la rotación no avanza)."""
     today = local_today()
