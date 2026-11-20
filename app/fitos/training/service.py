@@ -297,6 +297,11 @@ def finish_session(db: Session, ws: WorkoutSession, rpe: int | None = None, *,
         ws.session_rpe = rpe
     plan = ws.planned
     if plan:
+        from .focus import honest_title
+
+        title = honest_title(plan.focus_label, ws)  # the title says what was trained, not what was planned
+        if title:
+            plan.focus_label = title
         for it in plan.items:
             if it.status in ("pending", "active"):
                 it.status = "done" if item_sets(ws, it) else "skipped"

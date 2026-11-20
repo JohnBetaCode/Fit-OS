@@ -70,7 +70,13 @@ def set_lang(value: str | None) -> None:
 
 
 def _(text: str, /, **kw: Any) -> str:
-    out = text if lang() == "es" else _catalog().get(text, text)
+    if lang() == "es":
+        out = text
+    else:
+        out = _catalog().get(text)
+        if out is None and " + " in text:  # composed titles ("Pierna + Bíceps"): part by part
+            out = " + ".join(_catalog().get(p, _catalog().get(p.capitalize(), p)) for p in text.split(" + "))
+        out = out if out is not None else text
     return out.format(**kw) if kw else out
 
 
