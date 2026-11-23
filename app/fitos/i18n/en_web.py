@@ -681,6 +681,13 @@ EN: dict[str, str] = {
     "Opciones del ejercicio": "Exercise options",
     "Otro al azar": "Another at random",
     "Serie extra": "Extra set",
+    "Fallo": "Failure",
+    "Muy duro": "Very hard",
+    "Duro": "Hard",
+    "Exigente": "Challenging",
+    "Moderado": "Moderate",
+    "RIR = reps que te quedaban: 0 fallo · 1 muy duro · 2 duro · 3 exigente · 4 moderado":
+        "RIR = reps you had left: 0 failure · 1 very hard · 2 hard · 3 challenging · 4 moderate",
     "Solo reportes: plan del día, resumen al terminar, resumen semanal y fotos":
         "Reports only: the day's plan, a summary when done, the weekly summary and photos",
     "Sueño": "Sleep",

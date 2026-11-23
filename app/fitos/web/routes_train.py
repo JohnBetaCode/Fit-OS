@@ -99,6 +99,8 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
         rows = []
         for it in ws.planned.items:
             done = tr.item_sets(ws, it)
+            if it.status == "skipped" and not done:  # dropped: out of sight
+                continue
             timed = bool((it.slot or {}).get("duration_min"))
             prev = _previous_sets(db, it.exercise_id)
             left = 0 if it.status == "skipped" else max(0, (1 if timed else it.sets) - len(done))

@@ -59,7 +59,7 @@
       {% if plan.rationale %}<p class="text-sm text-mute mt-1 italic">{{ plan.rationale }}</p>{% endif %}
       {% endif %}
       <ol class="mt-3 divide-y divide-line/60">
-        {% for it in plan.items %}
+        {% for it in plan.items if it.status != "skipped" %}
         <li class="py-2 flex items-center gap-3">
           <span class="w-6 text-mute num">{{ loop.index }}</span>
           {% if it.exercise.media_thumb %}<img src="/media/thumbs/{{ it.exercise.media_thumb }}" class="w-10 h-10 rounded-lg object-cover bg-panel2" loading="lazy" alt="" onerror="this.style.visibility='hidden'">{% endif %}

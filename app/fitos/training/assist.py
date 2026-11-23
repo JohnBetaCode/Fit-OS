@@ -16,6 +16,7 @@ Loads always come from the usual progression on your history (`planner._target`)
 from __future__ import annotations
 
 import random
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date
@@ -425,13 +426,23 @@ def complete_as_planned(db: Session, plan: PlannedSession, item: PlannedItem) ->
     return ws
 
 
+# "Sueño 3/5 · Energía 3/5." (or the English one) at the start of a saved note, once or repeated
+_NOTE_PREFIX = re.compile(r"^(?:(?:(?:Sueño|Energía|Sleep|Energy) [1-5]/5(?: · )?)+\.?\s*)+")
+
+
 def save_note(ws: WorkoutSession, note: str, sleep: int | None, energy: int | None) -> None:
     """How the day went: free text plus sleep and energy (1–5), kept with the workout."""
+    raw = (note or "").strip()
+    head = _NOTE_PREFIX.match(raw)
+    if head:  # not picked again: keep what the saved note said
+        found = dict(re.findall(r"(Sueño|Energía|Sleep|Energy) ([1-5])/5", head.group(0)))
+        sleep = sleep or int(found.get("Sueño") or found.get("Sleep") or 0) or None
+        energy = energy or int(found.get("Energía") or found.get("Energy") or 0) or None
     parts = []
     if sleep:
         parts.append(_("Sueño {n}/5", n=sleep))
     if energy:
         parts.append(_("Energía {n}/5", n=energy))
     text = " · ".join(parts)
-    note = (note or "").strip()
+    note = raw[head.end():].strip() if head else raw  # the form shows the saved note: don't stack it
     ws.notes = (f"{text}. {note}" if text and note else text or note)[:1000] or None

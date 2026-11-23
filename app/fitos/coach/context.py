@@ -2,7 +2,8 @@
 
 Used by the plan-day skill (.claude/skills/plan-day) and anyone planning by hand: profile and goals, equipment per
 place, program and its next day, recovery per muscle, this week's hard sets, recent sessions set by set, the best
-and latest performance per exercise, and plans already written. It reads; it never changes anything.
+and latest performance per exercise, plans already written, and today's workout as it goes (`live`, used by the
+session-status skill). It reads; it never changes anything.
 """
 
 from __future__ import annotations
@@ -62,6 +63,34 @@ def _sessions(db: Session, since: date) -> list[dict]:
     return out
 
 
+def _live(db: Session, today: date) -> dict[str, Any] | None:
+    """The workout in progress, else today's latest one: every planned item with its status and sets so far."""
+    ws = tr.active_session(db) or db.scalar(
+        select(WorkoutSession).where(WorkoutSession.date == today).order_by(WorkoutSession.id.desc()).limit(1))
+    if ws is None:
+        return None
+    cur = tr.current_item(db, ws) if ws.state != "completed" else None
+    items, sets_by_muscle, volume, cardio_min = [], defaultdict(int), 0.0, 0.0
+    for it in (ws.planned.items if ws.planned else []):
+        done = tr.item_sets(ws, it)
+        for s in done:
+            if s.duration_s and not s.reps:
+                cardio_min += s.duration_s / 60
+                continue
+            sets_by_muscle[it.exercise.primary_muscle or "other"] += 1
+            volume += (s.reps or 0) * (s.weight_kg or 0)
+        items.append({"id": it.exercise_id, "name": it.exercise.name_es, "muscle": it.exercise.primary_muscle,
+                      "status": it.status, "current": cur is not None and cur.id == it.id,
+                      "planned": {"sets": it.sets, "reps": [it.rep_min, it.rep_max], "kg": it.target_weight_kg},
+                      "sets": [_set(s) for s in done]})
+    end = ws.ended_at or ws.last_activity_at
+    return {"date": ws.date.isoformat(), "state": ws.state, "focus": ws.planned.focus_label if ws.planned else None,
+            "minutes": round((end - ws.started_at).total_seconds() / 60) if end and ws.started_at else None,
+            "notes": ws.notes, "rpe": ws.session_rpe, "items": items,
+            "totals": {"work_sets": sum(sets_by_muscle.values()), "sets_by_muscle": dict(sets_by_muscle),
+                       "volume_kg": round(volume, 1), "cardio_min": round(cardio_min, 1)}}
+
+
 def _plans(db: Session, start: date, days: int = 7) -> list[dict]:
     rows = db.scalars(select(PlannedSession).where(PlannedSession.date >= start,
                                                    PlannedSession.date < start + timedelta(days=days),
@@ -104,5 +133,6 @@ def build(db: Session, days: int = 42, on: date | None = None) -> dict[str, Any]
         "exercises": [_exercise_row(row) for row in metrics.exercise_table(db)],
         "sessions": _sessions(db, today - timedelta(days=days)),
         "plans": _plans(db, today),
+        "live": _live(db, today),
         "prefs": {k: prefs.get(db, k) for k in ("rest_seconds_compound", "rest_seconds_isolation", "warmup_sets")},
     }

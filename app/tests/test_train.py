@@ -297,3 +297,35 @@ def test_today_is_a_timeline_of_coming_and_previous_days(db, world):
     assert "Próximos días" in page and f'href="/entreno?plan={future.id}"' in page
     assert "Días anteriores" in page and f'href="/entrenos/{past.id}"' in page
     assert f'action="/entrenos/{past.id}/reabrir"' in page
+
+
+def test_skipped_items_are_hidden_and_rir_has_names(world):
+    from fitos.core.timeutil import local_today
+
+    today = local_today()
+    with session_scope() as s:
+        plan = assist.build(s, assist.Setup(on=today, equipment_profile_id=world["gym"], focus="groups",
+                                            groups=["chest", "triceps"], count=3, mode="smart"))
+        tr.start_session(s, plan, source="web")
+        gone = plan.items[2]
+        name = gone.exercise.display_name
+        assert all(it.exercise.display_name != name for it in plan.items[:2])
+        assist.remove(s, gone)
+        assert gone.status == "skipped"
+    with TestClient(app, follow_redirects=False) as c:
+        live, home = c.get("/entreno").text, c.get("/").text
+    assert name not in live and name not in home  # a dropped exercise is out of sight
+    assert "1 · Muy duro" in live and "0 · Fallo" in live and "RIR = reps que te quedaban" in live
+
+
+def test_saving_the_note_again_does_not_stack_sleep_and_energy():
+    ws = WorkoutSession(date=DAY)
+    assist.save_note(ws, "Todavía con gripa", 3, 3)
+    assert ws.notes == "Sueño 3/5 · Energía 3/5. Todavía con gripa"
+    assist.save_note(ws, ws.notes, 3, 3)  # the form comes back with the saved text
+    assist.save_note(ws, "Sleep 3/5 · Energy 3/5. Sueño 3/5 · Energía 3/5. Todavía con gripa", 4, 3)
+    assert ws.notes == "Sueño 4/5 · Energía 3/5. Todavía con gripa"
+    assist.save_note(ws, ws.notes, None, None)  # radios not picked again: the saved values stay
+    assert ws.notes == "Sueño 4/5 · Energía 3/5. Todavía con gripa"
+    assist.save_note(ws, "Sueño 2/5. Mejor", None, 5)
+    assert ws.notes == "Sueño 2/5 · Energía 5/5. Mejor"
