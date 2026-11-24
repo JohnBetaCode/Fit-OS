@@ -329,3 +329,25 @@ def test_saving_the_note_again_does_not_stack_sleep_and_energy():
     assert ws.notes == "Sueño 4/5 · Energía 3/5. Todavía con gripa"
     assist.save_note(ws, "Sueño 2/5. Mejor", None, 5)
     assert ws.notes == "Sueño 2/5 · Energía 5/5. Mejor"
+
+
+def test_finish_an_exercise_with_fewer_sets_and_today_check_invents_nothing(db, world):
+    from fitos.wa.parser import SetEntry
+
+    plan = tr.put_custom_plan(db, DAY, "Espalda", [{"exercise": "pushdown", "sets": 4, "reps": [8, 10]},
+                                                   {"exercise": "goblet_squat", "sets": 3, "reps": [8, 12]}])
+    ws = tr.start_session(db, plan, source="web")
+    first, second = plan.items
+    assist.focus_on(db, ws, first)
+    tr.log_sets(db, ws, first, [SetEntry(10, 25.0, 2), SetEntry(9, 25.0, 1)])
+    db.commit()
+    with TestClient(app, follow_redirects=False) as c:
+        assert "Terminar este ejercicio" in c.get("/entreno").text
+        assert "error=" in c.post(f"/entreno/items/{second.id}", data={"action": "finish"}).headers["location"]
+        c.post(f"/entreno/items/{first.id}", data={"action": "finish"})
+        c.post("/entreno/series", data={"item_id": second.id, "reps": "10", "weight_kg": "20", "rir": "2"})
+        c.post(f"/entreno/items/{second.id}", data={"action": "done", "next": "/"})  # ✓ from Today
+    db.expire_all()
+    assert (first.status, second.status) == ("done", "done")
+    assert len(tr.item_sets(ws, first)) == 2  # 2 of 4: closed as it was
+    assert [(s.reps, s.weight_kg) for s in tr.item_sets(ws, second)] == [(10, 20.0)]  # nothing invented

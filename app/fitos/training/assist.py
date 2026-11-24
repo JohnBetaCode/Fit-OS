@@ -392,9 +392,9 @@ def log_cardio(db: Session, ws: WorkoutSession, item: PlannedItem, minutes: floa
 
 
 def complete_as_planned(db: Session, plan: PlannedSession, item: PlannedItem) -> WorkoutSession:
-    """✓ from Today: log the item's planned sets with their targets (starting the workout if needed). Each set
-    can be corrected afterwards in Workouts. Sets already logged for the item are kept, only the missing ones
-    are added."""
+    """✓ from Today: an item with no sets gets its planned sets logged with their targets (starting the workout
+    if needed; each set can be corrected afterwards in Workouts). An item that already has sets is just closed
+    as it is: nothing is invented for sets that weren't done."""
     from ..wa.parser import SetEntry  # noqa: PLC0415
 
     ws = tr.active_session(db)
@@ -412,10 +412,10 @@ def complete_as_planned(db: Session, plan: PlannedSession, item: PlannedItem) ->
             minutes = dur[-1] if isinstance(dur, list | tuple) else dur
             tr.log_sets(db, ws, item, [SetEntry(reps=None, weight_kg=None, duration_s=int(float(minutes) * 60))],
                         raw_text="plan")
-    else:
+    elif not done:
         reps = item.rep_min  # the bottom of the range: claims no more than the plan asked
         entries = [SetEntry(reps=reps, weight_kg=item.target_weight_kg, rir=item.target_rir)
-                   for _ in range(max(0, item.sets - done))]
+                   for _ in range(item.sets)]
         if entries:
             tr.log_sets(db, ws, item, entries, raw_text="plan")
     item.status = "done"
@@ -424,6 +424,18 @@ def complete_as_planned(db: Session, plan: PlannedSession, item: PlannedItem) ->
     if nxt:
         nxt.status = "active"
     return ws
+
+
+def finish_item(db: Session, ws: WorkoutSession, item: PlannedItem) -> None:
+    """"Done with this one" mid-workout, with however many sets it got (fewer or more than planned)."""
+    if ws.planned_session_id != item.planned_session_id:
+        raise ValueError(_("No hay un entreno en curso."))
+    if not tr.item_sets(ws, item):
+        raise ValueError(_("Anota al menos una serie, o quítalo."))
+    was_current = (ws.wa_context or {}).get("current_item_id") == item.id
+    item.status = "done"
+    if was_current:
+        tr.advance(db, ws)
 
 
 # "Sueño 3/5 · Energía 3/5." (or the English one) at the start of a saved note, once or repeated

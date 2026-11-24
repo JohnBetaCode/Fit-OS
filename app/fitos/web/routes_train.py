@@ -103,7 +103,7 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
                 continue
             timed = bool((it.slot or {}).get("duration_min"))
             prev = _previous_sets(db, it.exercise_id)
-            left = 0 if it.status == "skipped" else max(0, (1 if timed else it.sets) - len(done))
+            left = 0 if it.status in ("skipped", "done") else max(0, (1 if timed else it.sets) - len(done))
             rows.append({"it": it, "sets": done, "current": current is not None and it.id == current.id,
                          "timed": timed, "prev": prev, "left": left,
                          "prefill": done[-1] if done else (prev[0] if prev else None)})
@@ -192,6 +192,11 @@ def train_item(item_id: int, action: str = Form("save"), sets: int = Form(3), re
             assist.reroll(db, it)
         elif action == "done":  # ✓ as planned (Today or Train)
             assist.complete_as_planned(db, plan, it)
+        elif action == "finish":  # done with it, whatever the set count
+            ws = tr.active_session(db)
+            if ws is None:
+                raise ValueError(_("No hay un entreno en curso."))
+            assist.finish_item(db, ws, it)
         elif action == "focus":
             ws = tr.active_session(db)
             if ws is None or ws.planned_session_id != plan.id:

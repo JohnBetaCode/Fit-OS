@@ -152,7 +152,7 @@
       <div class="flex gap-3">
         {{ media(it.exercise, "w-16 h-16") }}
         <div class="min-w-0 flex-1">
-          <div class="font-semibold">{% if it.status == "skipped" %}⏭️ {% elif r.left == 0 and r.sets %}✅ {% endif %}{{ it.exercise.display_name }}</div>
+          <div class="font-semibold">{% if it.status == "skipped" %}⏭️ {% elif it.status == "done" or (r.left == 0 and r.sets) %}✅ {% endif %}{{ it.exercise.display_name }}</div>
           <div class="text-xs text-mute num">{% if r.timed %}{{ rep_range(it) }}{% else %}{{ _("Meta:") }} {{ it.sets }} × {{ rep_range(it) }}{% set wt = w(it.target_weight_kg, it.exercise) %}{% if wt %} · {{ wt }}{% endif %} · RIR {{ it.target_rir }}{% endif %}</div>
           {% if it.target_note %}<div class="text-xs text-mute mt-0.5">💡 {{ it.target_note }}</div>{% endif %}
         </div>
@@ -234,6 +234,10 @@
           {% endif %}
         </div>
         {% endif %}
+      {% endif %}
+      {% if r.sets and it.status in ("pending", "active") %}
+      <form method="post" action="/entreno/items/{{ it.id }}" class="mt-2"><input type="hidden" name="action" value="finish">
+        <button class="btn py-1 text-xs w-full justify-center hover:border-accent">✓ {{ _("Terminar este ejercicio") }} ({{ _("{n} series", n=r.sets|length) }})</button></form>
       {% endif %}
     </article>
     {% endfor %}
