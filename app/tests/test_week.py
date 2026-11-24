@@ -103,3 +103,19 @@ def test_week_page_and_routes(world):
     with session_scope() as db:
         assert db.get(PlannedSession, pid).status == "skipped"
         assert db.scalars(select(PlannedSession).where(PlannedSession.date == tomorrow)).all()
+
+
+def test_week_lists_today_then_coming_days_then_past_most_recent_first(world):
+    today = local_today()
+    start = wk.week_start(today)
+    week = [start + timedelta(days=i) for i in range(7)]
+    expected = ([today] + [d for d in week if d > today] + sorted((d for d in week if d < today), reverse=True))
+    with TestClient(app) as c:
+        html = c.get("/semana").text
+    pos = [html.index(f'id="d-{d.isoformat()}"') for d in expected]
+    assert pos == sorted(pos)
+    if today > start:
+        assert html.index("Días anteriores") < html.index(f'id="d-{(today - timedelta(days=1)).isoformat()}"')
+    past = wk.week_start(today - timedelta(days=7))  # a past week: most recent day first
+    html = TestClient(app).get(f"/semana?d={past.isoformat()}").text
+    assert html.index(f'id="d-{(past + timedelta(days=6)).isoformat()}"') < html.index(f'id="d-{past.isoformat()}"')

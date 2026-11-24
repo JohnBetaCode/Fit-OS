@@ -29,8 +29,9 @@
 {% endif %}
 
 <div class="grid gap-3">
-{% for d in view.days %}
+{% for d in days %}
   {% set plan = d.plan %}
+  {% if d.past and not loop.first and not loop.previtem.past %}<div class="text-xs text-mute uppercase tracking-wide mt-2 px-1">{{ _("Días anteriores") }}</div>{% endif %}
   <section id="d-{{ d.date.isoformat() }}" class="card min-w-0 {% if d.today %}border-accent/60{% endif %} {% if d.past and not d.workout %}opacity-70{% endif %}">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="font-semibold capitalize">{{ weekday_long(d.date) }} <span class="text-mute font-normal num">{{ fmt_day_month(d.date) }}</span>

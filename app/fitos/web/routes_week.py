@@ -37,7 +37,10 @@ def week_page(request: Request, d: str | None = None, db: Session = Depends(get_
     from ..core import prefs
 
     lo, hi = int(prefs.get(db, "weekly_sets_target_min")), int(prefs.get(db, "weekly_sets_target_max"))
-    return render(request, "week.html", "semana", view=view, prev=start - timedelta(days=7),
+    # today first, then what's coming (soonest first), then the past (most recent first)
+    days = sorted(view["days"], key=lambda x: (0, 0) if x["today"] else (2, -x["date"].toordinal()) if x["past"]
+                  else (1, x["date"].toordinal()))
+    return render(request, "week.html", "semana", view=view, days=days, prev=start - timedelta(days=7),
                   next=start + timedelta(days=7), this_week=wk.week_start(local_today()), lo=lo, hi=hi,
                   profiles=body.equipment_profiles(db), w=cards.weight_text, rep_range=cards.rep_range,
                   is_timed=cards.is_timed, day_kinds=_day_kinds())
