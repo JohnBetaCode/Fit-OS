@@ -107,7 +107,8 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
             rows.append({"it": it, "sets": done, "current": current is not None and it.id == current.id,
                          "timed": timed, "prev": prev, "left": left,
                          "prefill": done[-1] if done else (prev[0] if prev else None)})
-        rows.sort(key=lambda r: r["it"].status in ("done", "skipped"))  # what's left first, finished ones at the end
+        # in progress (sets, still open) first, then what's left untouched, finished ones at the end
+        rows.sort(key=lambda r: (r["it"].status in ("done", "skipped"), not r["sets"]))
         return render(request, "train.html", "entrenar", view="live", ws=ws, plan=ws.planned, rows=rows,
                       rest=descanso, note=ws.notes or "", **common)
     p = _plan(db, plan) if plan else tr.plan_for(db, today)

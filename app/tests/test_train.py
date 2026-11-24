@@ -353,3 +353,21 @@ def test_finish_an_exercise_with_fewer_sets_and_today_check_invents_nothing(db, 
     assert (first.status, second.status) == ("done", "done")
     assert len(tr.item_sets(ws, first)) == 2  # 2 of 4: closed as it was
     assert [(s.reps, s.weight_kg) for s in tr.item_sets(ws, second)] == [(10, 20.0)]  # nothing invented
+
+
+def test_live_order_in_progress_then_untouched_then_done(db, world):
+    from fitos.wa.parser import SetEntry
+
+    plan = tr.put_custom_plan(db, DAY, "Mix", [{"exercise": "goblet_squat", "sets": 3, "reps": [8, 12]},
+                                               {"exercise": "pushdown", "sets": 3, "reps": [8, 12]},
+                                               {"exercise": "crunch", "sets": 3, "reps": [10, 15]}])
+    ws = tr.start_session(db, plan, source="web")
+    untouched, started, finished = plan.items
+    tr.log_sets(db, ws, started, [SetEntry(10, 20.0, 2)])
+    tr.log_sets(db, ws, finished, [SetEntry(15, None, 2)])
+    assist.finish_item(db, ws, finished)
+    db.commit()
+    with TestClient(app, follow_redirects=False) as c:
+        live = c.get("/entreno").text
+    assert (live.index(f'id="item-{started.id}"') < live.index(f'id="item-{untouched.id}"')
+            < live.index(f'id="done-{finished.id}"'))
