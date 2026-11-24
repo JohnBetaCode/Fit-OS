@@ -110,7 +110,7 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
         # in progress (sets, still open) first, then what's left untouched, finished ones at the end
         rows.sort(key=lambda r: (r["it"].status in ("done", "skipped"), not r["sets"]))
         return render(request, "train.html", "entrenar", view="live", ws=ws, plan=ws.planned, rows=rows,
-                      rest=descanso, note=ws.notes or "", **common)
+                      rest=descanso, note=assist.parse_note(ws.notes), **common)
     p = _plan(db, plan) if plan else tr.plan_for(db, today)
     if p is not None and p.status in wk.EDITABLE and not nuevo:
         return render(request, "train.html", "entrenar", view="review", plan=p,

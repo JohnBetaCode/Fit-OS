@@ -255,12 +255,13 @@
   <div class="grid gap-3 content-start">
     <form method="post" action="/entreno/nota" class="card grid gap-2">
       <div class="h2">📝 {{ _("¿Cómo te sientes hoy?") }}</div>
-      {% for key, label in [("sleep", _("Sueño")), ("energy", _("Energía"))] %}
+      {% set note_sleep, note_energy, note_text = note %}
+      {% for key, label, saved in [("sleep", _("Sueño"), note_sleep), ("energy", _("Energía"), note_energy)] %}
       <fieldset class="flex items-center gap-1"><legend class="text-xs text-mute w-16 float-left">{{ label }}</legend>
-        {% for n in range(1, 6) %}<label class="chip cursor-pointer has-[:checked]:border-accent has-[:checked]:text-ink"><input type="radio" name="{{ key }}" value="{{ n }}" class="sr-only">{{ n }}</label>{% endfor %}
+        {% for n in range(1, 6) %}<label class="chip cursor-pointer has-[:checked]:border-accent has-[:checked]:text-ink"><input type="radio" name="{{ key }}" value="{{ n }}" class="sr-only" {% if n == saved %}checked{% endif %}>{{ n }}</label>{% endfor %}
       </fieldset>
       {% endfor %}
-      <textarea name="note" rows="2" class="input" placeholder="{{ _("Ej.: dormí mal, me siento cansado") }}">{{ note }}</textarea>
+      <textarea name="note" rows="2" class="input" placeholder="{{ _("Ej.: dormí mal, me siento cansado") }}">{{ note_text }}</textarea>
       <div class="flex items-center gap-2"><button class="btn py-1">{{ _("Guardar nota") }}</button>{% if request.query_params.get("guardado") %}<span class="text-xs text-accent">✓ {{ _("Guardada") }}</span>{% endif %}</div>
     </form>
     <form method="post" action="/entreno/terminar" class="card grid gap-2" hx-boost="false" onsubmit="return confirm('{{ _("¿Terminar el entreno?") }}')">

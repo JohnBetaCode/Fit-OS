@@ -371,3 +371,16 @@ def test_live_order_in_progress_then_untouched_then_done(db, world):
         live = c.get("/entreno").text
     assert (live.index(f'id="item-{started.id}"') < live.index(f'id="item-{untouched.id}"')
             < live.index(f'id="done-{finished.id}"'))
+
+
+def test_note_form_shows_saved_sleep_and_energy_checked(db, world):
+    plan = tr.put_custom_plan(db, DAY, "Mix", [{"exercise": "pushdown", "sets": 3, "reps": [8, 12]}])
+    ws = tr.start_session(db, plan, source="web")
+    assist.save_note(ws, "Algo congestionado", 4, 3)
+    db.commit()
+    assert assist.parse_note(ws.notes) == (4, 3, "Algo congestionado")
+    with TestClient(app, follow_redirects=False) as c:
+        live = c.get("/entreno").text
+    assert 'name="sleep" value="4" class="sr-only" checked' in live
+    assert 'name="energy" value="3" class="sr-only" checked' in live
+    assert ">Algo congestionado</textarea>" in live
