@@ -345,6 +345,8 @@ def test_finish_an_exercise_with_fewer_sets_and_today_check_invents_nothing(db, 
         assert "Terminar este ejercicio" in c.get("/entreno").text
         assert "error=" in c.post(f"/entreno/items/{second.id}", data={"action": "finish"}).headers["location"]
         c.post(f"/entreno/items/{first.id}", data={"action": "finish"})
+        live = c.get("/entreno").text  # what's left first; the finished one at the end, collapsed
+        assert live.index(f'id="item-{second.id}"') < live.index("Hechos") < live.index(f'id="done-{first.id}"')
         c.post("/entreno/series", data={"item_id": second.id, "reps": "10", "weight_kg": "20", "rir": "2"})
         c.post(f"/entreno/items/{second.id}", data={"action": "done", "next": "/"})  # ✓ from Today
     db.expire_all()

@@ -683,6 +683,7 @@ EN: dict[str, str] = {
     "Serie extra": "Extra set",
     "Fallo": "Failure",
     "Terminar este ejercicio": "Finish this exercise",
+    "Hechos": "Done",
     "{n} series": "{n} sets",
     "Anota al menos una serie, o quítalo.": "Log at least one set, or remove it.",
     "Muy duro": "Very hard",

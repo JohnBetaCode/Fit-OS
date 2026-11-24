@@ -148,6 +148,14 @@
   <div class="lg:col-span-2 grid gap-3 content-start">
     {% for r in rows %}{% set it = r.it %}
     {% set closed = it.status in ("done", "skipped") %}
+    {% if closed %}
+    {% if loop.first or loop.previtem.it.status not in ("done", "skipped") %}<div class="text-xs text-mute uppercase tracking-wide mt-2 px-1">{{ _("Hechos") }}</div>{% endif %}
+    <details class="group" id="done-{{ it.id }}">
+      <summary class="card py-2 px-3 flex items-center gap-2 cursor-pointer list-none">
+        <span>✅</span><span class="flex-1 min-w-0 truncate">{{ it.exercise.display_name }}</span>
+        <span class="text-xs text-mute num whitespace-nowrap">{% if r.timed %}{% set mins = (r.sets|sum(attribute="duration_s") or 0) / 60 %}{{ mins|round(0)|num }} min{% else %}{{ _("{n} series", n=r.sets|length) }}{% endif %}</span>
+      </summary>
+    {% endif %}
     <article class="card {% if r.current and not closed %}border-accent/60{% endif %}" id="item-{{ it.id }}">
       <div class="flex gap-3">
         {{ media(it.exercise, "w-16 h-16") }}
@@ -240,6 +248,7 @@
         <button class="btn py-1 text-xs w-full justify-center hover:border-accent">✓ {{ _("Terminar este ejercicio") }} ({{ _("{n} series", n=r.sets|length) }})</button></form>
       {% endif %}
     </article>
+    {% if closed %}</details>{% endif %}
     {% endfor %}
   </div>
 
