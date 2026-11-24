@@ -25,6 +25,12 @@
       {% for key, label in pattern_es.items() %}<option value="{{ key }}" {% if f.pattern == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>
+  <div class="flex flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="{{ _("Uso") }}">
+    {% for key, label, dot in [("", _("Todos"), ""), ("often", usage_labels.often, "bg-accent"), ("rare", usage_labels.rare, "bg-warn"), ("never", usage_labels.never, "bg-mute/60")] %}
+    <label class="chip gap-1 cursor-pointer has-[:checked]:border-accent has-[:checked]:text-ink"><input type="radio" name="uso" value="{{ key }}" class="sr-only" {% if f.uso == key %}checked{% endif %}>{% if dot %}<span class="inline-block w-2 h-2 rounded-full {{ dot }}"></span>{% endif %}{{ label }}</label>
+    {% endfor %}
+    <span class="text-xs text-mute">{{ _("Frecuente: 3 o más sesiones en 8 semanas") }}</span>
+  </div>
   <div class="flex flex-wrap gap-4 text-sm">
     <label class="inline-flex items-center gap-2"><input type="checkbox" name="staples" value="1" class="accent-accent" {% if f.staples %}checked{% endif %}> {{ _("Solo básicos") }}</label>
     <label class="inline-flex items-center gap-2"><input type="checkbox" name="favs" value="1" class="accent-accent" {% if f.favs %}checked{% endif %}> {{ _("Favoritos") }}</label>

@@ -183,6 +183,27 @@ def _score(sets: list[WorkoutSet], kind: str) -> float | None:
     return max(vals) if vals else None
 
 
+USAGE_WINDOW_DAYS = 56  # "often" looks at the last 8 weeks
+USAGE_OFTEN_SESSIONS = 3  # sessions in that window to count as a regular
+
+
+def exercise_usage(db: Session, today: date) -> dict[str, tuple[str, int]]:
+    """Exercise id → (level, sessions in the window) for every exercise ever done: "often" (a regular lately) or
+    "rare" (done, but seldom or long ago). Exercises missing from the dict were never done."""
+    since = today - timedelta(days=USAGE_WINDOW_DAYS)
+    rows = db.execute(select(WorkoutSet.exercise_id, WorkoutSession.id, WorkoutSession.date)
+                      .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
+                      .where(WorkoutSet.is_warmup.is_(False))).all()
+    recent: dict[str, set[int]] = defaultdict(set)
+    ever: set[str] = set()
+    for ex_id, sid, d in rows:
+        ever.add(ex_id)
+        if d >= since:
+            recent[ex_id].add(sid)
+    return {ex_id: ("often" if len(recent[ex_id]) >= USAGE_OFTEN_SESSIONS else "rare", len(recent[ex_id]))
+            for ex_id in ever}
+
+
 def exercise_table(db: Session, since: date | None = None) -> list[dict]:
     """One row per exercise you've done (since `since`): sessions, first and latest top set, best, change between
     the first and the latest session, and a per-session series for a sparkline. The score is the e1RM for loaded

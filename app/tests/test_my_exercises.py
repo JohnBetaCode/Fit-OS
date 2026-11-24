@@ -88,3 +88,22 @@ async def test_unknown_lists_what_you_can_do_now(world, fake_wa):
     await _say("7", fake_wa)
     out = await _say("blablabla", fake_wa)
     assert "Hoy ya entrenaste" in out[0] and "*enfermo*" in out[0]
+
+
+def test_exercises_tab_colors_and_filters_by_usage(world):
+    with session_scope() as db:
+        t = local_today()
+        log_session(db, t - timedelta(days=1), "pushup", [(12, None, 2)])  # 3 recent sessions → often
+        usage = metrics.exercise_usage(db, t)
+    assert usage["pushup"] == ("often", 3) and usage["bb_bench"] == ("rare", 1)  # 60 days ago is out
+    with TestClient(app) as c:
+        page = c.get("/ejercicios").text
+        assert 'href="/ejercicios/pushup" data-usage="often"' in page
+        assert 'href="/ejercicios/bb_bench" data-usage="rare"' in page and 'data-usage="never"' in page
+        often = c.get("/ejercicios", params={"uso": "often"}).text
+        assert "/ejercicios/pushup" in often and "/ejercicios/bb_bench" not in often
+        rare = c.get("/ejercicios", params={"uso": "rare"}).text
+        assert "/ejercicios/bb_bench" in rare and "/ejercicios/pushup" not in rare
+        never = c.get("/ejercicios", params={"uso": "never"}).text
+        assert "/ejercicios/pushup" not in never and "/ejercicios/bb_bench" not in never
+        assert 'data-usage="never"' in never and 'data-usage="often"' not in never

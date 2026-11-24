@@ -14,6 +14,9 @@ from sqlalchemy.orm import Session
 from ..catalog import service
 from ..core.db import get_db
 from ..core.models import EquipmentProfile
+from ..core.timeutil import local_today
+from ..i18n import _
+from ..training import metrics
 from .ui import render
 
 router = APIRouter()
@@ -44,6 +47,10 @@ def set_history_provider(fn: HistoryProvider | None) -> None:
     _history_provider = fn
 
 
+def usage_labels() -> dict[str, str]:
+    return {"often": _("Frecuente"), "rare": _("Pocas veces"), "never": _("Nunca")}
+
+
 def _flag(v: str | None) -> bool:
     return v in ("1", "on", "true")
 
@@ -58,6 +65,7 @@ async def exercises(
     pattern: str = "",
     staples: str | None = None,
     favs: str | None = None,
+    uso: str = "",
     offset: int = 0,
     frag: str = "",
     db: Session = Depends(get_db),
@@ -73,7 +81,10 @@ async def exercises(
         "pattern": pattern,
         "staples": "1" if _flag(staples) else "",
         "favs": "1" if _flag(favs) else "",
+        "uso": uso if uso in ("often", "rare", "never") else "",
     }
+    usage = metrics.exercise_usage(db, local_today())
+    only = [k for k, (lvl, _n) in usage.items() if lvl == filters["uso"]] if filters["uso"] in ("often", "rare") else None
     offset = max(offset, 0)
     rows = service.search(
         db,
@@ -87,6 +98,8 @@ async def exercises(
         limit=PAGE_SIZE + 1,
         offset=offset,
         include_disabled=include_disabled,
+        only_ids=only,
+        exclude_ids=list(usage) if filters["uso"] == "never" else None,
     )
     qs = urlencode({k: v for k, v in filters.items() if v})
     ctx = {
@@ -96,6 +109,8 @@ async def exercises(
         "filters": filters,
         "profiles": profiles,
         "include_disabled": include_disabled,
+        "usage": usage,
+        "usage_labels": usage_labels(),
         **_labels(),
     }
     if frag == "items":

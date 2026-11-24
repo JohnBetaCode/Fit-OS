@@ -1,11 +1,13 @@
 {% for ex in items %}
-  <a href="/ejercicios/{{ ex.id }}" class="card !p-2 flex flex-col gap-2 hover:border-accent/60">
+  {% set u = usage.get(ex.id) %}{% set lvl = u[0] if u else "never" %}
+  <a href="/ejercicios/{{ ex.id }}" data-usage="{{ lvl }}" class="card !p-2 flex flex-col gap-2 hover:border-accent/60 {% if lvl == "often" %}!border-accent/70{% elif lvl == "rare" %}!border-warn/60{% endif %}">
     <div class="aspect-square rounded-xl bg-white overflow-hidden">
       <img src="/media/thumbs/{{ ex.media_thumb }}" alt="" loading="lazy" class="w-full h-full object-contain"
            onerror="this.style.visibility='hidden'">
     </div>
     <div class="text-sm leading-tight line-clamp-2">{{ ex.display_name }}</div>
     <div class="flex flex-wrap gap-1">
+      <span class="chip gap-1 {% if lvl == "often" %}!text-accent !border-accent/40{% elif lvl == "rare" %}!text-warn !border-warn/40{% else %}text-mute{% endif %}" title="{{ _("Sesiones en las últimas 8 semanas: {n}", n=u[1] if u else 0) }}"><span class="inline-block w-2 h-2 rounded-full {% if lvl == "often" %}bg-accent{% elif lvl == "rare" %}bg-warn{% else %}bg-mute/60{% endif %}"></span>{{ usage_labels[lvl] }}{% if u and u[1] %} · {{ u[1] }}{% endif %}</span>
       {% if ex.favorite %}<span class="chip !text-warn">★</span>{% endif %}
       {% if ex.primary_muscle %}<span class="chip">{{ muscle_es.get(ex.primary_muscle, ex.primary_muscle) }}</span>{% endif %}
       <span class="chip">{{ equipment_es.get(ex.equipment_tag, ex.equipment_tag) }}</span>

@@ -177,9 +177,15 @@ def search(
     limit: int = 48,
     offset: int = 0,
     include_disabled: bool = False,
+    only_ids: Iterable[str] | None = None,
+    exclude_ids: Iterable[str] | None = None,
 ) -> list[Exercise]:
     """Búsqueda paginada. Orden: básicos primero, luego por nombre visible."""
     stmt = select(Exercise)
+    if only_ids is not None:
+        stmt = stmt.where(Exercise.id.in_(sorted(set(only_ids))))
+    if exclude_ids:
+        stmt = stmt.where(Exercise.id.not_in(sorted(set(exclude_ids))))
     if not include_disabled:
         stmt = stmt.where(Exercise.enabled.is_(True))
     for word in (q or "").split():
