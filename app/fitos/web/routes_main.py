@@ -427,9 +427,6 @@ def profile_page(request: Request, saved: int = 0, db: Session = Depends(get_db)
         weekdays=body.WEEKDAYS, weekday_names=body.labels("weekday"), joints=body.labels("joint"),
         tag_es=body.labels("tag"), sexes=body.labels("sex"), equipment_tags=body.EQUIPMENT_TAGS,
         require_tags=body.REQUIRE_TAGS, disliked=[d for d in disliked if d], saved=saved,
-        renpho_email=renpho.linked_email(), renpho_status=prefs.get(db, renpho.STATUS_PREF) or {},
-        renpho_synced=_local_stamp((prefs.get(db, renpho.STATUS_PREF) or {}).get("last_sync")),
-        renpho_latest=_day((prefs.get(db, renpho.STATUS_PREF) or {}).get("latest")),
     )
 
 
@@ -612,9 +609,12 @@ async def integrations_page(request: Request, db: Session = Depends(get_db)):
     from ..jobs import waha_health
 
     s = get_settings()
+    st = prefs.get(db, renpho.STATUS_PREF) or {}
     return render(request, "integrations.html", "integraciones", waha=waha_health, gym_chat=bool(gym_chat()),
                   llm_mode=s.llm_mode, llm_spent=spent_today_usd(),
-                  budget=float(prefs.get(db, "llm_daily_budget_usd")))
+                  budget=float(prefs.get(db, "llm_daily_budget_usd")),
+                  renpho_email=renpho.linked_email(), renpho_status=st,
+                  renpho_synced=_local_stamp(st.get("last_sync")), renpho_latest=_day(st.get("latest")))
 
 
 # ── Coach ───────────────────────────────────────────────────────────────────

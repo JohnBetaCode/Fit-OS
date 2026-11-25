@@ -120,20 +120,21 @@ def test_credentials_are_encrypted_on_disk(linked):
         assert renpho.credentials() is None and renpho.linked_email() is None
 
 
-def test_profile_links_syncs_and_unlinks(linked, monkeypatch):
+def test_integrations_page_links_syncs_and_unlinks(linked, monkeypatch):
     from fitos.web import routes_renpho
 
     monkeypatch.setattr(routes_renpho, "client_for_current_user", lambda: renpho.FakeRenpho(DAY1))
     with TestClient(app, follow_redirects=False) as c:
-        assert "Báscula Renpho" in c.get("/perfil").text
-        r = c.post("/perfil/renpho", data={"email": "yo@correo.com", "password": "clave"})
-        assert r.headers["location"] == "/perfil#renpho"
-        page = c.get("/perfil").text
+        assert "Báscula Renpho" in c.get("/integraciones").text
+        r = c.post("/integraciones/renpho", data={"email": "yo@correo.com", "password": "clave"})
+        assert r.headers["location"] == "/integraciones#renpho"
+        page = c.get("/integraciones").text
         assert "Conectada como yo@correo.com" in page and "1 días con datos" in page
         prog = c.get("/progreso").text
         assert "Composición corporal" in prog and "Metabolismo basal" in prog
-        c.post("/perfil/renpho/desconectar")
-        assert "Conectar" in c.get("/perfil").text
+        c.post("/integraciones/renpho/desconectar")
+        assert "Conectar" in c.get("/integraciones").text
+        assert "Báscula Renpho" not in c.get("/perfil").text  # integrations live in Integrations
     with tenancy.as_user("tester"):
         assert renpho.linked_email() is None
     with session_scope() as db:
@@ -146,8 +147,8 @@ def test_a_rejected_login_keeps_no_credentials(linked, monkeypatch):
     monkeypatch.setattr(routes_renpho, "client_for_current_user",
                         lambda: renpho.FakeRenpho(error="Renpho no aceptó el correo o la clave."))
     with TestClient(app, follow_redirects=False) as c:
-        c.post("/perfil/renpho", data={"email": "yo@correo.com", "password": "mala"})
-        page = c.get("/perfil").text
+        c.post("/integraciones/renpho", data={"email": "yo@correo.com", "password": "mala"})
+        page = c.get("/integraciones").text
     assert "Renpho no aceptó el correo o la clave." in page and 'name="password"' in page
     with tenancy.as_user("tester"):
         assert renpho.linked_email() is None

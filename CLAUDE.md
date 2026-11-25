@@ -52,6 +52,11 @@ Your own deployment (host, paths, group id, pending items) lives in the gitignor
   WhatsApp commands must keep working in BOTH languages whatever the preference.
 - Docs, comments in new code and commits in English (`feat(wa): …`); identifiers in English. Ruff at 110.
   Commits straight to `main`.
+- Outside services that bring a person's data in (smart scales, wearables, health exports) live in
+  `fitos/integrations/<name>.py` with a double for tests, and their link / status / sync-now UI on the
+  **Integrations** page (`integrations.html`, routes under `/integraciones/<name>`), never in Profile or
+  Settings. Credentials: encrypted per person in their data dir (see `integrations/renpho.py`), never in the
+  database. The "coming soon" cards there are the backlog.
 
 ## Mistakes we already made
 - The compose service must NOT be called `app` (other apps' WAHA webhooks often point at `http://app:8000`).

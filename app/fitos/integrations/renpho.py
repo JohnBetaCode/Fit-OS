@@ -66,7 +66,7 @@ FIELDS: dict[str, tuple[str, tuple[float, float]]] = {
     "fatFreeWeight": ("lean_mass_kg", (20, 200)),
 }
 KINDS = [k for k, _b in FIELDS.values()]
-STATUS_PREF = "renpho_status"  # {"last_sync", "last_error", "days", "latest"}: shown in Profile, no secrets
+STATUS_PREF = "renpho_status"  # {"last_sync", "last_error", "days", "latest"}: shown in Integrations, no secrets
 SOURCE = "renpho"
 
 

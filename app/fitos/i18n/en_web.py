@@ -696,6 +696,8 @@ EN: dict[str, str] = {
     "Correo de Renpho": "Renpho e-mail",
     "Clave de Renpho": "Renpho password",
     "Conectar": "Link",
+    "sin conectar": "not linked",
+    "conectada": "linked",
     "La clave se guarda cifrada en el servidor y solo se usa para esto. Renpho no tiene API oficial: si cambian su app, la sincronización puede fallar y lo verás aquí.": "The password is stored encrypted on the server and used only for this. Renpho has no official API: if they change their app the sync may fail, and you'll see it here.",
     "Composición corporal": "Body composition",
     "de tu báscula": "from your scale",
