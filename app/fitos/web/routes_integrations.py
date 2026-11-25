@@ -10,7 +10,7 @@ from __future__ import annotations
 import contextlib
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -60,7 +60,8 @@ async def integrations_page(request: Request, db: Session = Depends(get_db)):
                   llm_mode=s.llm_mode, llm_spent=spent_today_usd(),
                   budget=float(prefs.get(db, "llm_daily_budget_usd")),
                   renpho_email=renpho.linked_email(), renpho_status=_status(db, renpho.STATUS_PREF),
-                  whoop_ready=whoop.configured(), whoop_linked=whoop.linked(),
+                  whoop_ready=whoop.configured(), whoop_linked=whoop.linked(), whoop_source=whoop.app_source(),
+                  whoop_client_id=whoop.app_client_id(),
                   whoop_status=_status(db, whoop.STATUS_PREF), whoop_redirect=whoop.redirect_uri())
 
 
@@ -122,6 +123,34 @@ def _whoop_sync(db: Session) -> None:
         whoop.record_error(db, str(e))
         return
     whoop.store(db, days)
+
+
+def _is_admin(request: Request) -> bool:
+    acc = getattr(request.state, "account", None)
+    return bool(acc and acc.is_admin) and not getattr(request.state, "read_only", False)
+
+
+@router.post("/integraciones/whoop/app")
+def whoop_app_save(request: Request, client_id: str = Form(""), client_secret: str = Form(""),
+                   db: Session = Depends(get_db)):
+    """Admin: the server's WHOOP app credentials, encrypted at rest; the secret is never shown again."""
+    if not _is_admin(request):
+        raise HTTPException(403)
+    try:
+        whoop.save_app_credentials(client_id, client_secret)
+    except IntegrationError as e:
+        whoop.record_error(db, str(e))
+        return _back("whoop")
+    whoop.record_error(db, None)
+    return _back("whoop")
+
+
+@router.post("/integraciones/whoop/app/quitar")
+def whoop_app_clear(request: Request):
+    if not _is_admin(request):
+        raise HTTPException(403)
+    whoop.clear_app_credentials()
+    return _back("whoop")
 
 
 @router.post("/integraciones/whoop/conectar")

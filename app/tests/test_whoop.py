@@ -197,3 +197,27 @@ def test_vault_survives_and_is_per_integration(setup):
         common.vault_path("other").write_text(json.dumps(raw))  # another integration's key can't open it
         with pytest.raises(common.IntegrationError):
             common.vault_read("other")
+
+
+def test_admin_enters_the_app_credentials_on_the_web(monkeypatch, tmp_path):
+    s = get_settings()
+    for k, v in {"data_dir": tmp_path, "secrets_key": "k" * 40, "whoop_client_id": "", "whoop_client_secret": "",
+                 "portal_base_url": "https://fit.example"}.items():
+        monkeypatch.setattr(s, k, v)
+    with TestClient(app, follow_redirects=False) as c:
+        assert "Pega aquí su Client ID y Client Secret" in c.get("/integraciones").text
+        r = c.post("/integraciones/whoop/app", data={"client_id": " my-client-id ", "client_secret": "s3cr3t-value"})
+        assert r.headers["location"] == "/integraciones#whoop"
+        page = c.get("/integraciones").text
+        assert "Credenciales guardadas" in page and "desde la web" in page and "s3cr3t-value" not in page
+        assert "Conectar con WHOOP" in page
+    assert whoop.configured() and whoop.app_credentials() == ("my-client-id", "s3cr3t-value")
+    p = tmp_path / "integrations" / "whoop_app.json"
+    assert stat.S_IMODE(p.stat().st_mode) == 0o600 and "s3cr3t-value" not in p.read_text()
+    monkeypatch.setattr(s, "whoop_client_id", "env-id")
+    monkeypatch.setattr(s, "whoop_client_secret", "env-secret")
+    assert whoop.app_credentials() == ("env-id", "env-secret") and whoop.app_source() == "env"  # .env wins
+    monkeypatch.setattr(s, "whoop_client_id", "")
+    with TestClient(app, follow_redirects=False) as c:
+        c.post("/integraciones/whoop/app/quitar")
+    assert not whoop.configured()

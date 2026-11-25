@@ -144,6 +144,14 @@ def test_admin_deletes_a_user_and_their_data_is_archived(prod, monkeypatch, tmp_
         accounts.delete("tester")
 
 
+def test_only_an_admin_sets_integration_app_credentials(prod, alex):
+    with _signed_in("alex", "clave-de-alex") as c:
+        r = c.post("/integraciones/whoop/app", headers=PROXY, data={"client_id": "x", "client_secret": "y"})
+        assert r.status_code == 403
+        assert c.post("/integraciones/whoop/app/quitar", headers=PROXY).status_code == 403
+        assert "Client Secret" not in c.get("/integraciones", headers=PROXY).text
+
+
 # ── WhatsApp, outbox, scheduler ──────────────────────────────────────────────────────────────────────────
 async def test_webhook_routes_by_group_and_drops_others(alex):
     from fitos.wa.webhook import ingest

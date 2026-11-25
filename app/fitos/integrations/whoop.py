@@ -1,7 +1,9 @@
 """WHOOP: recovery, sleep and day strain through WHOOP's official API (v2, OAuth 2.0).
 
-The server owner registers one app at developer-dashboard.whoop.com (WHOOP_CLIENT_ID / WHOOP_CLIENT_SECRET,
-redirect `<PORTAL_BASE_URL>/integraciones/whoop/callback`); each person links their own WHOOP from Integrations.
+The server owner registers one app at developer-dashboard.whoop.com (redirect
+`<PORTAL_BASE_URL>/integraciones/whoop/callback`) and gives Fit-OS its credentials, either in the .env
+(WHOOP_CLIENT_ID / WHOOP_CLIENT_SECRET, which win) or as an admin on the Integrations page (encrypted in the
+server vault); each person then links their own WHOOP from Integrations.
 Fit-OS never sees the WHOOP password: the person signs in at WHOOP and Fit-OS gets tokens, kept encrypted in
 their vault (`common.vault_*`). WHOOP rotates the refresh token on every use and invalidates the old one, so
 refreshes are serialized per person.
@@ -55,9 +57,46 @@ class WhoopError(IntegrationError):
     """WHOOP said no, or isn't configured on this server."""
 
 
-def configured() -> bool:
+APP_VAULT = "whoop_app"  # the server's WHOOP app credentials when an admin enters them on the web
+
+
+def app_credentials() -> tuple[str, str] | None:
+    """(client_id, client_secret): the .env wins; otherwise what an admin saved in Integrations."""
     s = get_settings()
-    return bool(s.whoop_client_id and s.whoop_client_secret and s.portal_base_url)
+    if s.whoop_client_id and s.whoop_client_secret:
+        return s.whoop_client_id, s.whoop_client_secret
+    saved = common.server_vault_read(APP_VAULT) or {}
+    if saved.get("client_id") and saved.get("client_secret"):
+        return saved["client_id"], saved["client_secret"]
+    return None
+
+
+def app_source() -> str | None:
+    """Where the app credentials come from: "env", "web" or None (not set)."""
+    s = get_settings()
+    if s.whoop_client_id and s.whoop_client_secret:
+        return "env"
+    return "web" if app_credentials() else None
+
+
+def app_client_id() -> str | None:
+    creds = app_credentials()
+    return creds[0] if creds else None
+
+
+def save_app_credentials(client_id: str, client_secret: str) -> None:
+    client_id, client_secret = client_id.strip(), client_secret.strip()
+    if not client_id or not client_secret or len(client_id) > 200 or len(client_secret) > 500:
+        raise WhoopError(_("Escribe el Client ID y el Client Secret de la app de WHOOP."))
+    common.server_vault_write(APP_VAULT, {"client_id": client_id, "client_secret": client_secret})
+
+
+def clear_app_credentials() -> None:
+    common.server_vault_delete(APP_VAULT)
+
+
+def configured() -> bool:
+    return bool(app_credentials() and get_settings().portal_base_url)
 
 
 def redirect_uri() -> str:
@@ -71,13 +110,15 @@ def authorize_url(db: Session) -> str:
         raise WhoopError(_("WHOOP no está configurado en el servidor (WHOOP_CLIENT_ID y WHOOP_CLIENT_SECRET)."))
     state = secrets.token_urlsafe(16)
     prefs.set_(db, STATE_PREF, {"state": state, "at": int(time.time())})
-    return AUTH_URL + "?" + urlencode({"response_type": "code", "client_id": get_settings().whoop_client_id,
+    return AUTH_URL + "?" + urlencode({"response_type": "code", "client_id": app_client_id(),
                                        "redirect_uri": redirect_uri(), "scope": SCOPES, "state": state})
 
 
 def _token_request(form: dict, http: httpx.Client | None = None) -> dict:
-    s = get_settings()
-    form = {**form, "client_id": s.whoop_client_id, "client_secret": s.whoop_client_secret}
+    creds = app_credentials()
+    if creds is None:
+        raise WhoopError(_("WHOOP no está configurado en el servidor (WHOOP_CLIENT_ID y WHOOP_CLIENT_SECRET)."))
+    form = {**form, "client_id": creds[0], "client_secret": creds[1]}
     try:
         r = (http or httpx.Client(timeout=20.0)).post(TOKEN_URL, data=form)
     except httpx.HTTPError as e:
@@ -288,7 +329,7 @@ def store(db: Session, days: dict[date, dict[str, float]]) -> SyncResult:
     return SyncResult(len(days), latest, written)
 
 
-def record_error(db: Session, msg: str) -> None:
+def record_error(db: Session, msg: str | None) -> None:
     common.set_status(db, STATUS_PREF, last_error=msg)
 
 

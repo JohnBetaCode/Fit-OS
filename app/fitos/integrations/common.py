@@ -74,6 +74,37 @@ def vault_delete(name: str) -> None:
     vault_path(name).unlink(missing_ok=True)
 
 
+def _server_path(name: str) -> Path:
+    return get_settings().data_dir / "integrations" / f"{name}.json"
+
+
+def server_vault_write(name: str, data: dict) -> None:
+    """Server-wide secrets (an integration's app credentials set by an admin), same encryption as the vault."""
+    p = _server_path(name)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.parent.chmod(0o700)
+    blob = {"secret": _fernet(f"server-{name}").encrypt(json.dumps(data).encode()).decode()}
+    tmp = p.with_suffix(".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(blob, f)
+    os.replace(tmp, p)
+
+
+def server_vault_read(name: str) -> dict | None:
+    p = _server_path(name)
+    if not p.is_file():
+        return None
+    try:
+        return json.loads(_fernet(f"server-{name}").decrypt(json.loads(p.read_text())["secret"].encode()))
+    except (OSError, ValueError, KeyError, InvalidToken, IntegrationError):
+        return None  # unreadable (SECRETS_KEY changed): as if not set, the admin enters it again
+
+
+def server_vault_delete(name: str) -> None:
+    _server_path(name).unlink(missing_ok=True)
+
+
 def store_daily(db: Session, days: dict[date, dict[str, float]], source: str, kinds: list[str]) -> int:
     """Write only new or changed values, in the caller's (short) transaction. Returns how many were written."""
     existing = {(r.kind, r.measured_on): r for r in db.scalars(

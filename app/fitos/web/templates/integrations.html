@@ -34,15 +34,36 @@
       <form method="post" action="/integraciones/whoop/conectar"><button class="btn btn-accent">{{ _("Conectar con WHOOP") }}</button></form>
       <p class="text-xs text-mute mt-3">{{ _("Te llevamos a WHOOP para que autorices; Fit-OS nunca ve tu clave. La primera vez trae el último año.") }}</p>
     {% else %}
-      {% if account and account.is_admin %}
-      <ol class="text-sm text-mute list-decimal pl-5 space-y-1">
-        <li>{{ _("Crea una app en") }} <a href="https://developer-dashboard.whoop.com" target="_blank" rel="noopener" class="underline">developer-dashboard.whoop.com</a> {{ _("(necesita una membresía de WHOOP).") }}</li>
-        <li>{{ _("Dirección de redirección:") }} <code class="text-ink break-all">{{ whoop_redirect }}</code></li>
-        <li>{{ _("Pon su Client ID y Client Secret en el .env del servidor (WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET) y vuelve a desplegar.") }}</li>
-      </ol>
+      {% if not (account and account.is_admin) %}<p class="text-sm text-mute">{{ _("El administrador tiene que activar WHOOP en el servidor.") }}</p>{% endif %}
+    {% endif %}
+    {% if account and account.is_admin %}
+    {% set app_form %}
+      <form method="post" action="/integraciones/whoop/app" class="grid gap-2 md:grid-cols-3 items-end mt-2" autocomplete="off">
+        <label><span class="label">Client ID</span><input name="client_id" class="input num" required autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+        <label><span class="label">Client Secret</span><input name="client_secret" type="password" class="input" required autocomplete="new-password" spellcheck="false"></label>
+        <div><button class="btn btn-accent">{{ _("Guardar") }}</button></div>
+      </form>
+      <p class="text-xs text-mute mt-2">{{ _("Se guardan cifrados en el servidor y el secreto no se vuelve a mostrar.") }}</p>
+    {% endset %}
+    <div class="mt-4 pt-3 border-t border-line">
+      <div class="text-xs text-mute uppercase tracking-wide mb-2">{{ _("App de WHOOP del servidor (solo admin)") }}</div>
+      {% if whoop_source %}
+        <div class="text-sm text-mute">✅ {{ _("Credenciales guardadas") }} · Client ID <span class="num text-ink">{{ whoop_client_id[:8] }}…</span> · {{ _("desde el .env") if whoop_source == "env" else _("desde la web") }}</div>
+        {% if whoop_source == "web" %}
+        <details class="mt-2"><summary class="text-sm text-mute cursor-pointer">{{ _("Cambiar o quitar") }}</summary>
+          {{ app_form }}
+          <form method="post" action="/integraciones/whoop/app/quitar" class="mt-2"><button class="btn">{{ _("Quitar credenciales") }}</button></form>
+        </details>
+        {% endif %}
       {% else %}
-      <p class="text-sm text-mute">{{ _("El administrador tiene que activar WHOOP en el servidor.") }}</p>
+        <ol class="text-sm text-mute list-decimal pl-5 space-y-1">
+          <li>{{ _("Crea una app en") }} <a href="https://developer-dashboard.whoop.com" target="_blank" rel="noopener" class="underline">developer-dashboard.whoop.com</a> {{ _("(necesita una membresía de WHOOP).") }}</li>
+          <li>{{ _("Dirección de redirección:") }} <code class="text-ink break-all">{{ whoop_redirect }}</code></li>
+          <li>{{ _("Pega aquí su Client ID y Client Secret:") }}</li>
+        </ol>
+        {{ app_form }}
       {% endif %}
+    </div>
     {% endif %}
   </section>
 
