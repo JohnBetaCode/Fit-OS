@@ -112,8 +112,11 @@ async def renpho_sync() -> str | None:
     return await asyncio.to_thread(run)
 
 
-def whoop_sync_now() -> str:
-    """Sync the current person's WHOOP: read where to start, fetch with no database open, then write."""
+def whoop_sync_now(*, history: bool = False) -> str:
+    """Sync the current person's WHOOP: read where to start, fetch with no database open, then write.
+
+    `history`: the hourly job reads the whole history once (minutes, rate limited); the morning message doesn't wait.
+    """
     from .core.timeutil import local_today  # noqa: PLC0415
     from .integrations import whoop  # noqa: PLC0415
     from .integrations.common import IntegrationError  # noqa: PLC0415
@@ -122,15 +125,15 @@ def whoop_sync_now() -> str:
     if client is None:
         return "not linked"
     with session_scope() as db:
-        since = whoop.since_for(db, local_today())
+        since = whoop.since_for(db, local_today(), history=history)
     try:
-        days = whoop.fetch(client, since)
+        days = whoop.fetch(client, since, local_today())
     except IntegrationError as e:
         with session_scope() as db:
             whoop.record_error(db, str(e))
         return f"error: {e}"
     with session_scope() as db:
-        res = whoop.store(db, days)
+        res = whoop.store(db, days, since)
     return f"{res.days} days, {res.written} written, latest {res.latest}"
 
 
@@ -142,4 +145,4 @@ async def whoop_sync() -> str | None:
 
     if not whoop.linked():
         return None
-    return await asyncio.to_thread(whoop_sync_now)
+    return await asyncio.to_thread(whoop_sync_now, history=True)

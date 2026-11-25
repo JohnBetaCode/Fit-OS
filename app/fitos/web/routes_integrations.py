@@ -47,7 +47,8 @@ def _day(iso: str | None) -> str | None:
 
 def _status(db: Session, pref: str) -> dict:
     st = dict(prefs.get(db, pref) or {})
-    return {**st, "synced": _local_stamp(st.get("last_sync")), "latest_day": _day(st.get("latest"))}
+    return {**st, "synced": _local_stamp(st.get("last_sync")), "latest_day": _day(st.get("latest")),
+            "first_day": _day(st.get("first"))}
 
 
 @router.get("/integraciones", response_class=HTMLResponse)
@@ -118,11 +119,11 @@ def _whoop_sync(db: Session) -> None:
     since = whoop.since_for(db, local_today())
     db.commit()  # end the read before the network: a long fetch must not hold SQLite
     try:
-        days = whoop.fetch(client, since)
+        days = whoop.fetch(client, since, local_today())
     except IntegrationError as e:
         whoop.record_error(db, str(e))
         return
-    whoop.store(db, days)
+    whoop.store(db, days, since)
 
 
 def _is_admin(request: Request) -> bool:

@@ -10,7 +10,7 @@
   </div>
 {%- endmacro %}
 {% macro sync_line(st) -%}
-  <div class="text-sm text-mute num mb-3">{% if st.synced %}{{ _("Última sincronización: {when}", when=st.synced) }}{% endif %}{% if st.latest_day %} · {{ _("último dato: {day}", day=st.latest_day) }}{% endif %}{% if st.days %} · {{ _("{n} días con datos", n=st.days) }}{% endif %}</div>
+  <div class="text-sm text-mute num mb-3">{% if st.synced %}{{ _("Última sincronización: {when}", when=st.synced) }}{% endif %}{% if st.latest_day %} · {{ _("último dato: {day}", day=st.latest_day) }}{% endif %}{% if st.days %} · {{ _("{n} días con datos", n=st.days) }}{% endif %}{% if st.first_day %} · {{ _("desde {day}", day=st.first_day) }}{% endif %}</div>
   {% if st.last_error %}<div class="text-sm text-bad mb-3">⚠️ {{ st.last_error }}</div>{% endif %}
 {%- endmacro %}
 {% block content %}
@@ -21,9 +21,10 @@
   {# ── WHOOP ── #}
   <section id="whoop" class="card">
     {% set wst = whoop_status %}
-    {{ head("⌚", "WHOOP", _("conectado") if whoop_linked else (_("falta configurar") if not whoop_ready else _("sin conectar")), "warn" if wst.last_error else ("ok" if whoop_linked else ""), _("Recuperación, VFC, pulso en reposo, sueño y esfuerzo del día, cada hora, por la API oficial de WHOOP. Con tu recuperación el mensaje de la mañana te dice si es día de subir cargas o de bajar el ritmo.")) }}
+    {{ head("⌚", "WHOOP", _("conectado") if whoop_linked else (_("falta configurar") if not whoop_ready else _("sin conectar")), "warn" if wst.last_error else ("ok" if whoop_linked else ""), _("Recuperación, VFC, pulso en reposo, sueño con sus fases, esfuerzo, actividades y zonas de pulso, cada hora, por la API oficial de WHOOP; todo tu histórico, y una copia cruda de lo que manda WHOOP en el servidor. Con tu recuperación el mensaje de la mañana te dice si es día de subir cargas o de bajar el ritmo.")) }}
     {% if whoop_linked %}
       {{ sync_line(wst) }}
+      {% if not wst.history_done %}<div class="text-sm text-mute mb-3">⏳ {{ _("Trayendo todo tu histórico en segundo plano (puede tardar unos minutos).") }}</div>{% endif %}
       <div class="flex flex-wrap gap-2">
         <form method="post" action="/integraciones/whoop/sincronizar"><button class="btn">🔄 {{ _("Sincronizar ahora") }}</button></form>
         <form method="post" action="/integraciones/whoop/desconectar"><button class="btn">{{ _("Desconectar") }}</button></form>

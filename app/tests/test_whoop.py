@@ -40,7 +40,7 @@ RECOVERIES = [
                "skin_temp_celsius": 33.1, "user_calibrating": False}},
     {"cycle_id": 9, "sleep_id": "s-0", "score_state": "SCORED", "score": {"recovery_score": 30}},  # its sleep isn't scored
 ]
-CYCLES = [{"id": 10, "start": "2026-11-24T11:10:00.000Z", "timezone_offset": "-05:00", "score_state": "SCORED",
+CYCLES = [{"id": 10, "start": "2026-11-24T04:30:00.000Z", "timezone_offset": "-05:00", "score_state": "SCORED",
            "score": {"strain": 12.4, "kilojoule": 10460.0, "average_heart_rate": 70, "max_heart_rate": 160}}]
 DAY = date(2026, 11, 24)
 
@@ -61,6 +61,16 @@ def test_records_become_days_by_the_morning_you_woke_up():
     assert d["sleep_hours"] == 6.0 and d["sleep_performance_pct"] == 82 and d["respiratory_rate"] == 15.2
     assert d["strain"] == 12.4 and d["day_kcal"] == 2500
     assert set(days) == {DAY}  # the unscored sleep and the nap add nothing
+
+
+def test_a_cycle_belongs_to_the_day_you_woke_up_not_the_night_it_started():
+    # The cycle starts when you fall asleep: 23:30 local on the 23rd is still the 24th's strain.
+    cycles = [{**CYCLES[0], "start": "2026-11-24T04:30:00.000Z"}]
+    assert whoop.daily(RECOVERIES, SLEEPS, cycles)[DAY]["strain"] == 12.4
+    # Without a recovery to anchor it (today's cycle before scoring), start + 12 h decides.
+    lone = [{"id": 99, "start": "2026-11-25T03:45:00.000Z", "timezone_offset": "-05:00", "score_state": "SCORED",
+             "score": {"strain": 3.1, "kilojoule": 2000.0}}]  # 22:45 on the 24th
+    assert whoop.daily([], [], lone)[date(2026, 11, 25)]["strain"] == 3.1
 
 
 def test_oauth_state_tokens_and_rotation(db, setup):
@@ -133,10 +143,10 @@ def test_store_writes_only_changes_and_the_next_sync_overlaps(db):
     fake = whoop.FakeWhoop({"/v2/recovery": RECOVERIES, "/v2/activity/sleep": SLEEPS, "/v2/cycle": CYCLES})
     assert whoop.since_for(db, DAY) == DAY - timedelta(days=whoop.BACKFILL_DAYS)
     res = whoop.store(db, whoop.fetch(fake, DAY - timedelta(days=30)))
-    assert res.written == 11 and res.latest == DAY
+    assert res.written == 18 and res.latest == DAY  # 11 basics + sleep stages, bed/wake times, day HR
     assert whoop.store(db, whoop.fetch(fake, DAY)).written == 0
     assert whoop.since_for(db, DAY + timedelta(days=1)) == DAY - timedelta(days=whoop.OVERLAP_DAYS)
-    assert len(db.scalars(select(BodyMetric).where(BodyMetric.source == "whoop")).all()) == 11
+    assert len(db.scalars(select(BodyMetric).where(BodyMetric.source == "whoop")).all()) == 18
 
 
 def test_readiness_bands_morning_line_and_ring(db):
@@ -221,3 +231,86 @@ def test_admin_enters_the_app_credentials_on_the_web(monkeypatch, tmp_path):
     with TestClient(app, follow_redirects=False) as c:
         c.post("/integraciones/whoop/app/quitar")
     assert not whoop.configured()
+
+
+WORKOUTS = [
+    {"id": "w-1", "start": "2026-11-24T22:00:00.000Z", "end": "2026-11-24T23:15:00.000Z", "timezone_offset": "-05:00",
+     "sport_name": "weightlifting", "score_state": "SCORED",
+     "score": {"strain": 9.8, "kilojoule": 1673.6, "distance_meter": None,
+               "zone_durations": {"zone_one_milli": 1_800_000, "zone_two_milli": 1_200_000, "zone_three_milli": 600_000,
+                                  "zone_four_milli": 0, "zone_five_milli": 0}}},
+    {"id": "w-2", "start": "2026-11-24T12:00:00.000Z", "end": "2026-11-24T12:30:00.000Z", "timezone_offset": "-05:00",
+     "sport_name": "running", "score_state": "SCORED",
+     "score": {"strain": 11.2, "kilojoule": 1255.2, "distance_meter": 5000,
+               "zone_durations": {"zone_three_milli": 900_000, "zone_four_milli": 900_000}}},
+]
+
+
+def test_everything_whoop_gives_lands_in_the_day():
+    sleeps = [{**SLEEPS[0], "score": {**SLEEPS[0]["score"],
+               "stage_summary": {**SLEEPS[0]["score"]["stage_summary"], "total_awake_time_milli": 1_800_000,
+                                 "total_in_bed_time_milli": 23_400_000, "sleep_cycle_count": 4, "disturbance_count": 9},
+               "sleep_needed": {"baseline_milli": 27_000_000, "need_from_sleep_debt_milli": 3_600_000,
+                                "need_from_recent_strain_milli": 1_800_000, "need_from_recent_nap_milli": 0},
+               "sleep_consistency_percentage": 77}},
+              {**SLEEPS[1], "score": {"stage_summary": {"total_light_sleep_time_milli": 1_500_000}}}]
+    d = whoop.daily(RECOVERIES, sleeps, CYCLES, WORKOUTS)[DAY]
+    assert d["deep_sleep_h"] == 1.5 and d["rem_sleep_h"] == 1.0 and d["light_sleep_h"] == 3.5
+    assert d["awake_h"] == 0.5 and d["in_bed_h"] == 6.5 and d["sleep_cycles"] == 4 and d["sleep_disturbances"] == 9
+    assert d["sleep_need_h"] == 9.0 and d["sleep_debt_h"] == 1.0 and d["sleep_consistency_pct"] == 77
+    assert d["bedtime_h"] == 23.5 and d["wake_h"] == 6.17  # 23:30 the night before, 06:10
+    assert d["nap_min"] == 25 and d["avg_hr"] == 70 and d["max_hr"] == 160
+    assert d["workout_count"] == 2 and d["workout_min"] == 105 and d["workout_strain"] == 11.2
+    assert d["workout_kcal"] == 700 and d["workout_km"] == 5.0
+    assert d["hr_zone1_min"] == 30 and d["hr_zone3_min"] == 25 and d["hr_zone4_min"] == 15
+
+
+def test_a_bedtime_after_midnight_counts_past_24():
+    late = [{**SLEEPS[0], "start": "2026-11-24T06:15:00.000Z"}]  # 01:15 local
+    assert whoop.daily([], late, [])[DAY]["bedtime_h"] == 25.25
+
+
+def test_history_once_then_overlap_and_the_raw_archive_keeps_everything(db, setup):
+    import gzip
+
+    data = {"/v2/recovery": RECOVERIES, "/v2/activity/sleep": SLEEPS, "/v2/cycle": CYCLES,
+            "/v2/activity/workout": WORKOUTS, whoop.BODY_PATH: {"height_meter": 1.8, "max_heart_rate": 191}}
+    fake = whoop.FakeWhoop(data)
+    with tenancy.as_user("tester"):
+        assert whoop.since_for(db, DAY) == DAY - timedelta(days=whoop.BACKFILL_DAYS)  # the link: one year, fast
+        since = whoop.since_for(db, DAY, history=True)
+        assert since == whoop.HISTORY_START
+        days = whoop.fetch(fake, since, DAY)
+        assert days[DAY]["hr_max_profile"] == 191
+        whoop.store(db, days, since)
+        st = prefs.get(db, whoop.STATUS_PREF)
+        assert st["history_done"] and st["first"] == DAY.isoformat() and st["days"] == 1
+        assert whoop.since_for(db, DAY + timedelta(days=1), history=True) == DAY - timedelta(days=whoop.OVERLAP_DAYS)
+        p = tenancy.user_dir() / whoop.ARCHIVE
+        assert stat.S_IMODE(p.stat().st_mode) == 0o600
+        raw = json.loads(gzip.decompress(p.read_bytes()))
+        assert set(raw["workout"]) == {"w-1", "w-2"} and set(raw["recovery"]) == {"10", "9"}
+        assert raw["body_measurement"]["height_meter"] == 1.8
+        whoop.archive({"workout": [{**WORKOUTS[0], "sport_name": "boxing"}]})  # a newer copy wins, nothing lost
+        raw = json.loads(gzip.decompress(p.read_bytes()))
+        assert raw["workout"]["w-1"]["sport_name"] == "boxing" and len(raw["sleep"]) == 3
+
+
+def test_client_waits_out_the_rate_limit(setup):
+    hits, slept = [], []
+
+    def api(req: httpx.Request) -> httpx.Response:
+        hits.append(1)
+        if len(hits) == 1:
+            return httpx.Response(429, headers={"Retry-After": "7"})
+        return httpx.Response(200, json={"records": [{"n": 1}]})
+
+    with tenancy.as_user("tester"):
+        common.vault_write("whoop", {"access_token": "t", "refresh_token": "r", "expires_at": int(time.time()) + 3000})
+        client = whoop.WhoopClient(httpx.Client(transport=httpx.MockTransport(api)), sleep=slept.append)
+        assert client.collection("/v2/cycle", datetime(2026, 11, 1)) == [{"n": 1}]
+        assert slept == [7]
+        always = whoop.WhoopClient(httpx.Client(transport=httpx.MockTransport(
+            lambda r: httpx.Response(429))), sleep=slept.append)
+        with pytest.raises(whoop.WhoopError):
+            always.collection("/v2/cycle", datetime(2026, 11, 1))
