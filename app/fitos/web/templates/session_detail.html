@@ -48,9 +48,9 @@
         <tr>
           <td class="num">{{ _("C") if s.is_warmup else s.set_idx }}</td>
           <td><input form="{{ fid }}" name="reps" inputmode="numeric" value="{{ s.reps or '' }}" class="input w-14 px-2 num"></td>
-          <td><input form="{{ fid }}" name="weight_kg" inputmode="decimal" value="{{ s.weight_kg if s.weight_kg is not none else '' }}" class="input w-[4.5rem] px-2 num">{% if s.pr_flags %}<span class="sm:hidden"> 🏆</span>{% endif %}</td>
+          <td><input form="{{ fid }}" name="weight_kg" inputmode="decimal" value="{{ s.weight_kg if s.weight_kg is not none else '' }}" class="input w-[4.5rem] px-2 num">{% if medals.get(s.id) %}<span class="sm:hidden"> {{ medals[s.id].icon }}</span>{% elif s.pr_flags %}<span class="sm:hidden"> 🏆</span>{% endif %}</td>
           <td><input form="{{ fid }}" name="rir" inputmode="decimal" value="{{ s.rir if s.rir is not none else '' }}" class="input w-12 px-2 num"></td>
-          <td class="num text-mute hidden sm:table-cell">{{ s.e1rm_kg|num }}{% if s.pr_flags %} 🏆{% endif %}</td>
+          <td class="num text-mute hidden sm:table-cell">{{ s.e1rm_kg|num }}{% if medals.get(s.id) %} {{ medals[s.id].icon }}{% elif s.pr_flags %} 🏆{% endif %}</td>
           <td class="whitespace-nowrap"><form id="{{ fid }}" method="post" action="/entrenos/sets/{{ s.id }}" class="flex gap-1"><button class="btn px-2.5 py-1.5 text-accent" title="{{ _("guardar") }}" aria-label="{{ _("guardar") }}">✓</button><button name="delete" value="1" class="btn px-2.5 py-1.5 text-bad" title="{{ _("borrar") }}" aria-label="{{ _("borrar") }}" onclick="return confirm({{ _("¿Borrar este set?")|tojson|forceescape }})">✕</button></form></td>
         </tr>
       {% endfor %}

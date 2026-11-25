@@ -212,7 +212,7 @@
           <div class="grid grid-cols-[1.25rem_3.75rem_minmax(3.5rem,1fr)_3.25rem_3.5rem_2.5rem] gap-1.5 items-center rounded-lg bg-accent/10 px-1 py-1.5 num">
             <span class="text-mute">{{ loop.index }}</span>
             <span class="text-mute text-[11px] whitespace-nowrap">{% if p %}{{ p.weight_kg|kg if p.weight_kg else "" }}{% if p.weight_kg %}×{% endif %}{{ p.reps }}{% else %}—{% endif %}</span>
-            <span>{{ s.weight_kg|kg if s.weight_kg else "—" }}</span><span>{{ s.reps }}</span><span>{{ s.rir|kg if s.rir is not none else "—" }}{% if s.pr_flags %} 🏆{% endif %}</span>
+            <span>{{ s.weight_kg|kg if s.weight_kg else "—" }}</span><span>{{ s.reps }}</span><span>{{ s.rir|kg if s.rir is not none else "—" }}{% if medals and medals.get(s.id) %} {{ medals[s.id].icon }}{% elif s.pr_flags %} 🏆{% endif %}</span>
             <form method="post" action="/entreno/series/{{ s.id }}/borrar"><button class="text-xs text-mute hover:text-bad w-full" aria-label="{{ _("Borrar serie") }}">✖</button></form>
           </div>
           {% endfor %}

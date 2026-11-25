@@ -188,7 +188,10 @@ def session_detail(sid: int, request: Request, saved: int = 0, db: Session = Dep
         for it in ws.planned.items:
             g = groups.setdefault(it.exercise_id, {"ex": it.exercise, "sets": [], "item": it})
             g["item"] = it
+    from ..training.medals import set_medals
+
     return render(request, "session_detail.html", "entrenos", ws=ws, groups=list(groups.values()),
+                  medals=set_medals(db, list(groups)),
                   summary=session_summary(db, ws.id), fmt=fmt_date, describe=cards.describe_set,
                   rep_range=cards.rep_range, saved=saved, today=local_today())
 
@@ -305,6 +308,7 @@ def progress_page(request: Request, exercise_id: str | None = None, rango: str =
         lo=lo, hi=int(prefs.get(db, "weekly_sets_target_max")),
         measures=body.latest_by_kind(db, body.MEASUREMENTS), measure_kinds=body.MEASUREMENTS,
         composition=body.latest_by_kind(db, body.COMPOSITION), **_recomp_ctx(db, rango, today),
+        medals=_recent_medals(db, today),
         metric_label=body.metric_label, metric_units=body.METRIC_UNITS, photo_days=photos.by_date(db),
         today=local_today(),
     )
@@ -432,6 +436,13 @@ def profile_page(request: Request, saved: int = 0, db: Session = Depends(get_db)
         tag_es=body.labels("tag"), sexes=body.labels("sex"), equipment_tags=body.EQUIPMENT_TAGS,
         require_tags=body.REQUIRE_TAGS, disliked=[d for d in disliked if d], saved=saved,
     )
+
+
+def _recent_medals(db: Session, today: date) -> list:
+    """Progress → the medals won in the last 30 days that are still yours."""
+    from ..training.medals import recent  # noqa: PLC0415
+
+    return recent(db, today - timedelta(days=30))[:15]
 
 
 def _recomp_ctx(db: Session, rango: str, today: date) -> dict:

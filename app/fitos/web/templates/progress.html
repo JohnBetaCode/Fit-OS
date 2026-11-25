@@ -68,6 +68,21 @@
     <div id="weight" class="h-48"></div>
   </section>
 
+  {% if medals %}
+  <section id="medallas" class="card md:col-span-2">
+    <div class="h2">{{ _("Medallas del último mes") }} <span class="text-xs text-mute font-normal">· {{ _("las que todavía son tuyas") }}</span></div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+      {% for m, ex in medals %}
+      <a href="/ejercicios/{{ ex.id }}#podio" class="rounded-xl bg-panel2 px-3 py-2 flex items-center gap-3 hover:ring-1 hover:ring-accent/40">
+        <span class="text-2xl">{{ m.icon }}</span>
+        <span class="min-w-0 flex-1"><span class="block truncate text-sm">{{ ex.display_name }}</span>
+          <span class="block text-xs text-mute num">{% if m.weight_kg %}{{ m.weight_kg|kg }} kg × {{ m.reps }}{% else %}{{ _("{n} reps", n=m.reps) }}{% endif %} · {{ fmt_day_month(m.on) }}</span></span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   {% if recomp.n or rango != "90d" %}
   <section id="recomposicion" class="card md:col-span-2">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">

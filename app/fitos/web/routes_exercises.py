@@ -124,7 +124,9 @@ def _detail_ctx(db: Session, exercise_id: str) -> dict[str, Any]:
     ex = service.get(db, exercise_id)
     if ex is None:
         raise HTTPException(404)
-    return {"ex": ex, "disliked": exercise_id in service.disliked_ids(db)}
+    from ..training.medals import podium  # noqa: PLC0415
+
+    return {"ex": ex, "disliked": exercise_id in service.disliked_ids(db), "podium": podium(db, exercise_id)}
 
 
 @router.get("/ejercicios/{exercise_id}", response_class=HTMLResponse)

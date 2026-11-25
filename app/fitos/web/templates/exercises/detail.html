@@ -65,6 +65,23 @@
       <a href="{{ ex.youtube_url }}" class="btn w-fit" target="_blank" rel="noopener">▶ {{ _("Ver técnica en YouTube") }}</a>
     {% endif %}
 
+    {% if podium %}
+    <div class="card" id="podio">
+      <div class="h2">{{ _("Tu podio") }}</div>
+      <div class="grid grid-cols-3 gap-2">
+        {% for m in podium %}
+        <div class="rounded-xl bg-panel2 px-3 py-2 text-center {% if m.rank == 1 %}ring-1 ring-warn/50{% endif %}">
+          <div class="text-2xl">{{ m.icon }}</div>
+          <div class="font-semibold num">{% if m.weight_kg %}{{ m.weight_kg|kg }} × {{ m.reps }}{% else %}{{ _("{n} reps", n=m.reps) }}{% endif %}</div>
+          {% if m.kind == "e1rm" %}<div class="text-[11px] text-mute num">≈ {{ m.score|num(1) }} kg 1RM</div>{% endif %}
+          <div class="text-[11px] text-mute">{{ fmt_date(m.on) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="text-[11px] text-mute mt-2">{{ _("Tu mejor serie de cada día; con peso se compara el 1RM estimado (así 60 × 10 y 70 × 5 caben en la misma escala), sin peso las repeticiones. Un empate es del día que llegaste primero.") }}</p>
+    </div>
+    {% endif %}
+
     <div class="card" id="history">
       <div class="h2">{{ _("Tu historial") }}</div>
       {% if history %}

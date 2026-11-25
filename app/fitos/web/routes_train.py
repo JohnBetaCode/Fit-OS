@@ -109,7 +109,10 @@ def train(request: Request, plan: int | None = None, nuevo: int = 0, descanso: i
                          "prefill": done[-1] if done else (prev[0] if prev else None)})
         # in progress (sets, still open) first, then what's left untouched, finished ones at the end
         rows.sort(key=lambda r: (r["it"].status in ("done", "skipped"), not r["sets"]))
-        return render(request, "train.html", "entrenar", view="live", ws=ws, plan=ws.planned, rows=rows,
+        from ..training.medals import set_medals
+
+        medals = set_medals(db, [r["it"].exercise_id for r in rows])
+        return render(request, "train.html", "entrenar", view="live", ws=ws, plan=ws.planned, rows=rows, medals=medals,
                       rest=descanso, note=assist.parse_note(ws.notes), **common)
     p = _plan(db, plan) if plan else tr.plan_for(db, today)
     if p is not None and p.status in wk.EDITABLE and not nuevo:
