@@ -56,7 +56,11 @@ def test_sync_writes_one_row_per_day_and_metric_and_is_idempotent(db):
     res = renpho.sync(db, src)
     renpho.sync(db, src)
     rows = db.scalars(select(BodyMetric).where(BodyMetric.source == "renpho")).all()
-    assert res.days == 2 and res.latest is not None
+    assert res.days == 2 and res.latest is not None and res.written == 9
+    assert renpho.sync(db, src).written == 0  # nothing new: nothing written
+    changed = [dict(r) for r in DAY1]
+    changed[0]["bodyfat"] = 20.9
+    assert renpho.sync(db, renpho.FakeRenpho(changed + DAY2)).written == 1
     assert len([r for r in rows if r.kind == "weight_kg"]) == 2 and len(rows) == 9
     st = prefs.get(db, renpho.STATUS_PREF)
     assert st["days"] == 2 and st["last_error"] is None

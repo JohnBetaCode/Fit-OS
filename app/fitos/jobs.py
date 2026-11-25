@@ -96,14 +96,17 @@ async def renpho_sync() -> str | None:
         return None
 
     def run() -> str:
-        client = renpho.client_for_current_user()
-        if client is None:
-            return "not linked"
+        try:
+            client = renpho.client_for_current_user()
+            if client is None:
+                return "not linked"
+            days = renpho.fetch(client)  # network first, no database open meanwhile
+        except renpho.RenphoError as e:
+            with session_scope() as db:
+                renpho.record_error(db, str(e))
+            return f"error: {e}"
         with session_scope() as db:
-            try:
-                res = renpho.sync(db, client)
-            except renpho.RenphoError as e:
-                return f"error: {e}"
-        return f"{res.days} days, latest {res.latest}"
+            res = renpho.store(db, days)
+        return f"{res.days} days, {res.written} written, latest {res.latest}"
 
     return await asyncio.to_thread(run)

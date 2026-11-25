@@ -27,10 +27,11 @@ import httpx
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..body import service as body
 from ..core import prefs, tenancy
+from ..core.models import BodyMetric
 from ..core.settings import get_settings
 from ..core.timeutil import local_tz, utcnow
 from ..i18n import _
@@ -285,25 +286,51 @@ def first_per_day(records: list[dict]) -> dict[date, dict[str, float]]:
 class SyncResult:
     days: int
     latest: date | None
+    written: int = 0
+
+
+def fetch(source: Source) -> dict[date, dict[str, float]]:
+    """The network part, with no database open: Renpho can take a while and SQLite must not wait for it."""
+    return first_per_day(source.measurements())
+
+
+def store(db: Session, days: dict[date, dict[str, float]]) -> SyncResult:
+    """Write only what's new or changed, in one short transaction (a full history is thousands of values)."""
+    existing = {(r.kind, r.measured_on): r for r in db.scalars(
+        select(BodyMetric).where(BodyMetric.source == SOURCE, BodyMetric.kind.in_(KINDS)))}
+    written = 0
+    for day, vals in days.items():
+        for kind, v in vals.items():
+            row = existing.get((kind, day))
+            if row is None:
+                db.add(BodyMetric(kind=kind, value=v, measured_on=day, source=SOURCE))
+            elif row.value != v:
+                row.value = v
+            else:
+                continue
+            written += 1
+    latest = max(days) if days else None
+    status = dict(prefs.get(db, STATUS_PREF) or {})
+    status.update({"last_sync": utcnow().isoformat(timespec="seconds"), "last_error": None, "days": len(days),
+                   "latest": latest.isoformat() if latest else None})
+    prefs.set_(db, STATUS_PREF, status)
+    return SyncResult(len(days), latest, written)
+
+
+def record_error(db: Session, msg: str) -> None:
+    status = dict(prefs.get(db, STATUS_PREF) or {})
+    status.update({"last_sync": utcnow().isoformat(timespec="seconds"), "last_error": msg})
+    prefs.set_(db, STATUS_PREF, status)
 
 
 def sync(db: Session, source: Source) -> SyncResult:
-    """Pull every weigh-in and write one row per day and metric. Errors are recorded in the status pref."""
-    status = dict(prefs.get(db, STATUS_PREF) or {})
-    status["last_sync"] = utcnow().isoformat(timespec="seconds")
+    """Fetch, then store. Errors are recorded in the status pref and raised."""
     try:
-        days = first_per_day(source.measurements())
+        days = fetch(source)
     except RenphoError as e:
-        status["last_error"] = str(e)
-        prefs.set_(db, STATUS_PREF, status)
+        record_error(db, str(e))
         raise
-    for day, vals in days.items():
-        for kind, v in vals.items():
-            body.log_metric(db, kind, v, on=day, source=SOURCE)
-    latest = max(days) if days else None
-    status.update({"last_error": None, "days": len(days), "latest": latest.isoformat() if latest else None})
-    prefs.set_(db, STATUS_PREF, status)
-    return SyncResult(len(days), latest)
+    return store(db, days)
 
 
 def client_for_current_user() -> Source | None:

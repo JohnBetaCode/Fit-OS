@@ -19,9 +19,7 @@ def _back() -> RedirectResponse:
 
 
 def _fail(db: Session, msg: str) -> None:
-    status = dict(prefs.get(db, renpho.STATUS_PREF) or {})
-    status["last_error"] = msg
-    prefs.set_(db, renpho.STATUS_PREF, status)
+    renpho.record_error(db, msg)
 
 
 def client_for_current_user():  # a seam for tests
@@ -35,10 +33,12 @@ def renpho_link(email: str = Form(""), password: str = Form(""), db: Session = D
         return _back()
     try:
         renpho.save_credentials(email, password)
-        renpho.sync(db, client_for_current_user())  # proves the credentials and brings the history
+        days = renpho.fetch(client_for_current_user())  # proves the credentials; no database open meanwhile
     except renpho.RenphoError as e:
         renpho.forget()  # don't keep credentials that don't work
         _fail(db, str(e))
+        return _back()
+    renpho.store(db, days)
     return _back()
 
 
@@ -46,10 +46,12 @@ def renpho_link(email: str = Form(""), password: str = Form(""), db: Session = D
 def renpho_sync_now(db: Session = Depends(get_db)):
     try:
         client = client_for_current_user()
-        if client is not None:
-            renpho.sync(db, client)
+        days = renpho.fetch(client) if client is not None else None
     except renpho.RenphoError as e:
         _fail(db, str(e))
+        return _back()
+    if days is not None:
+        renpho.store(db, days)
     return _back()
 
 
