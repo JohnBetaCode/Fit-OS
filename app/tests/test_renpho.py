@@ -66,7 +66,7 @@ def test_sync_writes_one_row_per_day_and_metric_and_is_idempotent(db):
     assert len(db.scalars(select(BodyMetric).where(BodyMetric.source == "renpho")).all()) == 9  # untouched
 
 
-def _server(pages: list[list[dict]], *, accept: bool = True):
+def _server(pages: list[list[dict]], *, accept: bool = True, want_version: str = "6.6.0"):
     calls: list[tuple[str, dict, dict]] = []
 
     def handler(req: httpx.Request) -> httpx.Response:
@@ -80,6 +80,8 @@ def _server(pages: list[list[dict]], *, accept: bool = True):
                                              "data": renpho._encrypt(data)["encryptData"]})
 
         if path == renpho.ENDPOINTS["login"]:
+            if req.headers.get("appVersion") != want_version or req.headers.get("platform") != "android":
+                return httpx.Response(200, json={"code": -114, "message": "Decryption failed"})
             if not accept:
                 return httpx.Response(200, json={"code": 50005, "msg": "wrong password"})
             return ok({"login": {"token": "tok", "id": 77}})
@@ -107,6 +109,18 @@ def test_client_logs_in_finds_the_table_and_pages_through():
     http, _ = _server([], accept=False)
     with pytest.raises(renpho.RenphoError):
         renpho.RenphoClient("a@b.co", "bad", http=http).measurements()
+
+
+def test_login_sends_app_headers_and_tries_the_next_app_version_on_decrypt_failure():
+    http, calls = _server([[]], want_version="7.0.0")
+    client = renpho.RenphoClient("a@b.co", "pw", http=http)
+    client.measurements()
+    logins = [c for c in calls if c[0] == renpho.ENDPOINTS["login"]]
+    assert [c[2]["appversion"] for c in logins] == ["6.6.0", "7.0.0"] and client.token == "tok"
+    assert all(c[2]["platform"] == "android" for c in calls)
+    http, _ = _server([[]], want_version="9.9.9")  # none works: the decrypt error is reported, message included
+    with pytest.raises(renpho.RenphoError, match="Decryption failed"):
+        renpho.RenphoClient("a@b.co", "pw", http=http).login()
 
 
 def test_credentials_are_encrypted_on_disk(linked):

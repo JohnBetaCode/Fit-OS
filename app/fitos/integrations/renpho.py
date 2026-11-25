@@ -39,7 +39,8 @@ log = logging.getLogger("fitos.renpho")
 
 API = "https://cloud.renpho.com"
 _KEY = b"ed*wijdi$h6fe3ew"  # the app's AES-128 key (public: it's in every copy of the app)
-APP_VERSION = "6.6.0"
+APP_VERSIONS = ("6.6.0", "7.0.0")  # the gateway picks its decryption key from this header; -114 = it couldn't
+DECRYPT_FAILED = {-114, "-114"}
 ENDPOINTS = {
     "login": "renpho-aggregation/user/login",
     "devices": "renpho-aggregation/device/count",
@@ -72,6 +73,10 @@ SOURCE = "renpho"
 
 class RenphoError(Exception):
     """Renpho said no (bad credentials, changed API) or couldn't be reached."""
+
+    def __init__(self, msg: str, code: Any = None):
+        super().__init__(msg)
+        self.code = code
 
 
 # ── wire format ──────────────────────────────────────────────────────────────────────────────────────────
@@ -114,25 +119,38 @@ class RenphoClient:
         self.http = http or httpx.Client(base_url=API, timeout=20.0)
         self.token: str | None = None
         self.user_id: Any = None
+        self.app_version = APP_VERSIONS[0]
 
     def _post(self, endpoint: str, body: dict, *, auth: bool = True) -> Any:
-        headers = {"token": self.token or "", "userId": str(self.user_id), "appVersion": APP_VERSION,
-                   "platform": "android"} if auth else {}
+        # appVersion and platform go on every call, login included (since late 2026 Renpho needs them to decrypt)
+        headers = {"appVersion": self.app_version, "platform": "android"}
+        if auth:
+            headers |= {"token": self.token or "", "userId": str(self.user_id)}
         try:
             r = self.http.post(f"/{endpoint}", json=body, headers=headers)
             r.raise_for_status()
             res = r.json()
         except (httpx.HTTPError, ValueError) as e:
             raise RenphoError(_("No pude hablar con Renpho: {err}", err=type(e).__name__)) from e
-        code, msg = res.get("code"), str(res.get("msg") or "")
+        code, msg = res.get("code"), str(res.get("msg") or res.get("message") or "")
         if not (msg.lower() == "success" or code in OK_CODES):
-            raise RenphoError(_("Renpho respondió: {msg} (código {code})", msg=msg or "?", code=code))
+            raise RenphoError(_("Renpho respondió: {msg} (código {code})", msg=msg or "?", code=code), code)
         return _decrypt(res["data"]) if res.get("data") else None
 
     def login(self) -> None:
+        for version in APP_VERSIONS:  # if the gateway can't decrypt with one app version, try the next
+            self.app_version = version
+            try:
+                return self._login()
+            except RenphoError as e:
+                if e.code not in DECRYPT_FAILED or version == APP_VERSIONS[-1]:
+                    raise
+        return None
+
+    def _login(self) -> None:
         data = self._post(ENDPOINTS["login"], _encrypt({
             "questionnaire": {},
-            "login": {"password": self.password, "areaCode": "US", "appRevision": APP_VERSION,
+            "login": {"password": self.password, "areaCode": "US", "appRevision": self.app_version,
                       "cellphoneType": "Fit-OS", "systemType": "11", "email": self.email, "platform": "android"},
             "bindingList": {"deviceTypes": SCALE_TYPES},
         }), auth=False) or {}
