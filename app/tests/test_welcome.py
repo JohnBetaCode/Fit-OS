@@ -80,3 +80,14 @@ def test_footer_shows_version(monkeypatch):
         body.ensure_defaults(db).onboarded = True
     with _client() as c:
         assert "main · dc4fe4b" in c.get("/").text  # the test account is an admin
+
+
+def test_more_page_has_an_emoji_per_option():
+    from fastapi.testclient import TestClient
+
+    from fitos.main import app
+
+    with TestClient(app) as c:
+        page = c.get("/mas").text
+    for icon in ("🏋️", "📚", "🩸", "🧠", "👤", "🔌", "⚙️"):
+        assert icon in page

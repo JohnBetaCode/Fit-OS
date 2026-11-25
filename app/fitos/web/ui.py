@@ -33,6 +33,9 @@ TAB_HREFS = [
 ]
 MOBILE_TAB_HREFS = [("hoy", "/", "🏠"), ("entrenar", "/entreno", "💪"), ("semana", "/semana", "🗓️"),
                     ("progreso", "/progreso", "📈"), ("mas", "/mas", "☰")]
+# Emoji per tab for the More list (the mobile bar has its own in MOBILE_TAB_HREFS)
+TAB_ICONS = {"hoy": "🏠", "entrenar": "💪", "semana": "🗓️", "entrenos": "🏋️", "progreso": "📈", "ejercicios": "📚",
+             "examenes": "🩸", "coach": "🧠", "perfil": "👤", "integraciones": "🔌", "ajustes": "⚙️", "usuarios": "👥"}
 MORE_KEYS = {"entrenos", "examenes", "ejercicios", "coach", "perfil", "integraciones", "ajustes", "mas", "usuarios"}
 
 
@@ -53,6 +56,7 @@ def fmt_num(v: float | None, decimals: int = 1) -> str:
 
 templates.env.filters["kg"] = fmt_kg
 templates.env.filters["num"] = fmt_num
+templates.env.globals["tab_icons"] = TAB_ICONS
 templates.env.globals.update(
     _=_, pick=pick, lang=lang, LANG_NAMES=LANG_NAMES, fmt_date=timeutil.fmt_date,
     fmt_day_month=timeutil.fmt_day_month, weekday_short=timeutil.weekday_short,
