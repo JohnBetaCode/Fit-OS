@@ -110,3 +110,36 @@ async def renpho_sync() -> str | None:
         return f"{res.days} days, {res.written} written, latest {res.latest}"
 
     return await asyncio.to_thread(run)
+
+
+def whoop_sync_now() -> str:
+    """Sync the current person's WHOOP: read where to start, fetch with no database open, then write."""
+    from .core.timeutil import local_today  # noqa: PLC0415
+    from .integrations import whoop  # noqa: PLC0415
+    from .integrations.common import IntegrationError  # noqa: PLC0415
+
+    client = whoop.client_for_current_user()
+    if client is None:
+        return "not linked"
+    with session_scope() as db:
+        since = whoop.since_for(db, local_today())
+    try:
+        days = whoop.fetch(client, since)
+    except IntegrationError as e:
+        with session_scope() as db:
+            whoop.record_error(db, str(e))
+        return f"error: {e}"
+    with session_scope() as db:
+        res = whoop.store(db, days)
+    return f"{res.days} days, {res.written} written, latest {res.latest}"
+
+
+@job_handler("whoop_sync")
+async def whoop_sync() -> str | None:
+    import asyncio  # noqa: PLC0415
+
+    from .integrations import whoop  # noqa: PLC0415
+
+    if not whoop.linked():
+        return None
+    return await asyncio.to_thread(whoop_sync_now)

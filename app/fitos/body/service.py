@@ -49,11 +49,21 @@ METRIC_ES = {"weight_kg": "Peso", "body_fat_pct": "Grasa corporal", "waist_cm": 
              # from a smart scale (integrations/renpho.py)
              "muscle_pct": "Músculo", "water_pct": "Agua corporal", "visceral_fat": "Grasa visceral",
              "subcutaneous_fat_pct": "Grasa subcutánea", "protein_pct": "Proteína", "bmr_kcal": "Metabolismo basal",
-             "body_age": "Edad metabólica", "bmi": "IMC", "lean_mass_kg": "Masa libre de grasa"}
+             "body_age": "Edad metabólica", "bmi": "IMC", "lean_mass_kg": "Masa libre de grasa",
+             # from a wearable (integrations/whoop.py)
+             "recovery_pct": "Recuperación", "hrv_ms": "VFC", "resting_hr": "Pulso en reposo", "spo2_pct": "SpO2",
+             "skin_temp_c": "Temperatura de la piel", "sleep_hours": "Sueño", "sleep_performance_pct": "Rendimiento del sueño",
+             "sleep_efficiency_pct": "Eficiencia del sueño", "respiratory_rate": "Frecuencia respiratoria",
+             "strain": "Esfuerzo del día", "day_kcal": "Gasto del día"}
 METRIC_UNITS = {"weight_kg": "kg", "body_fat_pct": "%", "waist_cm": "cm", "chest_cm": "cm", "arm_cm": "cm",
                 "hip_cm": "cm", "thigh_cm": "cm", "neck_cm": "cm", "muscle_pct": "%", "water_pct": "%",
                 "visceral_fat": "", "subcutaneous_fat_pct": "%", "protein_pct": "%", "bmr_kcal": "kcal",
-                "body_age": "", "bmi": "", "lean_mass_kg": "kg"}
+                "body_age": "", "bmi": "", "lean_mass_kg": "kg", "recovery_pct": "%", "hrv_ms": "ms",
+                "resting_hr": "lpm", "spo2_pct": "%", "skin_temp_c": "°C", "sleep_hours": "h",
+                "sleep_performance_pct": "%", "sleep_efficiency_pct": "%", "respiratory_rate": "rpm", "strain": "",
+                "day_kcal": "kcal"}
+# Readiness from a wearable, shown in Progress and used by the morning message
+READINESS = ["recovery_pct", "hrv_ms", "resting_hr", "sleep_hours", "sleep_performance_pct", "strain"]
 # Body composition from a smart scale, shown in Progress (weight and body fat have their own places)
 COMPOSITION = ["muscle_pct", "lean_mass_kg", "water_pct", "visceral_fat", "subcutaneous_fat_pct", "protein_pct",
                "bmr_kcal", "body_age", "bmi"]

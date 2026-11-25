@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     wa_send_gap_seconds: float = 0.8
 
     anthropic_api_key: str = ""
+    # WHOOP (integrations/whoop.py): one app per server at developer-dashboard.whoop.com
+    whoop_client_id: str = ""
+    whoop_client_secret: str = ""
     llm_mode: Literal["live", "fake", "off"] = "off"
     llm_coach_model: str = "claude-opus-5-5"
     llm_fast_model: str = "claude-haiku-5-5"

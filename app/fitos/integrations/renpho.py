@@ -15,7 +15,6 @@ one (fasting, same time). Running the sync again rewrites the same rows: it's id
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import logging
 import os
@@ -24,17 +23,16 @@ from datetime import date, datetime
 from typing import Any, Protocol
 
 import httpx
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import InvalidToken
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..core import prefs, tenancy
-from ..core.models import BodyMetric
-from ..core.settings import get_settings
-from ..core.timeutil import local_tz, utcnow
+from ..core import tenancy
+from ..core.timeutil import local_tz
 from ..i18n import _
+from . import common
+from .common import IntegrationError
 
 log = logging.getLogger("fitos.renpho")
 
@@ -72,12 +70,8 @@ STATUS_PREF = "renpho_status"  # {"last_sync", "last_error", "days", "latest"}: 
 SOURCE = "renpho"
 
 
-class RenphoError(Exception):
+class RenphoError(IntegrationError):
     """Renpho said no (bad credentials, changed API) or couldn't be reached."""
-
-    def __init__(self, msg: str, code: Any = None):
-        super().__init__(msg)
-        self.code = code
 
 
 # ── wire format ──────────────────────────────────────────────────────────────────────────────────────────
@@ -204,11 +198,11 @@ class FakeRenpho:
 
 
 # ── credentials ──────────────────────────────────────────────────────────────────────────────────────────
-def _fernet() -> Fernet:
-    secret = get_settings().secrets_key
-    if not secret:
-        raise RenphoError(_("Falta SECRETS_KEY en el servidor: sin ella no guardo claves."))
-    return Fernet(base64.urlsafe_b64encode(hashlib.sha256(b"fitos-renpho\0" + secret.encode()).digest()))
+def _fernet():
+    try:
+        return common._fernet("renpho")  # same key derivation as before the shared vault: old files still open
+    except IntegrationError as e:
+        raise RenphoError(str(e)) from e
 
 
 def _creds_path():
@@ -296,31 +290,15 @@ def fetch(source: Source) -> dict[date, dict[str, float]]:
 
 def store(db: Session, days: dict[date, dict[str, float]]) -> SyncResult:
     """Write only what's new or changed, in one short transaction (a full history is thousands of values)."""
-    existing = {(r.kind, r.measured_on): r for r in db.scalars(
-        select(BodyMetric).where(BodyMetric.source == SOURCE, BodyMetric.kind.in_(KINDS)))}
-    written = 0
-    for day, vals in days.items():
-        for kind, v in vals.items():
-            row = existing.get((kind, day))
-            if row is None:
-                db.add(BodyMetric(kind=kind, value=v, measured_on=day, source=SOURCE))
-            elif row.value != v:
-                row.value = v
-            else:
-                continue
-            written += 1
+    written = common.store_daily(db, days, SOURCE, KINDS)
     latest = max(days) if days else None
-    status = dict(prefs.get(db, STATUS_PREF) or {})
-    status.update({"last_sync": utcnow().isoformat(timespec="seconds"), "last_error": None, "days": len(days),
-                   "latest": latest.isoformat() if latest else None})
-    prefs.set_(db, STATUS_PREF, status)
+    common.set_status(db, STATUS_PREF, last_error=None, days=len(days),
+                      latest=latest.isoformat() if latest else None)
     return SyncResult(len(days), latest, written)
 
 
 def record_error(db: Session, msg: str) -> None:
-    status = dict(prefs.get(db, STATUS_PREF) or {})
-    status.update({"last_sync": utcnow().isoformat(timespec="seconds"), "last_error": msg})
-    prefs.set_(db, STATUS_PREF, status)
+    common.set_status(db, STATUS_PREF, last_error=msg)
 
 
 def sync(db: Session, source: Source) -> SyncResult:

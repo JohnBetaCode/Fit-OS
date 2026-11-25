@@ -1,50 +1,92 @@
 {% extends "base.html" %}
+{% macro head(icon, name, badge, tone, desc) -%}
+  <div class="flex items-start gap-3 mb-3">
+    <div class="w-10 h-10 shrink-0 rounded-xl bg-bg border border-line grid place-items-center text-xl" aria-hidden="true">{{ icon }}</div>
+    <div class="flex-1 min-w-0">
+      <div class="font-semibold flex flex-wrap items-center gap-2">{{ name }}
+        {% if badge %}<span class="chip !py-0 text-[11px] {% if tone == 'ok' %}!text-accent !border-accent/40{% elif tone == 'warn' %}!text-warn !border-warn/40{% endif %}">{{ badge }}</span>{% endif %}</div>
+      <div class="text-xs text-mute mt-0.5">{{ desc }}</div>
+    </div>
+  </div>
+{%- endmacro %}
+{% macro sync_line(st) -%}
+  <div class="text-sm text-mute num mb-3">{% if st.synced %}{{ _("Última sincronización: {when}", when=st.synced) }}{% endif %}{% if st.latest_day %} · {{ _("último dato: {day}", day=st.latest_day) }}{% endif %}{% if st.days %} · {{ _("{n} días con datos", n=st.days) }}{% endif %}</div>
+  {% if st.last_error %}<div class="text-sm text-bad mb-3">⚠️ {{ st.last_error }}</div>{% endif %}
+{%- endmacro %}
 {% block content %}
-<div class="h2">{{ _("Integraciones") }}</div>
-<div class="grid gap-3 md:grid-cols-2">
+<div class="max-w-4xl mx-auto grid gap-3">
+  <div class="h2 mb-0">{{ _("Integraciones") }}</div>
+  <p class="text-sm text-mute -mt-1">{{ _("Servicios que traen tus datos solos. Cada persona conecta los suyos; lo ya traído se queda aunque desconectes.") }}</p>
+
+  {# ── WHOOP ── #}
+  <section id="whoop" class="card">
+    {% set wst = whoop_status %}
+    {{ head("⌚", "WHOOP", _("conectado") if whoop_linked else (_("falta configurar") if not whoop_ready else _("sin conectar")), "warn" if wst.last_error else ("ok" if whoop_linked else ""), _("Recuperación, VFC, pulso en reposo, sueño y esfuerzo del día, cada hora, por la API oficial de WHOOP. Con tu recuperación el mensaje de la mañana te dice si es día de subir cargas o de bajar el ritmo.")) }}
+    {% if whoop_linked %}
+      {{ sync_line(wst) }}
+      <div class="flex flex-wrap gap-2">
+        <form method="post" action="/integraciones/whoop/sincronizar"><button class="btn">🔄 {{ _("Sincronizar ahora") }}</button></form>
+        <form method="post" action="/integraciones/whoop/desconectar"><button class="btn">{{ _("Desconectar") }}</button></form>
+      </div>
+      <p class="text-xs text-mute mt-3">{{ _("Desconectar revoca el acceso en WHOOP; los días ya traídos se quedan.") }}</p>
+    {% elif whoop_ready %}
+      {% if wst.last_error %}<div class="text-sm text-bad mb-3">⚠️ {{ wst.last_error }}</div>{% endif %}
+      <form method="post" action="/integraciones/whoop/conectar"><button class="btn btn-accent">{{ _("Conectar con WHOOP") }}</button></form>
+      <p class="text-xs text-mute mt-3">{{ _("Te llevamos a WHOOP para que autorices; Fit-OS nunca ve tu clave. La primera vez trae el último año.") }}</p>
+    {% else %}
+      {% if account and account.is_admin %}
+      <ol class="text-sm text-mute list-decimal pl-5 space-y-1">
+        <li>{{ _("Crea una app en") }} <a href="https://developer-dashboard.whoop.com" target="_blank" rel="noopener" class="underline">developer-dashboard.whoop.com</a> {{ _("(necesita una membresía de WHOOP).") }}</li>
+        <li>{{ _("Dirección de redirección:") }} <code class="text-ink break-all">{{ whoop_redirect }}</code></li>
+        <li>{{ _("Pon su Client ID y Client Secret en el .env del servidor (WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET) y vuelve a desplegar.") }}</li>
+      </ol>
+      {% else %}
+      <p class="text-sm text-mute">{{ _("El administrador tiene que activar WHOOP en el servidor.") }}</p>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  {# ── Renpho ── #}
+  <section id="renpho" class="card">
+    {% set st = renpho_status %}
+    {{ head("⚖️", _("Báscula Renpho"), _("conectada") if renpho_email else _("sin conectar"), "warn" if st.last_error else ("ok" if renpho_email else ""), _("Trae tus pesajes de la app de Renpho cada 4 horas: peso, grasa, músculo, agua y más (el primero de cada día). Usa el correo y la clave de tu cuenta de Renpho; si entras con Google o Apple, primero crea una clave en la app.")) }}
+    {% if renpho_email %}
+      <div class="text-sm mb-1">✅ {{ _("Conectada como {email}", email=renpho_email) }}</div>
+      {{ sync_line(st) }}
+      <div class="flex flex-wrap gap-2">
+        <form method="post" action="/integraciones/renpho/sincronizar"><button class="btn">🔄 {{ _("Sincronizar ahora") }}</button></form>
+        <form method="post" action="/integraciones/renpho/desconectar"><button class="btn">{{ _("Desconectar") }}</button></form>
+      </div>
+      <p class="text-xs text-mute mt-3">{{ _("Desconectar borra la clave guardada; los pesajes ya traídos se quedan.") }}</p>
+    {% else %}
+      {% if st.last_error %}<div class="text-sm text-bad mb-3">⚠️ {{ st.last_error }}</div>{% endif %}
+      <form method="post" action="/integraciones/renpho" class="grid gap-2 md:grid-cols-3 items-end">
+        <label><span class="label">{{ _("Correo de Renpho") }}</span><input name="email" type="email" class="input" required autocomplete="off" autocapitalize="none"></label>
+        <label><span class="label">{{ _("Clave de Renpho") }}</span><input name="password" type="password" class="input" required autocomplete="off"></label>
+        <div><button class="btn btn-accent">{{ _("Conectar") }}</button></div>
+      </form>
+      <p class="text-xs text-mute mt-3">{{ _("La clave se guarda cifrada en el servidor y solo se usa para esto. Renpho no tiene API oficial: si cambian su app, la sincronización puede fallar y lo verás aquí.") }}</p>
+    {% endif %}
+  </section>
+
+  <div class="text-xs text-mute uppercase tracking-wide mt-3 px-1">{{ _("Servidor") }}</div>
   <section class="card">
-    <div class="flex items-center justify-between"><div class="font-semibold">💬 {{ _("WhatsApp (WAHA compartido)") }}</div>
-      <span class="chip {% if waha.status == 'WORKING' and waha.hook_present %}text-accent border-accent/40{% else %}text-warn border-warn/40{% endif %}">{{ waha.status or _("sin chequear") }}</span></div>
-    <ul class="text-sm text-mute mt-2 space-y-1">
+    {{ head("💬", _("WhatsApp (WAHA compartido)"), waha.status or _("sin chequear"), "ok" if waha.status == 'WORKING' and waha.hook_present else "warn", _("El grupo donde llegan el plan de la mañana, los reportes y las fotos.")) }}
+    <ul class="text-sm text-mute space-y-1">
       <li>{{ _("Webhook de Fit-OS en la sesión:") }} <b class="text-ink">{{ _("sí") if waha.hook_present else _("no") }}</b></li>
       <li>{{ _("Grupo configurado:") }} <b class="text-ink">{{ _("sí") if gym_chat else _("no (WA_GYM_CHAT_ID)") }}</b></li>
     </ul>
   </section>
   <section class="card">
-    <div class="flex items-center justify-between"><div class="font-semibold">🧠 Claude (coach)</div>
-      <span class="chip">{{ llm_mode }}</span></div>
-    <p class="text-sm text-mute mt-2">{{ _("Gasto de hoy:") }} <b class="text-ink num">US$ {{ "%.3f"|format(llm_spent) }}</b> {{ _("de {budget}", budget="%.2f"|format(budget)) }}</p>
+    {{ head("🧠", "Claude (coach)", llm_mode, "ok" if llm_mode != "off" else "", _("El coach que responde en el chat y ajusta el plan de la mañana.")) }}
+    <p class="text-sm text-mute">{{ _("Gasto de hoy:") }} <b class="text-ink num">US$ {{ "%.3f"|format(llm_spent) }}</b> {{ _("de {budget}", budget="%.2f"|format(budget)) }}</p>
   </section>
-<section id="renpho" class="card grid gap-3 content-start md:col-span-2">
-  <div class="flex items-center justify-between"><div class="font-semibold">⚖️ {{ _("Báscula Renpho") }}</div><span class="chip {% if renpho_email and not renpho_status.last_error %}text-accent border-accent/40{% elif renpho_status.last_error %}text-warn border-warn/40{% endif %}">{{ _("conectada") if renpho_email else _("sin conectar") }}</span></div>
-  <p class="text-xs text-mute">{{ _("Trae tus pesajes de la app de Renpho cada 4 horas: peso, grasa, músculo, agua y más (el primero de cada día). Usa el correo y la clave de tu cuenta de Renpho; si entras con Google o Apple, primero crea una clave en la app.") }}</p>
-  {% set st = renpho_status %}
-  {% if st.last_error %}<div class="text-sm text-bad">⚠️ {{ st.last_error }}</div>{% endif %}
-  {% if renpho_email %}
-    <div class="text-sm">✅ {{ _("Conectada como {email}", email=renpho_email) }}</div>
-    <div class="text-xs text-mute num">{% if renpho_synced %}{{ _("Última sincronización: {when}", when=renpho_synced) }}{% endif %}{% if renpho_latest %} · {{ _("último pesaje: {day}", day=renpho_latest) }}{% endif %}{% if st.days %} · {{ _("{n} días con datos", n=st.days) }}{% endif %}</div>
-    <div class="flex flex-wrap gap-2">
-      <form method="post" action="/integraciones/renpho/sincronizar"><button class="btn">🔄 {{ _("Sincronizar ahora") }}</button></form>
-      <form method="post" action="/integraciones/renpho/desconectar"><button class="btn">{{ _("Desconectar") }}</button></form>
-    </div>
-    <p class="text-xs text-mute">{{ _("Desconectar borra la clave guardada; los pesajes ya traídos se quedan.") }}</p>
-  {% else %}
-    <form method="post" action="/integraciones/renpho" class="grid gap-2 md:grid-cols-3 items-end">
-      <label><span class="label">{{ _("Correo de Renpho") }}</span><input name="email" type="email" class="input" required autocomplete="off" autocapitalize="none"></label>
-      <label><span class="label">{{ _("Clave de Renpho") }}</span><input name="password" type="password" class="input" required autocomplete="off"></label>
-      <div><button class="btn btn-accent">{{ _("Conectar") }}</button></div>
-    </form>
-    <p class="text-xs text-mute">{{ _("La clave se guarda cifrada en el servidor y solo se usa para esto. Renpho no tiene API oficial: si cambian su app, la sincronización puede fallar y lo verás aquí.") }}</p>
-  {% endif %}
-</section>
-  {% for name, icon, desc in [("Whoop","⌚",_("Recuperación, HRV, sueño y strain (OAuth, cada hora)")),
-                               ("Apple Health","🍎",_("Peso, pasos, sueño y FC vía la app Health Auto Export")),
-                               ("Withings","⚖️",_("Peso, % grasa y masa muscular de tu báscula")),
-                               ("Garmin","🛰️",_("Actividades y resúmenes de salud (Personal API)"))] %}
-  <section class="card opacity-70">
-    <div class="flex items-center justify-between"><div class="font-semibold">{{ icon }} {{ name }}</div><span class="chip">{{ _("Próximamente") }}</span></div>
-    <p class="text-sm text-mute mt-2">{{ desc }}</p>
-  </section>
+
+  <div class="text-xs text-mute uppercase tracking-wide mt-3 px-1">{{ _("Próximamente") }}</div>
+  {% for name, icon, desc in [("Apple Health","🍎",_("Peso, pasos, sueño y FC vía la app Health Auto Export")),
+                               ("Garmin","🛰️",_("Actividades y resúmenes de salud (Personal API)")),
+                               ("Withings","⚖️",_("Peso, % grasa y masa muscular de tu báscula"))] %}
+  <section class="card opacity-60">{{ head(icon, name, _("planeado"), "", desc) }}</section>
   {% endfor %}
 </div>
 {% endblock %}

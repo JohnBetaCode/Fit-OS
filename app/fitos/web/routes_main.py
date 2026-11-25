@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -30,7 +30,6 @@ from ..core.models import (
 from ..core.settings import get_settings
 from ..core.timeutil import day_letters, fmt_date, local_today, weekday_short
 from ..i18n import LANGS, _, pick
-from ..integrations import renpho
 from ..training import service as tr
 from ..wa import cards
 from ..wa.outbox import gym_chat
@@ -287,6 +286,10 @@ def progress_page(request: Request, exercise_id: str | None = None, rango: str =
     weights = [(b.measured_on.isoformat(), b.value) for b in body.metric_series(db, "weight_kg", 365)]
     total_sets = sum(b["value"] for b in bars)
     lo = int(prefs.get(db, "weekly_sets_target_min"))
+    from ..body import readiness  # noqa: PLC0415
+
+    r = readiness.ring(db, today)
+    ready = {"label": _("Recuperación"), **r} if r else None
     this_week = cons.get("weeks", [{}])[-1].get("count", 0) if isinstance(cons, dict) and cons.get("weeks") else 0
     return render(
         request, "progress.html", "progreso", bars=bars, cons=cons, options=options, sel=sel,
@@ -297,7 +300,7 @@ def progress_page(request: Request, exercise_id: str | None = None, rango: str =
             {"label": _("Constancia"), "pct": min(100, round(this_week / max(prof.days_per_week, 1) * 100)),
              "text": _("{done}/{target} sesiones", done=this_week, target=prof.days_per_week),
              "note": _("esta semana")},
-            {"label": _("Preparación"), "pct": None, "text": _("Fase 2"), "note": _("check-in matutino o wearable")},
+            ready or {"label": _("Preparación"), "pct": None, "text": "—", "note": _("conecta un wearable en Integraciones")},
         ],
         lo=lo, hi=int(prefs.get(db, "weekly_sets_target_max")),
         measures=body.latest_by_kind(db, body.MEASUREMENTS), measure_kinds=body.MEASUREMENTS,
@@ -431,12 +434,6 @@ def profile_page(request: Request, saved: int = 0, db: Session = Depends(get_db)
     )
 
 
-def _day(iso: str | None) -> str | None:
-    with contextlib.suppress(TypeError, ValueError):
-        return fmt_date(date.fromisoformat(iso))
-    return None
-
-
 def _recomp_ctx(db: Session, rango: str, today: date) -> dict:
     """Progress → Recomposition: fat and lean mass in kg over the chosen range, raw and 14-day average."""
     from ..body import composition as comp  # noqa: PLC0415
@@ -448,18 +445,6 @@ def _recomp_ctx(db: Session, rango: str, today: date) -> dict:
     return {"recomp": comp.summary(pts), "rango": rango, "recomp_ranges": [("90d", _("90 días")), ("1a", _("1 año")),
                                                                             ("todo", _("Todo"))],
             "recomp_json": json.dumps({a: {"raw": raw[a], "avg": comp.smoothed(pts, a)} for a in raw})}
-
-
-def _local_stamp(iso: str | None) -> str | None:
-    """An ISO UTC timestamp as "24 nov 07:15" in local time."""
-    if not iso:
-        return None
-    from ..core.timeutil import to_local  # noqa: PLC0415
-
-    with contextlib.suppress(ValueError):
-        dt = to_local(datetime.fromisoformat(iso))
-        return f"{fmt_date(dt.date())} {dt:%H:%M}"
-    return None
 
 
 @router.post("/perfil")
@@ -612,23 +597,6 @@ def export_report(db: Session = Depends(get_db)):
     from ..export import render_report
 
     return HTMLResponse(render_report(db), headers={"Cache-Control": "no-store"})
-
-
-# ── Integraciones ───────────────────────────────────────────────────────────
-
-
-@router.get("/integraciones", response_class=HTMLResponse)
-async def integrations_page(request: Request, db: Session = Depends(get_db)):
-    from ..coach.llm import spent_today_usd
-    from ..jobs import waha_health
-
-    s = get_settings()
-    st = prefs.get(db, renpho.STATUS_PREF) or {}
-    return render(request, "integrations.html", "integraciones", waha=waha_health, gym_chat=bool(gym_chat()),
-                  llm_mode=s.llm_mode, llm_spent=spent_today_usd(),
-                  budget=float(prefs.get(db, "llm_daily_budget_usd")),
-                  renpho_email=renpho.linked_email(), renpho_status=st,
-                  renpho_synced=_local_stamp(st.get("last_sync")), renpho_latest=_day(st.get("latest")))
 
 
 # ── Coach ───────────────────────────────────────────────────────────────────

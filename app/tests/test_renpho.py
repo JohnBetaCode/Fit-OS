@@ -139,7 +139,7 @@ def test_credentials_are_encrypted_on_disk(linked):
 
 
 def test_integrations_page_links_syncs_and_unlinks(linked, monkeypatch):
-    from fitos.web import routes_renpho
+    from fitos.web import routes_integrations as routes_renpho
 
     monkeypatch.setattr(routes_renpho, "client_for_current_user", lambda: renpho.FakeRenpho(DAY1))
     with TestClient(app, follow_redirects=False) as c:
@@ -160,7 +160,7 @@ def test_integrations_page_links_syncs_and_unlinks(linked, monkeypatch):
 
 
 def test_a_rejected_login_keeps_no_credentials(linked, monkeypatch):
-    from fitos.web import routes_renpho
+    from fitos.web import routes_integrations as routes_renpho
 
     monkeypatch.setattr(routes_renpho, "client_for_current_user",
                         lambda: renpho.FakeRenpho(error="Renpho no aceptó el correo o la clave."))

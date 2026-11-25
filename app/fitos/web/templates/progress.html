@@ -8,7 +8,7 @@
     <div class="relative w-16 h-16 shrink-0">
       <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90" role="img" aria-label="{{ r.label }}: {{ (r.pct ~ '%') if r.pct is not none else _('sin dato') }}">
         <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-panel2)" stroke-width="3.5"/>
-        {% if r.pct is not none %}<circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--color-accent)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="{{ (r.pct * 0.974)|round(1) }} 100"/>{% endif %}
+        {% if r.pct is not none %}<circle cx="18" cy="18" r="15.5" fill="none" stroke="{{ {'green': '#3ddc97', 'yellow': '#f5b942', 'red': '#ff6b6b'}.get(r.band, 'var(--color-accent)') }}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="{{ (r.pct * 0.974)|round(1) }} 100"/>{% endif %}
       </svg>
       <div class="absolute inset-0 grid place-items-center text-sm font-bold num">{{ (r.pct ~ '%') if r.pct is not none else '—' }}</div>
     </div>

@@ -91,6 +91,19 @@ def _live(db: Session, today: date) -> dict[str, Any] | None:
                        "volume_kg": round(volume, 1), "cardio_min": round(cardio_min, 1)}}
 
 
+def _wearable(db: Session, today: date, days: int = 7) -> dict[str, dict[str, float]]:
+    """The last days from a wearable (recovery %, HRV, resting HR, sleep, strain), newest first; {} without one."""
+    from ..body import readiness  # noqa: PLC0415
+
+    out = {}
+    for i in range(days):
+        d = today - timedelta(days=i)
+        v = readiness.values(db, d)
+        if v:
+            out[d.isoformat()] = v
+    return out
+
+
 def _plans(db: Session, start: date, days: int = 7) -> list[dict]:
     rows = db.scalars(select(PlannedSession).where(PlannedSession.date >= start,
                                                    PlannedSession.date < start + timedelta(days=days),
@@ -136,5 +149,6 @@ def build(db: Session, days: int = 42, on: date | None = None) -> dict[str, Any]
         "sessions": _sessions(db, today - timedelta(days=days)),
         "plans": _plans(db, today),
         "live": _live(db, today),
+        "wearable": _wearable(db, today),
         "prefs": {k: prefs.get(db, k) for k in ("rest_seconds_compound", "rest_seconds_isolation", "warmup_sets")},
     }

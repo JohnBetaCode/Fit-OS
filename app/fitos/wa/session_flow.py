@@ -667,6 +667,17 @@ async def check_timeouts() -> str | None:
 
 
 async def send_morning_plan() -> str | None:
+    from ..integrations import whoop  # noqa: PLC0415
+
+    if whoop.linked():  # today's recovery first, so the message can use it
+        import asyncio  # noqa: PLC0415
+
+        from ..jobs import whoop_sync_now  # noqa: PLC0415
+
+        try:
+            await asyncio.to_thread(whoop_sync_now)
+        except Exception:  # noqa: BLE001 - the plan goes out anyway
+            log.exception("whoop sync before the morning plan failed")
     with session_scope() as db:
         body.ensure_defaults(db)
         if not gym_chat():
@@ -705,7 +716,10 @@ async def send_morning_plan() -> str | None:
         intro = ("🤒 " + _("Estuviste enfermo hace poco. ¿Cómo sigues? Si aún no estás bien escribe *enfermo* y lo "
                           "dejamos; si entrenas, baja ~10 % las cargas.") + "\n\n") if back else ""
         from ..body.composition import weigh_in_nudge
+        from ..body.readiness import morning_line
 
+        ready = morning_line(db, today)
         nudge = weigh_in_nudge(db, today)
-        enqueue_text(db, intro + "☀️ " + _plan_text(db, plan) + (f"\n\n{nudge}" if nudge else ""), handler="morning")
+        extra = "".join(f"\n\n{x}" for x in (ready, nudge) if x)
+        enqueue_text(db, intro + "☀️ " + _plan_text(db, plan) + extra, handler="morning")
     return _("enviado")
