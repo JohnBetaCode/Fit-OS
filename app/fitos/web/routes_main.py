@@ -135,7 +135,7 @@ def today_page(request: Request, db: Session = Depends(get_db)):
         consistency=f"{len(week_sessions)}/{prof.days_per_week}", prs=m.recent_prs(db, 5),
         labs=_labs_alerts(db), profiles=body.equipment_profiles(db), w=cards.weight_text,
         rec=_recovery_card(db), rec_labels=_rec_labels(), timeline=_timeline(db, today),
-        rep_range=cards.rep_range, onboarded=prof.onboarded, has_wa=bool(gym_chat()), ready_line=_ready_line(db, today),
+        rep_range=cards.rep_range, onboarded=prof.onboarded, has_wa=bool(gym_chat()), ready_line=_ready_line(db, today), ready_source=_ready_source(db),
         has_catalog=db.scalar(
             select(Exercise.id).where(Exercise.enabled.is_(True)).limit(1)) is not None,
     )
@@ -311,8 +311,25 @@ def progress_page(request: Request, exercise_id: str | None = None, rango: str =
         composition=body.latest_by_kind(db, body.COMPOSITION), **_recomp_ctx(db, rango, today),
         medals=_recent_medals(db, today),
         metric_label=body.metric_label, metric_units=body.METRIC_UNITS, photo_days=photos.by_date(db),
-        today=local_today(), wearable=_wearable_on(db),
+        today=local_today(), wearable=_wearable_on(db), sources=_progress_sources(db, rango, today),
     )
+
+
+def _progress_sources(db: Session, rango: str, today: date) -> dict[str, list[str]]:
+    """Which integrations feed each Progress card (badges next to their titles)."""
+    from ..body import composition as comp  # noqa: PLC0415
+    from ..integrations import sources  # noqa: PLC0415
+
+    n = comp.RANGES.get(rango, comp.RANGES["90d"])
+    return {"weight": sources.used(db, ["weight_kg"]),
+            "recomp": sources.used(db, ["weight_kg", "body_fat_pct"], today - timedelta(days=n) if n else None),
+            "composition": sources.used(db, body.COMPOSITION), "measures": sources.used(db, body.MEASUREMENTS)}
+
+
+def _ready_source(db: Session) -> str | None:
+    from ..body import readiness  # noqa: PLC0415
+
+    return readiness.source(db)
 
 
 def _wearable_on(db: Session) -> bool:

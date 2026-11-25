@@ -1,0 +1,4 @@
+{# Badges for the integrations a chart or card's data comes from: source_chips(["whoop", "renpho"]) #}
+{% macro source_chips(srcs) -%}
+{%- for s in srcs %}{% set m = source_meta(s) %}{% if m %}<a href="{{ m.href }}" class="chip !py-0 text-[11px] font-normal normal-case tracking-normal align-middle text-mute hover:text-ink" title="{{ _("Datos de {name}", name=m.name) }}">{{ m.icon }} {{ m.name }}</a>{% endif %}{% endfor -%}
+{%- endmacro %}

@@ -872,4 +872,5 @@ EN: dict[str, str] = {
     "Zonas de pulso por semana": "Heart-rate zones per week",
     "Tus señales de hoy están fuera de lo normal ({signals}): puede ser el inicio de una enfermedad, alcohol o una mala noche. Hoy suave, nada al fallo.": "Today's signals are out of your normal range ({signals}): it may be an illness starting, alcohol or a bad night. Go easy today, nothing to failure.",
     "En rangos largos, promedio por semana.": "On long ranges, weekly averages.",
+    "Datos de {name}": "Data from {name}",
 }

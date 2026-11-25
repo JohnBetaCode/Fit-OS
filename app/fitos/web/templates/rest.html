@@ -10,11 +10,12 @@
     {% endif %}
   </div>
 {%- endmacro %}
+{% from "_sources.html" import source_chips %}
 {% block content %}
 {% include "_progress_nav.html" %}
 <div class="flex flex-wrap items-end justify-between gap-2 mb-3">
   <div>
-    <div class="h2 mb-0">{{ _("Descanso") }}</div>
+    <div class="h2 mb-0">{{ _("Descanso") }} {% if r.source %}{{ source_chips([r.source]) }}{% endif %}</div>
     {% if not r.empty %}<p class="text-xs text-mute">{{ _("Últimos 7 días contra tus 60 anteriores · datos desde {day}", day=fmt_date(r.first)) }}</p>{% endif %}
   </div>
   <div class="flex gap-1">{% for key, label in ranges %}<a href="/progreso/descanso?rango={{ key }}" class="chip {% if key == rango %}border-accent text-ink{% endif %}">{{ label }}</a>{% endfor %}</div>

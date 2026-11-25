@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_body_map.html" import body_map, map_styles %}
 {% block head %}{{ map_styles() }}{% endblock %}
+{% from "_sources.html" import source_chips %}
 {% block content %}
 <div class="flex items-end justify-between mb-4">
   <div>
@@ -14,9 +15,10 @@
 </div>
 
 {% if ready_line %}
-<a href="/progreso/descanso" class="card block mb-4 text-sm space-y-1 hover:border-accent/50 {% if ready_line|length > 1 %}border-warn/50{% endif %}">
-  {% for l in ready_line %}<div>{{ l }}</div>{% endfor %}
-</a>
+<div class="card mb-4 text-sm flex items-start gap-3 {% if ready_line|length > 1 %}border-warn/50{% endif %}">
+  <a href="/progreso/descanso" class="flex-1 space-y-1 hover:text-ink">{% for l in ready_line %}<div>{{ l }}</div>{% endfor %}</a>
+  {{ source_chips([ready_source]) }}
+</div>
 {% endif %}
 {% if not onboarded %}
 <a href="/bienvenida" class="card block mb-4 border-accent/50 hover:border-accent">

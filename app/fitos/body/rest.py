@@ -6,7 +6,6 @@ the person can check: 7-day averages against their own previous 60 days, never p
 
 from __future__ import annotations
 
-import statistics
 from bisect import bisect_left, bisect_right
 from datetime import date, timedelta
 
@@ -16,6 +15,7 @@ from sqlalchemy.orm import Session
 from ..core.models import WorkoutSession
 from ..i18n import _
 from . import readiness
+from .readiness import fmean, fsd
 
 RANGES = {"30d": 30, "90d": 90, "1a": 365, "todo": None}
 BASE_DAYS = 60
@@ -27,7 +27,7 @@ def range_labels() -> list[tuple[str, str]]:
 
 
 def _mean(xs: list[float]) -> float | None:
-    return statistics.mean(xs) if xs else None
+    return fmean(xs) if xs else None
 
 
 def _r(v: float | None, nd: int = 1) -> float | None:
@@ -48,7 +48,7 @@ def _back(ds: list[date], vals: list[float], d: date, lo: int, hi: int) -> list[
 def _rolling(rows: dict[date, dict[str, float]], kind: str, days: list[date], window: int) -> list[list]:
     """[iso, mean of the last `window` days that have the value], one point per day with data."""
     ds, vals = _series(rows, kind)
-    return [[d.isoformat(), round(statistics.mean(_back(ds, vals, d, 0, window)), 1)]
+    return [[d.isoformat(), round(fmean(_back(ds, vals, d, 0, window)), 1)]
             for d in days if kind in rows.get(d, {})]
 
 
@@ -81,7 +81,7 @@ def build(db: Session, today: date, rango: str = "90d") -> dict:
     for d in days:
         prev = _back(hds, hvals, d, 1, BASE_DAYS + 1)
         if len(prev) >= 14:
-            mu, sd = statistics.mean(prev), statistics.pstdev(prev)
+            mu, sd = fmean(prev), fsd(prev)
             hrv_band.append([d.isoformat(), round(mu - sd, 1), round(2 * sd, 1)])
 
     # Sleep stages (stacked hours), the need line and bed/wake bars: per night, or weekly means on long ranges
@@ -94,7 +94,7 @@ def build(db: Session, today: date, rango: str = "90d") -> dict:
         for d in days:
             if kind in rows[d]:
                 acc.setdefault(d - timedelta(days=d.weekday()), []).append(rows[d][kind])
-        return [[w.isoformat(), round(statistics.mean(v), nd)] for w, v in sorted(acc.items())]
+        return [[w.isoformat(), round(fmean(v), nd)] for w, v in sorted(acc.items())]
 
     stages = {k: per(k) for k in ("deep_sleep_h", "rem_sleep_h", "light_sleep_h", "awake_h")}
     beds = dict(per("bedtime_h"))

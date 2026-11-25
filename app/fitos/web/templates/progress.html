@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block head %}<script src="/static/vendor/echarts.min.js"></script>{% endblock %}
+{% from "_sources.html" import source_chips %}
 {% block content %}
 {% include "_progress_nav.html" %}
 <div class="grid gap-3 grid-cols-1 sm:grid-cols-3 mb-4">
@@ -12,7 +13,7 @@
       </svg>
       <div class="absolute inset-0 grid place-items-center text-sm font-bold num">{{ (r.pct ~ '%') if r.pct is not none else '—' }}</div>
     </div>
-    <div><div class="text-xs text-mute uppercase tracking-wide">{{ r.label }}</div><div class="font-semibold">{{ r.text }}</div><div class="text-xs text-mute">{{ r.note }}</div></div>
+    <div><div class="text-xs text-mute uppercase tracking-wide">{{ r.label }}{% if r.source %} {{ source_chips([r.source]) }}{% endif %}</div><div class="font-semibold">{{ r.text }}</div><div class="text-xs text-mute">{{ r.note }}</div></div>
   </div>
   {% endfor %}
 </div>
@@ -62,7 +63,7 @@
 
   <section class="card">
     <div class="flex items-center justify-between mb-2">
-      <div class="h2 mb-0">{{ _("Peso corporal") }}</div>
+      <div class="h2 mb-0">{{ _("Peso corporal") }} {{ source_chips(sources.weight) }}</div>
       <form method="post" action="/progreso/peso" class="flex gap-2"><input name="weight_kg" class="input py-1 w-24" placeholder="kg" inputmode="decimal"><button class="btn py-1">{{ _("Anotar") }}</button></form>
     </div>
     <div id="weight" class="h-48"></div>
@@ -86,7 +87,7 @@
   {% if recomp.n or rango != "90d" %}
   <section id="recomposicion" class="card md:col-span-2">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-      <div class="h2 mb-0">{{ _("Recomposición") }} <span class="text-xs text-mute font-normal">· {{ _("grasa y masa magra en kilos") }}</span></div>
+      <div class="h2 mb-0">{{ _("Recomposición") }} <span class="text-xs text-mute font-normal">· {{ _("grasa y masa magra en kilos") }}</span> {{ source_chips(sources.recomp) }}</div>
       <div class="flex gap-1">{% for key, label in recomp_ranges %}<a href="/progreso?rango={{ key }}#recomposicion" class="chip {% if key == rango %}border-accent text-ink{% endif %}">{{ label }}</a>{% endfor %}</div>
     </div>
     {% if recomp.n %}
@@ -113,7 +114,7 @@
 
   {% if composition %}
   <section id="composicion" class="card md:col-span-2">
-    <div class="h2">{{ _("Composición corporal") }} <span class="text-xs text-mute font-normal">· {{ _("de tu báscula") }}</span></div>
+    <div class="h2">{{ _("Composición corporal") }} <span class="text-xs text-mute font-normal">· {{ _("de tu báscula") }}</span> {{ source_chips(sources.composition) }}</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {% for k, m in composition.items() %}
       <div class="rounded-xl bg-panel2 px-3 py-2">
@@ -127,7 +128,7 @@
   {% endif %}
 
   <section id="medidas" class="card md:col-span-2">
-    <div class="h2">{{ _("Medidas") }}</div>
+    <div class="h2">{{ _("Medidas") }} {{ source_chips(sources.measures) }}</div>
     <form method="post" action="/progreso/medidas" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 items-end">
       {% for k in measure_kinds %}
       {% set m = measures.get(k) %}

@@ -12,6 +12,7 @@ from ..catalog.service import muscle_label, pattern_label
 from ..core import timeutil
 from ..core.settings import get_settings
 from ..i18n import LANG_NAMES, _, lang, pick
+from ..integrations import sources as _sources
 from . import TEMPLATES_DIR
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -57,6 +58,7 @@ def fmt_num(v: float | None, decimals: int = 1) -> str:
 templates.env.filters["kg"] = fmt_kg
 templates.env.filters["num"] = fmt_num
 templates.env.globals["tab_icons"] = TAB_ICONS
+templates.env.globals["source_meta"] = _sources.meta
 templates.env.globals.update(
     _=_, pick=pick, lang=lang, LANG_NAMES=LANG_NAMES, fmt_date=timeutil.fmt_date,
     fmt_day_month=timeutil.fmt_day_month, weekday_short=timeutil.weekday_short,

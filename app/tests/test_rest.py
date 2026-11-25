@@ -115,3 +115,23 @@ def test_rest_page_and_today_line_with_an_active_wearable(db, vault):
         raw = page.text.split("const D = ", 1)[1].split(";\n", 1)[0]
         assert json.loads(raw)["rec"]
         assert "/progreso/descanso" in c.get("/").text  # today's readiness line links here
+
+
+def test_charts_and_cards_say_where_their_data_comes_from(db, vault):
+    from fitos.integrations import sources
+
+    today = local_today()
+    _days(db, today, n=20)
+    db.add_all([BodyMetric(kind="weight_kg", value=81.2, measured_on=today, source="renpho"),
+                BodyMetric(kind="weight_kg", value=81.0, measured_on=today - timedelta(days=1), source="wa"),
+                BodyMetric(kind="muscle_pct", value=44.1, measured_on=today, source="renpho")])
+    _activate(db, today)
+    _onboarded(db)
+    assert sources.used(db, ["weight_kg"]) == ["renpho"]  # typed weights get no badge
+    assert sources.used(db, ["recovery_pct", "weight_kg"]) == ["whoop", "renpho"]
+    assert sources.meta("wa") is None and sources.meta("whoop")["href"] == "/integraciones#whoop"
+    with TestClient(app) as c:
+        progress = c.get("/progreso").text
+        assert 'href="/integraciones#renpho"' in progress and 'href="/integraciones#whoop"' in progress
+        assert 'href="/integraciones#whoop"' in c.get("/progreso/descanso").text
+        assert 'href="/integraciones#whoop"' in c.get("/").text

@@ -11,15 +11,23 @@ deviations against your own previous 30 days. On a year of real data that marked
 
 from __future__ import annotations
 
-import statistics
+import math
 from bisect import bisect_left
 from datetime import date, timedelta
+from statistics import fmean
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.models import BodyMetric
 from ..i18n import _
+
+
+def fsd(vals: list[float]) -> float:
+    """Population SD in plain floats (the statistics module works in exact fractions: far slower here)."""
+    m = fmean(vals)
+    return math.sqrt(fmean([(v - m) ** 2 for v in vals]))
+
 
 GREEN, YELLOW = 67, 34
 SHORT_SLEEP_H = 6.0
@@ -66,8 +74,8 @@ def illness_flags(rows: dict[date, dict[str, float]], days: list[date] | None = 
             vals = [b[kind] for b in base if kind in b]
             if kind not in today or len(vals) < ILLNESS_MIN_BASE:
                 continue
-            sd = statistics.pstdev(vals)
-            if sd > 0 and (today[kind] - statistics.mean(vals)) / sd * sign >= ILLNESS_Z:
+            sd = fsd(vals)
+            if sd > 0 and (today[kind] - fmean(vals)) / sd * sign >= ILLNESS_Z:
                 hits.append(kind)
         if len(hits) >= 2:
             out[d] = hits
@@ -75,10 +83,11 @@ def illness_flags(rows: dict[date, dict[str, float]], days: list[date] | None = 
 
 
 def rows_between(db: Session, src: str, start: date, end: date) -> dict[date, dict[str, float]]:
+    """Day → {kind: value} for one source. Plain tuples: thousands of rows, no ORM objects to build."""
     rows: dict[date, dict[str, float]] = {}
-    for m in db.scalars(select(BodyMetric).where(BodyMetric.source == src, BodyMetric.measured_on >= start,
-                                                 BodyMetric.measured_on <= end)):
-        rows.setdefault(m.measured_on, {})[m.kind] = m.value
+    for on, kind, value in db.execute(select(BodyMetric.measured_on, BodyMetric.kind, BodyMetric.value).where(
+            BodyMetric.source == src, BodyMetric.measured_on >= start, BodyMetric.measured_on <= end)):
+        rows.setdefault(on, {})[kind] = value
     return rows
 
 
@@ -136,5 +145,5 @@ def ring(db: Session, today: date) -> dict | None:
                 note += " · " + _("VFC {n} ms", n=f"{v['hrv_ms']:.0f}")
             if "sleep_hours" in v:
                 note += " · " + _("{h} h de sueño", h=f"{v['sleep_hours']:.1f}")
-            return {"pct": round(rec), "text": f"{rec:.0f} %", "note": note, "band": band(rec)}
+            return {"pct": round(rec), "text": f"{rec:.0f} %", "note": note, "band": band(rec), "source": src}
     return None
