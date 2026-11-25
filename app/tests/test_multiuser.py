@@ -123,6 +123,27 @@ def test_admin_creates_and_manages_users(prod, monkeypatch, tmp_path):
     dbmod.dispose("ana")
 
 
+def test_admin_deletes_a_user_and_their_data_is_archived(prod, monkeypatch, tmp_path):
+    monkeypatch.setattr(get_settings(), "data_dir", tmp_path)
+    with _signed_in("tester", "clave-de-tester") as c:
+        c.post("/admin/usuarios", headers=PROXY,
+               data={"username": "ana", "display_name": "Ana", "password": "una-clave-larga", "role": "user"})
+        assert "Eliminar usuario" in c.get("/admin", headers=PROXY).text
+        r = c.post("/admin/usuarios/ana/eliminar", headers=PROXY, data={"confirm": "otra"})
+        assert r.status_code == 400 and accounts.get("ana") is not None  # must type the name
+        assert c.post("/admin/usuarios/tester/eliminar", headers=PROXY,
+                      data={"confirm": "tester"}).status_code == 400  # not yourself
+        r = c.post("/admin/usuarios/ana/eliminar", headers=PROXY, data={"confirm": "ana"})
+        assert r.status_code == 303 and r.headers["location"] == "/admin?ok=deleted"
+    assert accounts.get("ana") is None and not (tmp_path / "users" / "ana").exists()
+    [archived] = list((tmp_path / "deleted").iterdir())
+    assert archived.name.startswith("ana-") and (archived / "fitos.sqlite").is_file()  # nothing lost
+    with TestClient(app, base_url="https://testserver", follow_redirects=False) as c:
+        assert c.post("/entrar", headers=PROXY, data={"username": "ana", "password": "una-clave-larga"}).status_code == 401
+    with pytest.raises(ValueError, match="last admin"):
+        accounts.delete("tester")
+
+
 # ── WhatsApp, outbox, scheduler ──────────────────────────────────────────────────────────────────────────
 async def test_webhook_routes_by_group_and_drops_others(alex):
     from fitos.wa.webhook import ingest

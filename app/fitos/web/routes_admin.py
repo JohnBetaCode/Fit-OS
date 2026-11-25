@@ -1,4 +1,4 @@
-"""Admin: accounts (create, new password, enable/disable) and a way to look at each person's data.
+"""Admin: accounts (create, new password, enable/disable, delete) and a way to look at each person's data.
 
 Only admins reach `/admin*` (core/auth.py returns 403 to everyone else). Nothing here reads anyone's health
 data: it works on `accounts.sqlite` and on the size of each person's directory.
@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..core import accounts, tenancy
 from ..i18n import _
-from ..users import create_user
+from ..users import create_user, delete_user
 from .ui import render
 
 router = APIRouter()
@@ -43,7 +43,8 @@ def _page(request: Request, *, error: str | None = None, ok: str | None = None, 
 @router.get("/admin", response_class=HTMLResponse)
 def admin_page(request: Request, ok: str = ""):
     msgs = {"created": _("Usuario creado. Pásale su clave por un canal privado."),
-            "password": _("Clave cambiada."), "saved": _("Guardado.")}
+            "password": _("Clave cambiada."), "saved": _("Guardado."),
+            "deleted": _("Usuario eliminado. Sus datos quedaron archivados en el servidor (carpeta deleted/), fuera de la app.")}
     return _page(request, ok=msgs.get(ok))
 
 
@@ -87,3 +88,18 @@ def admin_update(request: Request, username: str, display_name: str = Form(""), 
     except ValueError as e:
         return _page(request, error=_error(str(e), _("No se pudo guardar.")), status_code=400)
     return RedirectResponse("/admin?ok=saved", status_code=303)
+
+
+@router.post("/admin/usuarios/{username}/eliminar", response_class=HTMLResponse)
+def admin_delete(request: Request, username: str, confirm: str = Form("")):
+    if accounts.get(username) is None:
+        return _page(request, error=_("Ese usuario no existe."), status_code=404)
+    if username == request.state.account.username:
+        return _page(request, error=_("No puedes eliminar tu propia cuenta."), status_code=400)
+    if confirm.strip().lower() != username:
+        return _page(request, error=_("Para eliminar, escribe exactamente el usuario: {u}", u=username), status_code=400)
+    try:
+        delete_user(username)
+    except ValueError as e:
+        return _page(request, error=_error(str(e), _("No se pudo eliminar.")), status_code=400)
+    return RedirectResponse("/admin?ok=deleted", status_code=303)

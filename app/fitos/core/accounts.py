@@ -196,6 +196,17 @@ def update(username: str, **fields) -> Account:
     return acc
 
 
+def delete(username: str) -> None:
+    """Remove the account (the person's data is the caller's business: see users.delete_user)."""
+    with _session() as s, s.begin():
+        acc = s.get(Account, username)
+        if acc is None:
+            raise KeyError(username)
+        if acc.role == "admin" and acc.active and _other_active_admins(s, username) == 0:
+            raise ValueError("last admin")
+        s.delete(acc)
+
+
 def set_password(username: str, password: str) -> None:
     with _session() as s, s.begin():
         acc = s.get(Account, username)

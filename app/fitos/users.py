@@ -107,6 +107,24 @@ def create_user(username: str, display_name: str, password: str, role: str = "us
                            wa_chat_id=chat if first_group else None)
 
 
+def delete_user(username: str) -> Path | None:
+    """Remove an account and archive its data: the directory moves to `$DATA_DIR/deleted/<name>-<UTC time>/`
+    (recoverable by hand, out of reach of the app). Returns where it went, or None if there was no data."""
+    if accounts.get(username) is None:
+        raise KeyError(username)
+    accounts.delete(username)  # refuses the last admin before anything moves
+    db.dispose(username)
+    src = tenancy.user_dir(username)
+    if not src.exists():
+        return None
+    dest_root = get_settings().data_dir / "deleted"
+    dest_root.mkdir(parents=True, exist_ok=True)
+    dest_root.chmod(0o700)
+    dest = dest_root / f"{username}-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
+    shutil.move(str(src), dest)
+    return dest
+
+
 # ── adopting the single-person database ──────────────────────────────────────────────────────────────────
 def _legacy_users(path: Path) -> list[tuple[str, str]]:
     """Active `name hash` lines of the old users file ($DATA_DIR/caddy/users.caddy)."""
