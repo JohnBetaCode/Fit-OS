@@ -13,6 +13,11 @@
   </div>
 </div>
 
+{% if ready_line %}
+<a href="/progreso/descanso" class="card block mb-4 text-sm space-y-1 hover:border-accent/50 {% if ready_line|length > 1 %}border-warn/50{% endif %}">
+  {% for l in ready_line %}<div>{{ l }}</div>{% endfor %}
+</a>
+{% endif %}
 {% if not onboarded %}
 <a href="/bienvenida" class="card block mb-4 border-accent/50 hover:border-accent">
   <div class="font-semibold">👋 {{ _("Empieza por tu perfil") }}</div>

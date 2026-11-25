@@ -135,7 +135,8 @@ def today_page(request: Request, db: Session = Depends(get_db)):
         consistency=f"{len(week_sessions)}/{prof.days_per_week}", prs=m.recent_prs(db, 5),
         labs=_labs_alerts(db), profiles=body.equipment_profiles(db), w=cards.weight_text,
         rec=_recovery_card(db), rec_labels=_rec_labels(), timeline=_timeline(db, today),
-        rep_range=cards.rep_range, onboarded=prof.onboarded, has_wa=bool(gym_chat()), has_catalog=db.scalar(
+        rep_range=cards.rep_range, onboarded=prof.onboarded, has_wa=bool(gym_chat()), ready_line=_ready_line(db, today),
+        has_catalog=db.scalar(
             select(Exercise.id).where(Exercise.enabled.is_(True)).limit(1)) is not None,
     )
 
@@ -310,8 +311,36 @@ def progress_page(request: Request, exercise_id: str | None = None, rango: str =
         composition=body.latest_by_kind(db, body.COMPOSITION), **_recomp_ctx(db, rango, today),
         medals=_recent_medals(db, today),
         metric_label=body.metric_label, metric_units=body.METRIC_UNITS, photo_days=photos.by_date(db),
-        today=local_today(),
+        today=local_today(), wearable=_wearable_on(db),
     )
+
+
+def _wearable_on(db: Session) -> bool:
+    """Whether Progress shows the Rest tab: a wearable linked, syncing without errors and recent."""
+    from ..body import readiness  # noqa: PLC0415
+
+    return readiness.source(db) is not None
+
+
+def _ready_line(db: Session, today) -> list[str]:
+    """Today's readiness call (and illness warning) from an active wearable, as lines; [] without one."""
+    from ..body import readiness  # noqa: PLC0415
+
+    line = readiness.morning_line(db, today)
+    return line.split("\n") if line else []
+
+
+@router.get("/progreso/descanso", response_class=HTMLResponse)
+def rest_page(request: Request, rango: str = "90d", db: Session = Depends(get_db)):
+    """Recovery, HRV, sleep and strain from the active wearable; only while one is linked and healthy."""
+    from ..body import rest  # noqa: PLC0415
+
+    rango = rango if rango in rest.RANGES else "90d"
+    data = rest.build(db, local_today(), rango)
+    if not data["active"]:
+        return RedirectResponse("/progreso", status_code=303)
+    return render(request, "rest.html", "progreso", rango=rango, ranges=rest.range_labels(), wearable=True,
+                  r=data, charts_json=json.dumps(data.get("charts") or {}))
 
 
 PERIODS = {"4s": 28, "12s": 84, "6m": 182, "todo": None}
@@ -359,7 +388,7 @@ def my_exercises(request: Request, periodo: str = "todo", musculo: str = "", q: 
              "down": sum(1 for r in rows if (r["change_pct"] or 0) < 0)}
     return render(request, "progress_exercises.html", "progreso", rows=rows, muscles=muscles, periodo=periodo,
                   musculo=musculo, q=q, orden=orden, desc=desc, stats=stats, periods=list(PERIODS),
-                  w=cards.weight_text, describe=cards.describe_set)
+                  w=cards.weight_text, describe=cards.describe_set, wearable=_wearable_on(db))
 
 
 @router.post("/progreso/medidas")

@@ -149,8 +149,10 @@ def test_store_writes_only_changes_and_the_next_sync_overlaps(db):
     assert len(db.scalars(select(BodyMetric).where(BodyMetric.source == "whoop")).all()) == 18
 
 
-def test_readiness_bands_morning_line_and_ring(db):
+def test_readiness_bands_morning_line_and_ring(db, setup):
     today = local_today()
+    common.vault_write(whoop.VAULT, {"access_token": "a", "refresh_token": "r", "expires_at": 0})
+    prefs.set_(db, whoop.STATUS_PREF, {"latest": today.isoformat()})
     for k, v in {"recovery_pct": 28, "hrv_ms": 40, "sleep_hours": 5.2}.items():
         db.add(BodyMetric(kind=k, value=v, measured_on=today, source="whoop"))
     db.flush()

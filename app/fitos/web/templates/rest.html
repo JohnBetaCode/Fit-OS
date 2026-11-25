@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block head %}<script src="/static/vendor/echarts.min.js"></script>{% endblock %}
+{% macro delta_tile(label, t, unit, good_up, nd=0) -%}
+  <div class="card py-3">
+    <div class="text-[11px] text-mute uppercase tracking-wide">{{ label }}</div>
+    <div class="text-xl font-bold num">{{ t.now|num if t.now is not none else '—' }}<span class="text-sm text-mute font-normal"> {{ unit }}</span></div>
+    {% if t.pct is not none %}
+    {% set up = t.pct > 0 %}{% set good = (up and good_up) or (not up and not good_up) %}
+    <div class="text-xs num {% if t.pct|abs < 3 %}text-mute{% elif good %}text-accent{% else %}text-bad{% endif %}">{{ '▲' if up else '▼' }} {{ t.pct|abs|int }} % <span class="text-mute">{{ _("vs tus 60 días ({n})", n=t.base|num) }}</span></div>
+    {% endif %}
+  </div>
+{%- endmacro %}
+{% block content %}
+{% include "_progress_nav.html" %}
+<div class="flex flex-wrap items-end justify-between gap-2 mb-3">
+  <div>
+    <div class="h2 mb-0">{{ _("Descanso") }}</div>
+    {% if not r.empty %}<p class="text-xs text-mute">{{ _("Últimos 7 días contra tus 60 anteriores · datos desde {day}", day=fmt_date(r.first)) }}</p>{% endif %}
+  </div>
+  <div class="flex gap-1">{% for key, label in ranges %}<a href="/progreso/descanso?rango={{ key }}" class="chip {% if key == rango %}border-accent text-ink{% endif %}">{{ label }}</a>{% endfor %}</div>
+</div>
+
+{% if r.empty %}
+<div class="card text-sm text-mute">{{ _("Tu wearable está conectado pero todavía no hay datos. Vuelve en un rato.") }}</div>
+{% else %}
+{% set t = r.tiles %}
+<div class="grid gap-3 grid-cols-2 md:grid-cols-4 mb-3">
+  {{ delta_tile(_("Recuperación 7 d"), t.rec, "%", true) }}
+  {{ delta_tile(_("VFC 7 d"), t.hrv, "ms", true) }}
+  {{ delta_tile(_("Pulso en reposo 7 d"), t.rhr, _("lpm"), false) }}
+  <div class="card py-3">
+    <div class="text-[11px] text-mute uppercase tracking-wide">{{ _("Sueño 7 d") }}</div>
+    <div class="text-xl font-bold num">{{ t.sleep.now|num if t.sleep.now is not none else '—' }}<span class="text-sm text-mute font-normal"> h</span></div>
+    <div class="text-xs text-mute num">{% if t.need %}{{ _("necesitas {h} h", h=t.need|num) }}{% endif %}{% if t.debt %} · {{ _("deuda {h} h", h=t.debt|num) }}{% endif %}</div>
+  </div>
+</div>
+
+{% if r.flags %}
+<section class="card mb-3 border-warn/40">
+  <div class="font-semibold mb-1">🤒 {{ _("Días con señales de enfermedad") }} <span class="text-xs text-mute font-normal">({{ r.flags|length }})</span></div>
+  <p class="text-xs text-mute mb-2">{{ _("Dos o más señales fuera de tu rango normal el mismo día (contra tus 30 días previos). Suele ser un resfriado, alcohol o una noche muy mala.") }}</p>
+  <ul class="text-sm space-y-0.5">{% for f in r.flags[:8] %}<li><span class="num text-mute">{{ fmt_date(f.day) }}</span> · {{ f.signals|join(", ") }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<div class="grid gap-3 md:grid-cols-2">
+  <section class="card md:col-span-2">
+    <div class="h2 mb-0">{{ _("Recuperación") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Cada barra es un día, con el color de su banda; la línea es el promedio de 7 días. ▲ = entrenaste ese día.") }}</p>
+    <div id="ch-rec" class="h-64" role="img" aria-label="{{ _("Recuperación") }}"></div>
+  </section>
+
+  <section class="card md:col-span-2">
+    <div class="h2 mb-0">{{ _("Tu año en recuperación") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Un cuadro por día: verde, amarillo o rojo.") }}</p>
+    <div id="ch-cal" class="h-44" role="img" aria-label="{{ _("Tu año en recuperación") }}"></div>
+  </section>
+
+  <section class="card">
+    <div class="h2 mb-0">{{ _("VFC") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("La franja es tu normal (60 días, ±1 desviación). Debajo por varios días = fatiga acumulada.") }}</p>
+    <div id="ch-hrv" class="h-56" role="img" aria-label="{{ _("VFC") }}"></div>
+  </section>
+
+  <section class="card">
+    <div class="h2 mb-0">{{ _("Pulso en reposo") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Más bajo es mejor. Si sube varios días seguidos, algo te está cargando.") }}</p>
+    <div id="ch-rhr" class="h-56" role="img" aria-label="{{ _("Pulso en reposo") }}"></div>
+  </section>
+
+  <section class="card md:col-span-2">
+    <div class="h2 mb-0">{{ _("Sueño por fases") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Horas de profundo, REM, ligero y despierto cada noche; la línea es lo que tu cuerpo pedía.") }}{% if r.charts.weekly %} {{ _("En rangos largos, promedio por semana.") }}{% endif %}</p>
+    <div id="ch-sleep" class="h-64" role="img" aria-label="{{ _("Sueño por fases") }}"></div>
+  </section>
+
+  <section class="card">
+    <div class="h2 mb-0">{{ _("Horario de sueño") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("De la hora en que te dormiste a la hora en que despertaste. Más parejo = mejor recuperación.") }}</p>
+    <div id="ch-bed" class="h-56" role="img" aria-label="{{ _("Horario de sueño") }}"></div>
+  </section>
+
+  <section class="card">
+    <div class="h2 mb-0">{{ _("¿Dormir bien te recupera?") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Cada punto es un día: rendimiento del sueño contra la recuperación de esa mañana.") }}</p>
+    <div id="ch-scatter" class="h-56" role="img" aria-label="{{ _("¿Dormir bien te recupera?") }}"></div>
+  </section>
+
+  <section class="card">
+    <div class="h2 mb-0">{{ _("Esfuerzo del día") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Escala de WHOOP de 0 a 21; la línea es el promedio de 7 días.") }}</p>
+    <div id="ch-strain" class="h-56" role="img" aria-label="{{ _("Esfuerzo del día") }}"></div>
+  </section>
+
+  <section class="card">
+    <div class="h2 mb-0">{{ _("Gasto del día") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Calorías que quemaste en el día completo; la línea es el promedio de 7 días.") }}</p>
+    <div id="ch-kcal" class="h-56" role="img" aria-label="{{ _("Gasto del día") }}"></div>
+  </section>
+
+  {% if r.charts.zones %}
+  <section class="card md:col-span-2">
+    <div class="h2 mb-0">{{ _("Zonas de pulso por semana") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Minutos en cada zona durante tus actividades registradas. Zona 2 es la base aeróbica; 4 y 5, lo intenso.") }}</p>
+    <div id="ch-zones" class="h-60" role="img" aria-label="{{ _("Zonas de pulso por semana") }}"></div>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <div class="h2 mb-0">{{ _("Por día de la semana") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Tu recuperación promedio según el día en que despiertas.") }}</p>
+    <div id="ch-weekday" class="h-56" role="img" aria-label="{{ _("Por día de la semana") }}"></div>
+  </section>
+
+  <section class="card">
+    <div class="h2 mb-0">{{ _("Mes a mes") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Recuperación promedio (barras) y VFC promedio (abajo), por mes.") }}</p>
+    <div id="ch-month-rec" class="h-32" role="img" aria-label="{{ _("Recuperación") }}"></div>
+    <div id="ch-month-hrv" class="h-32" role="img" aria-label="{{ _("VFC") }}"></div>
+  </section>
+</div>
+<details class="card mt-3 text-sm">
+  <summary class="cursor-pointer text-mute">{{ _("Ver como tabla (últimos 14 días)") }}</summary>
+  <table class="w-full text-sm mt-2 num"><thead class="text-mute text-xs"><tr><th class="text-left">{{ _("Día") }}</th><th>{{ _("Recuperación") }}</th><th>{{ _("VFC") }}</th><th>{{ _("Pulso") }}</th><th>{{ _("Sueño") }}</th></tr></thead>
+  <tbody id="rest-table"></tbody></table>
+</details>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if not r.empty %}
+<script>
+(function () {
+  const D = {{ charts_json|safe }};
+  const css = getComputedStyle(document.documentElement);
+  const FALLBACK = { accent: '#3ddc97', bad: '#ff6b6b', info: '#5aa9ff', warn: '#f5b942', ink: '#e8ecf1', mute: '#8b95a3', line: '#262b33', panel: '#14171c', panel2: '#1b1f26' };
+  const c = n => css.getPropertyValue('--color-' + n).trim() || FALLBACK[n];
+  const MONTHS = {{ months_short()|tojson }};
+  const dm = iso => { const [y, m, d] = iso.split('-').map(Number); return d + ' ' + MONTHS[m - 1]; };
+  const ym = (iso, i, all) => { const [y, m] = iso.split('-').map(Number); const first = i === 0 || all[i - 1].slice(0, 4) !== iso.slice(0, 4); return MONTHS[m - 1] + (first ? ' ' + String(y).slice(2) : ''); };
+  const BAND = { green: c('accent'), yellow: c('warn'), red: c('bad') };
+  const bandOf = v => v >= 67 ? BAND.green : v >= 34 ? BAND.yellow : BAND.red;
+  const T = {
+    rec: {{ _("Recuperación")|tojson }}, avg7: {{ _("Promedio 7 d")|tojson }}, trained: {{ _("Entrenaste")|tojson }},
+    sick: {{ _("Señales de enfermedad")|tojson }}, hrv: {{ _("VFC")|tojson }}, normal: {{ _("Tu normal")|tojson }},
+    rhr: {{ _("Pulso en reposo")|tojson }}, deep: {{ _("Profundo")|tojson }}, rem: {{ _("REM")|tojson }},
+    light: {{ _("Ligero")|tojson }}, awake: {{ _("Despierto")|tojson }}, need: {{ _("Necesitabas")|tojson }},
+    bed: {{ _("Te dormiste")|tojson }}, wake: {{ _("Despertaste")|tojson }}, strain: {{ _("Esfuerzo")|tojson }},
+    kcal: {{ _("Gasto")|tojson }}, zone: {{ _("Zona")|tojson }}, perf: {{ _("Rendimiento del sueño")|tojson }},
+    days: {{ [weekday_short(0), weekday_short(1), weekday_short(2), weekday_short(3), weekday_short(4), weekday_short(5), weekday_short(6)]|tojson }},
+  };
+  const charts = [];
+  const tip = { backgroundColor: c('panel2'), borderColor: c('line'), textStyle: { color: c('ink') } };
+  const axisX = { type: 'time', axisLine: { lineStyle: { color: c('line') } }, axisLabel: { color: c('mute'), hideOverlap: true }, splitLine: { show: false } };
+  const axisY = (o) => ({ type: 'value', axisLabel: { color: c('mute') }, splitLine: { lineStyle: { color: c('line'), opacity: .5 } }, ...o });
+  const legend = { top: 0, right: 0, textStyle: { color: c('mute'), fontSize: 11 }, itemWidth: 12, itemHeight: 8, icon: 'roundRect' };
+  const r1 = v => v == null ? '—' : (Math.round(v * 10) / 10);
+  function mk(id, opt) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const ch = echarts.init(el, null, { renderer: 'svg' });
+    ch.setOption({ animation: false, grid: { left: 40, right: 12, top: 28, bottom: 26 }, ...opt });
+    charts.push(ch);
+  }
+  window.addEventListener('resize', () => charts.forEach(ch => ch.resize()));
+  const hm = h => { h = ((h % 24) + 24) % 24; const m = Math.round((h % 1) * 60); return String(Math.floor(h)).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
+
+  // Recovery: band-coloured bars, 7-day line, training and illness marks
+  mk('ch-rec', {
+    tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) + ' %' },
+    legend: { ...legend, data: [T.avg7, T.trained, T.sick] },
+    xAxis: axisX, yAxis: axisY({ min: 0, max: 110, interval: 25, axisLabel: { color: c('mute'), formatter: v => v <= 100 ? v : '' } }),
+    series: [
+      { name: T.rec, type: 'bar', barMaxWidth: 10, data: D.rec.map(([d, v]) => ({ value: [d, v], itemStyle: { color: bandOf(v), borderRadius: [3, 3, 0, 0] } })) },
+      { name: T.avg7, type: 'line', data: D.rec7, showSymbol: false, lineStyle: { width: 2, color: c('ink') }, itemStyle: { color: c('ink') } },
+      { name: T.trained, type: 'scatter', symbol: 'triangle', symbolSize: 8, data: D.trained.map(d => [d, 104]), itemStyle: { color: c('info') }, tooltip: { valueFormatter: () => '✓' } },
+      { name: T.sick, type: 'scatter', symbol: 'diamond', symbolSize: 10, data: D.sick.map(([d]) => [d, 108]), itemStyle: { color: c('bad') }, tooltip: { valueFormatter: () => '🤒' } },
+    ],
+  });
+
+  // Year calendar
+  if (D.year.length) {
+    const first = D.year[0][0], last = D.year[D.year.length - 1][0];
+    mk('ch-cal', {
+      grid: undefined,
+      tooltip: { ...tip, formatter: p => p.value[0] + ': ' + p.value[1] + ' %' },
+      visualMap: { show: false, type: 'piecewise', dimension: 1, pieces: [{ min: 67, color: BAND.green }, { min: 34, max: 66.99, color: BAND.yellow }, { max: 33.99, color: BAND.red }] },
+      calendar: { range: [first, last], top: 22, left: 28, right: 8, bottom: 4, cellSize: ['auto', 'auto'], splitLine: { show: false },
+                  itemStyle: { color: c('panel2'), borderColor: c('panel'), borderWidth: 2 },
+                  dayLabel: { color: c('mute'), firstDay: 1, fontSize: 9, nameMap: [T.days[6], ...T.days.slice(0, 6)].map(s => s.slice(0, 1).toUpperCase()) },
+                  monthLabel: { color: c('mute'), fontSize: 10 }, yearLabel: { show: false } },
+      series: [{ type: 'heatmap', coordinateSystem: 'calendar', data: D.year }],
+    });
+  }
+
+  // HRV: your normal band, daily dots, 7-day line
+  mk('ch-hrv', {
+    tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) + ' ms' },
+    legend: { ...legend, data: [T.hrv, T.avg7, T.normal] },
+    xAxis: axisX, yAxis: axisY({ scale: true }),
+    series: [
+      { name: 'lo', type: 'line', stack: 'band', data: D.hrv_band.map(([d, lo]) => [d, lo]), showSymbol: false, lineStyle: { opacity: 0 }, tooltip: { show: false } },
+      { name: T.normal, type: 'line', stack: 'band', data: D.hrv_band.map(([d, , w]) => [d, w]), showSymbol: false, lineStyle: { opacity: 0 }, areaStyle: { color: c('accent'), opacity: .12 }, itemStyle: { color: c('accent') }, tooltip: { show: false } },
+      { name: T.hrv, type: 'scatter', data: D.hrv, symbolSize: 5, itemStyle: { color: c('accent'), opacity: .45 } },
+      { name: T.avg7, type: 'line', data: D.hrv7, showSymbol: false, lineStyle: { width: 2, color: c('accent') }, itemStyle: { color: c('accent') } },
+    ],
+  });
+
+  mk('ch-rhr', {
+    tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) },
+    legend: { ...legend, data: [T.rhr, T.avg7] },
+    xAxis: axisX, yAxis: axisY({ scale: true }),
+    series: [
+      { name: T.rhr, type: 'scatter', data: D.rhr, symbolSize: 5, itemStyle: { color: c('info'), opacity: .45 } },
+      { name: T.avg7, type: 'line', data: D.rhr7, showSymbol: false, lineStyle: { width: 2, color: c('info') }, itemStyle: { color: c('info') } },
+    ],
+  });
+
+  // Sleep stages, stacked hours, and the need line
+  const ST = [['deep_sleep_h', T.deep, '#6f5ce8'], ['rem_sleep_h', T.rem, '#9d8ff3'], ['light_sleep_h', T.light, '#cdc5fa'], ['awake_h', T.awake, c('mute')]];
+  mk('ch-sleep', {
+    tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) + ' h' },
+    legend: { ...legend, data: [...ST.map(s => s[1]), T.need] },
+    xAxis: axisX, yAxis: axisY({ min: 0 }),
+    series: [
+      ...ST.map(([k, name, color], i) => ({ name, type: 'bar', stack: 'sleep', barMaxWidth: 10, data: D.stages[k], itemStyle: { color, borderColor: c('panel'), borderWidth: D.rec.length > 120 ? 0 : 1, borderRadius: i === 3 ? [3, 3, 0, 0] : 0 } })),
+      { name: T.need, type: 'line', data: D.need, showSymbol: false, lineStyle: { width: 2, type: 'dashed', color: c('ink') }, itemStyle: { color: c('ink') } },
+    ],
+  });
+
+  // Bed and wake times as floating bars (hours past noon: 23:30 = 23.5, 06:10 = 30.17)
+  if (D.bed.length) {
+    const lo = Math.floor(Math.min(...D.bed.map(b => b[1]))), hi = Math.ceil(Math.max(...D.bed.map(b => b[1] + b[2])));
+    mk('ch-bed', {
+      tooltip: { trigger: 'axis', ...tip, formatter: ps => { const b = D.bed[ps[0].dataIndex]; return b[0] + '<br>' + T.bed + ' ' + hm(b[1]) + ' · ' + T.wake + ' ' + hm(b[1] + b[2]) + ' (' + r1(b[2]) + ' h)'; } },
+      xAxis: axisX, yAxis: axisY({ min: lo, max: hi, inverse: true, interval: 2, axisLabel: { color: c('mute'), formatter: hm } }),
+      series: [
+        { type: 'bar', stack: 'bed', data: D.bed.map(b => [b[0], b[1]]), itemStyle: { color: 'transparent' }, barMaxWidth: 8, silent: true },
+        { type: 'bar', stack: 'bed', data: D.bed.map(b => [b[0], b[2]]), itemStyle: { color: c('info'), borderRadius: 3 }, barMaxWidth: 8 },
+      ],
+    });
+  }
+
+  mk('ch-scatter', {
+    grid: { left: 40, right: 12, top: 12, bottom: 36 },
+    tooltip: { ...tip, formatter: p => p.value[2] + '<br>' + T.perf + ' ' + p.value[0] + ' % → ' + T.rec + ' ' + p.value[1] + ' %' },
+    xAxis: { type: 'value', name: T.perf, nameLocation: 'middle', nameGap: 22, nameTextStyle: { color: c('mute'), fontSize: 11 }, min: v => Math.max(0, Math.floor(v.min / 10) * 10), max: 100, axisLabel: { color: c('mute') }, splitLine: { show: false }, axisLine: { lineStyle: { color: c('line') } } },
+    yAxis: axisY({ min: 0, max: 100 }),
+    series: [{ type: 'scatter', symbolSize: 7, data: D.scatter.map(p => ({ value: p, itemStyle: { color: bandOf(p[1]), opacity: .7, borderColor: c('panel'), borderWidth: 1 } })) }],
+  });
+
+  function barsWithAvg(id, data, avg, name, unit, color) {
+    mk(id, {
+      tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) + unit },
+      legend: { ...legend, data: [name, T.avg7] },
+      xAxis: axisX, yAxis: axisY({ min: 0 }),
+      series: [
+        { name, type: 'bar', data, barMaxWidth: 10, itemStyle: { color, opacity: .55, borderRadius: [3, 3, 0, 0] } },
+        { name: T.avg7, type: 'line', data: avg, showSymbol: false, lineStyle: { width: 2, color }, itemStyle: { color } },
+      ],
+    });
+  }
+  barsWithAvg('ch-strain', D.strain, D.strain7, T.strain, '', c('info'));
+  barsWithAvg('ch-kcal', D.kcal, D.kcal7, T.kcal, ' kcal', c('warn'));
+
+  if (D.zones) {
+    const ZC = ['#9fd0ff', '#5aa9ff', '#f5b942', '#ff8c42', '#ff6b6b'];
+    mk('ch-zones', {
+      tooltip: { trigger: 'axis', ...tip, valueFormatter: v => v + ' min' },
+      legend: { ...legend, data: ZC.map((_, i) => T.zone + ' ' + (i + 1)) },
+      xAxis: { type: 'category', data: D.zones.weeks.map(dm), axisLabel: { color: c('mute'), hideOverlap: true }, axisLine: { lineStyle: { color: c('line') } } },
+      yAxis: axisY({ min: 0 }),
+      series: ZC.map((color, i) => ({ name: T.zone + ' ' + (i + 1), type: 'bar', stack: 'z', barMaxWidth: 18, data: D.zones.z[i], itemStyle: { color, borderColor: c('panel'), borderWidth: 1 } })),
+    });
+  }
+
+  mk('ch-weekday', {
+    grid: { left: 40, right: 12, top: 12, bottom: 26 },
+    tooltip: { trigger: 'axis', ...tip, formatter: ps => { const w = D.weekday[ps[0].dataIndex]; return T.days[ps[0].dataIndex] + '<br>' + T.rec + ' ' + r1(w.rec) + ' % · ' + r1(w.sleep) + ' h'; } },
+    xAxis: { type: 'category', data: T.days, axisLabel: { color: c('mute') }, axisLine: { lineStyle: { color: c('line') } } },
+    yAxis: axisY({ min: 0, max: 100 }),
+    series: [{ type: 'bar', barMaxWidth: 28, data: D.weekday.map(w => ({ value: w.rec, itemStyle: { color: w.rec == null ? c('line') : bandOf(w.rec), borderRadius: [4, 4, 0, 0] } })),
+               label: { show: true, position: 'top', color: c('mute'), fontSize: 10, formatter: p => p.value == null ? '' : Math.round(p.value) } }],
+  });
+
+  const M = D.monthly;
+  mk('ch-month-rec', {
+    grid: { left: 40, right: 12, top: 8, bottom: 20 },
+    tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) + ' %' },
+    xAxis: { type: 'category', data: M.months.map(ym), axisLabel: { color: c('mute'), hideOverlap: true, fontSize: 10 }, axisLine: { lineStyle: { color: c('line') } } },
+    yAxis: axisY({ min: 0, max: 100, interval: 50 }),
+    series: [{ name: T.rec, type: 'bar', barMaxWidth: 22, data: M.rec.map(v => ({ value: v, itemStyle: { color: v == null ? c('line') : bandOf(v), borderRadius: [3, 3, 0, 0] } })) }],
+  });
+  mk('ch-month-hrv', {
+    grid: { left: 40, right: 12, top: 8, bottom: 20 },
+    tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) + ' ms' },
+    xAxis: { type: 'category', data: M.months.map(ym), axisLabel: { color: c('mute'), hideOverlap: true, fontSize: 10 }, axisLine: { lineStyle: { color: c('line') } } },
+    yAxis: axisY({ scale: true, splitNumber: 2 }),
+    series: [{ name: T.hrv, type: 'line', data: M.hrv, symbolSize: 7, lineStyle: { width: 2, color: c('accent') }, itemStyle: { color: c('accent'), borderColor: c('panel'), borderWidth: 2 } }],
+  });
+
+  // The table view: the last 14 days
+  const byDay = {};
+  const put = (arr, k) => arr.forEach(([d, v]) => { (byDay[d] = byDay[d] || {})[k] = v; });
+  put(D.rec.map(([d, v]) => [d, v]), 'rec'); put(D.hrv, 'hrv'); put(D.rhr, 'rhr');
+  put(D.stages.deep_sleep_h.map(([d]) => [d, null]), '_');
+  const sl = {}; ['deep_sleep_h', 'rem_sleep_h', 'light_sleep_h'].forEach(k => D.stages[k].forEach(([d, v]) => { sl[d] = (sl[d] || 0) + v; }));
+  const tb = document.getElementById('rest-table');
+  Object.keys(byDay).sort().reverse().slice(0, 14).forEach(d => {
+    const x = byDay[d], tr = document.createElement('tr');
+    [d, x.rec != null ? x.rec + ' %' : '—', x.hrv != null ? r1(x.hrv) + ' ms' : '—', x.rhr != null ? x.rhr : '—', sl[d] ? r1(sl[d]) + ' h' : '—']
+      .forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i) td.className = 'text-center'; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

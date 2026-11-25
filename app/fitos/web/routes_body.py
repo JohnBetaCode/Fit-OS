@@ -67,5 +67,7 @@ def week_view(db: Session) -> dict:
 def body_page(request: Request, vista: str = "recuperacion", db: Session = Depends(get_db)):
     view = "semana" if vista == "semana" else "recuperacion"
     data = recovery_view(db) if view == "recuperacion" else week_view(db)
+    from ..body import readiness  # noqa: PLC0415
+
     return render(request, "body_map.html", "progreso", view=view, levels=level_labels(),
-                  statuses=status_labels(), **data)
+                  statuses=status_labels(), wearable=readiness.source(db) is not None, **data)
