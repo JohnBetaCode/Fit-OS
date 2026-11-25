@@ -1,6 +1,8 @@
 {% extends "base.html" %}
-{% macro media(ex, size="w-20 h-20") -%}
-  {% if ex.media_mp4 %}<video class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain" data-src="/media/mp4/{{ ex.media_mp4 }}"{% if ex.media_thumb %} poster="/media/thumbs/{{ ex.media_thumb }}"{% endif %} muted loop playsinline autoplay preload="none" aria-label="{{ ex.display_name }}"></video>
+{# Logging a set swaps only #live: keep the scroll where it is (boosted forms jump to the top by default) #}
+{% block head %}<meta name="htmx-config" content='{"scrollIntoViewOnBoost": false}'>{% endblock %}
+{% macro media(ex, size="w-20 h-20", keep=none) -%}
+  {% if ex.media_mp4 %}<video {% if keep %}id="{{ keep }}" hx-preserve{% endif %} class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain" data-src="/media/mp4/{{ ex.media_mp4 }}"{% if ex.media_thumb %} poster="/media/thumbs/{{ ex.media_thumb }}"{% endif %} muted loop playsinline autoplay preload="none" aria-label="{{ ex.display_name }}"></video>
   {%- elif ex.media_thumb %}<img src="/media/thumbs/{{ ex.media_thumb }}" alt="" loading="lazy" class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain">
   {%- else %}<div class="shrink-0 {{ size }} rounded-lg bg-panel2 flex items-center justify-center text-xl">🏋️</div>{% endif %}
 {%- endmacro %}
@@ -136,7 +138,7 @@
 </div>
 
 {% else %}{# live #}
-<div id="live" hx-boost="true" hx-target="#live" hx-select="#live" hx-swap="outerHTML" hx-push-url="false">
+<div id="live" hx-boost="true" hx-target="#live" hx-select="#live" hx-swap="outerHTML show:none" hx-push-url="false">
 {% if rest %}<span data-rest="{{ rest|int }}" hidden></span>{% endif %}
 <div class="flex flex-wrap items-baseline gap-3 mb-4">
   <h1 class="text-2xl font-bold">{{ _(plan.focus_label) }}</h1>
@@ -158,7 +160,7 @@
     {% endif %}
     <article class="card {% if r.current and not closed %}border-accent/60{% endif %}" id="item-{{ it.id }}">
       <div class="flex gap-3">
-        {{ media(it.exercise, "w-16 h-16") }}
+        {{ media(it.exercise, "w-16 h-16", keep="media-" ~ it.id ~ "-" ~ it.exercise_id) }}
         <div class="min-w-0 flex-1">
           <div class="font-semibold">{% if it.status == "skipped" %}⏭️ {% elif it.status == "done" or (r.left == 0 and r.sets) %}✅ {% endif %}{{ it.exercise.display_name }}</div>
           <div class="text-xs text-mute num">{% if r.timed %}{{ rep_range(it) }}{% else %}{{ _("Meta:") }} {{ it.sets }} × {{ rep_range(it) }}{% set wt = w(it.target_weight_kg, it.exercise) %}{% if wt %} · {{ wt }}{% endif %} · RIR {{ it.target_rir }}{% endif %}</div>
