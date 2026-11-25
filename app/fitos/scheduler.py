@@ -44,6 +44,7 @@ JOBS: list[Job] = [
     Job("morning_plan", "daily", time_pref="morning_hour", enabled_pref="morning_enabled"),
     Job("day_close", "daily", time_pref="day_close_hour"),
     Job("weekly_summary", "daily", time_pref="weekly_summary_hour", enabled_pref="weekly_summary_enabled"),
+    Job("renpho_sync", "interval", minutes=240),  # smart-scale weigh-ins, for whoever linked Renpho
 ]
 
 _handlers: dict[str, Callable[[], Awaitable[str | None]]] = {}

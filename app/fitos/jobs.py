@@ -83,3 +83,27 @@ async def day_close() -> str | None:
 
     with session_scope() as db:
         return close_day(db)
+
+
+@job_handler("renpho_sync")
+async def renpho_sync() -> str | None:
+    """Pull the person's Renpho weigh-ins (nothing when they haven't linked it)."""
+    import asyncio  # noqa: PLC0415
+
+    from .integrations import renpho  # noqa: PLC0415
+
+    if renpho.linked_email() is None:
+        return None
+
+    def run() -> str:
+        client = renpho.client_for_current_user()
+        if client is None:
+            return "not linked"
+        with session_scope() as db:
+            try:
+                res = renpho.sync(db, client)
+            except renpho.RenphoError as e:
+                return f"error: {e}"
+        return f"{res.days} days, latest {res.latest}"
+
+    return await asyncio.to_thread(run)

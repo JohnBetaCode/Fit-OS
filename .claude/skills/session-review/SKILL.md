@@ -21,7 +21,9 @@ make -s context-remote U=<u> DATE=<YYYY-MM-DD> > /tmp/fitos-review.json   # read
 - `sessions`: the previous weeks set by set, to compare each exercise with its last time.
 - `week.hard_sets_by_muscle` vs `week.target_hard_sets`: the last 7 days (moving window).
 - `recovery`: muscles in red (`fatigued`) after this session.
-- `profile`: `goal`, `experience`, `days_per_week`, `session_minutes`.
+- `profile`: `goal`, `experience`, `days_per_week`, `session_minutes`, and `body_composition` (latest smart-scale
+  values with their change: body fat, muscle, lean mass…) when a scale is linked: for recomposition, is fat
+  going down and lean mass holding?
 - RIR = reps left in reserve: lower is harder (0 failure, 1 very hard, 2 hard, 3 challenging, 4 moderate).
 
 ## 2. Check, with numbers

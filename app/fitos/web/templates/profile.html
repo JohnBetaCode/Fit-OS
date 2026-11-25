@@ -61,6 +61,29 @@
   <div class="md:col-span-2 flex justify-end"><button class="btn btn-accent">{{ _("Guardar perfil") }}</button></div>
 </form>
 
+<section id="renpho" class="card mt-6 grid gap-3">
+  <div class="h2 mb-0">⚖️ {{ _("Báscula Renpho") }}</div>
+  <p class="text-xs text-mute">{{ _("Trae tus pesajes de la app de Renpho cada 4 horas: peso, grasa, músculo, agua y más (el primero de cada día). Usa el correo y la clave de tu cuenta de Renpho; si entras con Google o Apple, primero crea una clave en la app.") }}</p>
+  {% set st = renpho_status %}
+  {% if st.last_error %}<div class="text-sm text-bad">⚠️ {{ st.last_error }}</div>{% endif %}
+  {% if renpho_email %}
+    <div class="text-sm">✅ {{ _("Conectada como {email}", email=renpho_email) }}</div>
+    <div class="text-xs text-mute num">{% if renpho_synced %}{{ _("Última sincronización: {when}", when=renpho_synced) }}{% endif %}{% if renpho_latest %} · {{ _("último pesaje: {day}", day=renpho_latest) }}{% endif %}{% if st.days %} · {{ _("{n} días con datos", n=st.days) }}{% endif %}</div>
+    <div class="flex flex-wrap gap-2">
+      <form method="post" action="/perfil/renpho/sincronizar"><button class="btn">🔄 {{ _("Sincronizar ahora") }}</button></form>
+      <form method="post" action="/perfil/renpho/desconectar"><button class="btn">{{ _("Desconectar") }}</button></form>
+    </div>
+    <p class="text-xs text-mute">{{ _("Desconectar borra la clave guardada; los pesajes ya traídos se quedan.") }}</p>
+  {% else %}
+    <form method="post" action="/perfil/renpho" class="grid gap-2 md:grid-cols-3 items-end">
+      <label><span class="label">{{ _("Correo de Renpho") }}</span><input name="email" type="email" class="input" required autocomplete="off" autocapitalize="none"></label>
+      <label><span class="label">{{ _("Clave de Renpho") }}</span><input name="password" type="password" class="input" required autocomplete="off"></label>
+      <div><button class="btn btn-accent">{{ _("Conectar") }}</button></div>
+    </form>
+    <p class="text-xs text-mute">{{ _("La clave se guarda cifrada en el servidor y solo se usa para esto. Renpho no tiene API oficial: si cambian su app, la sincronización puede fallar y lo verás aquí.") }}</p>
+  {% endif %}
+</section>
+
 <div id="equipo" class="h2 mt-8">{{ _("Perfiles de equipo") }}</div>
 <div class="grid gap-4 md:grid-cols-2">
   {% for ep in eps %}

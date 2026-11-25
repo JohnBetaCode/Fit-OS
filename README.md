@@ -62,6 +62,9 @@ in a SQLite file you own and encrypted backups only you can open.
   and an import that flags ambiguous values for review instead of guessing.
 - **Profile** (goal, days, times, injuries, equipment per place) and **Settings** (morning plan, quiet
   hours, rest timers, RIR target, program template).
+- **Smart scale (optional)**: link a Renpho account in Profile and every weigh-in comes in on its own
+  (weight, body fat, muscle, water, visceral fat, BMR…), one per day, shown in Progress and read by the coach.
+  Renpho has no official API, so this may break when they change theirs.
 - **Coach** chat with Claude when enabled, with a daily budget; **Integrations** placeholders for Whoop,
   Apple Health and Garmin.
 

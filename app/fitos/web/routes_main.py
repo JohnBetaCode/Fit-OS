@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -30,6 +30,7 @@ from ..core.models import (
 from ..core.settings import get_settings
 from ..core.timeutil import day_letters, fmt_date, local_today, weekday_short
 from ..i18n import LANGS, _, pick
+from ..integrations import renpho
 from ..training import service as tr
 from ..wa import cards
 from ..wa.outbox import gym_chat
@@ -299,6 +300,7 @@ def progress_page(request: Request, exercise_id: str | None = None, db: Session 
         ],
         lo=lo, hi=int(prefs.get(db, "weekly_sets_target_max")),
         measures=body.latest_by_kind(db, body.MEASUREMENTS), measure_kinds=body.MEASUREMENTS,
+        composition=body.latest_by_kind(db, body.COMPOSITION),
         metric_label=body.metric_label, metric_units=body.METRIC_UNITS, photo_days=photos.by_date(db),
         today=local_today(),
     )
@@ -425,7 +427,28 @@ def profile_page(request: Request, saved: int = 0, db: Session = Depends(get_db)
         weekdays=body.WEEKDAYS, weekday_names=body.labels("weekday"), joints=body.labels("joint"),
         tag_es=body.labels("tag"), sexes=body.labels("sex"), equipment_tags=body.EQUIPMENT_TAGS,
         require_tags=body.REQUIRE_TAGS, disliked=[d for d in disliked if d], saved=saved,
+        renpho_email=renpho.linked_email(), renpho_status=prefs.get(db, renpho.STATUS_PREF) or {},
+        renpho_synced=_local_stamp((prefs.get(db, renpho.STATUS_PREF) or {}).get("last_sync")),
+        renpho_latest=_day((prefs.get(db, renpho.STATUS_PREF) or {}).get("latest")),
     )
+
+
+def _day(iso: str | None) -> str | None:
+    with contextlib.suppress(TypeError, ValueError):
+        return fmt_date(date.fromisoformat(iso))
+    return None
+
+
+def _local_stamp(iso: str | None) -> str | None:
+    """An ISO UTC timestamp as "24 nov 07:15" in local time."""
+    if not iso:
+        return None
+    from ..core.timeutil import to_local  # noqa: PLC0415
+
+    with contextlib.suppress(ValueError):
+        dt = to_local(datetime.fromisoformat(iso))
+        return f"{fmt_date(dt.date())} {dt:%H:%M}"
+    return None
 
 
 @router.post("/perfil")

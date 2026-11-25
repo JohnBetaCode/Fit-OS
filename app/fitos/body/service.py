@@ -45,13 +45,25 @@ JOINTS_ES = {"shoulder": "Hombro", "elbow": "Codo", "wrist": "Muñeca", "lower_b
              "hip": "Cadera", "ankle": "Tobillo", "neck": "Cuello"}
 SEX_ES = {"male": "Hombre", "female": "Mujer"}
 METRIC_ES = {"weight_kg": "Peso", "body_fat_pct": "Grasa corporal", "waist_cm": "Cintura", "chest_cm": "Pecho",
-             "arm_cm": "Brazo", "hip_cm": "Cadera", "thigh_cm": "Muslo", "neck_cm": "Cuello"}
+             "arm_cm": "Brazo", "hip_cm": "Cadera", "thigh_cm": "Muslo", "neck_cm": "Cuello",
+             # from a smart scale (integrations/renpho.py)
+             "muscle_pct": "Músculo", "water_pct": "Agua corporal", "visceral_fat": "Grasa visceral",
+             "subcutaneous_fat_pct": "Grasa subcutánea", "protein_pct": "Proteína", "bmr_kcal": "Metabolismo basal",
+             "body_age": "Edad metabólica", "bmi": "IMC", "lean_mass_kg": "Masa libre de grasa"}
 METRIC_UNITS = {"weight_kg": "kg", "body_fat_pct": "%", "waist_cm": "cm", "chest_cm": "cm", "arm_cm": "cm",
-                "hip_cm": "cm", "thigh_cm": "cm", "neck_cm": "cm"}
+                "hip_cm": "cm", "thigh_cm": "cm", "neck_cm": "cm", "muscle_pct": "%", "water_pct": "%",
+                "visceral_fat": "", "subcutaneous_fat_pct": "%", "protein_pct": "%", "bmr_kcal": "kcal",
+                "body_age": "", "bmi": "", "lean_mass_kg": "kg"}
+# Body composition from a smart scale, shown in Progress (weight and body fat have their own places)
+COMPOSITION = ["muscle_pct", "lean_mass_kg", "water_pct", "visceral_fat", "subcutaneous_fat_pct", "protein_pct",
+               "bmr_kcal", "body_age", "bmi"]
 # Tape measurements shown in Progress, in this order (weight has its own card)
 MEASUREMENTS = ["waist_cm", "chest_cm", "arm_cm", "hip_cm", "thigh_cm", "neck_cm", "body_fat_pct"]
 METRIC_BOUNDS = {"weight_kg": (30, 250), "body_fat_pct": (3, 60), "waist_cm": (40, 200), "chest_cm": (50, 200),
-                 "arm_cm": (15, 70), "hip_cm": (50, 200), "thigh_cm": (25, 100), "neck_cm": (20, 70)}
+                 "arm_cm": (15, 70), "hip_cm": (50, 200), "thigh_cm": (25, 100), "neck_cm": (20, 70),
+                 "muscle_pct": (10, 80), "water_pct": (20, 80), "visceral_fat": (1, 59), "subcutaneous_fat_pct": (1, 60),
+                 "protein_pct": (5, 40), "bmr_kcal": (500, 5000), "body_age": (10, 100), "bmi": (10, 70),
+                 "lean_mass_kg": (20, 200)}
 # WhatsApp words for each measurement (normalized, both languages)
 MEASURE_WORDS = {
     "cintura": "waist_cm", "waist": "waist_cm", "pecho": "chest_cm", "chest": "chest_cm", "brazo": "arm_cm",

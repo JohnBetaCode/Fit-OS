@@ -112,6 +112,8 @@ def build(db: Session, days: int = 42, on: date | None = None) -> dict[str, Any]
         "profile": {
             "sex": prof.sex, "age": body.age(prof), "height_cm": prof.height_cm,
             "weight_kg": (lambda m: m.value if m else None)(body.latest_metric(db)),
+            "body_composition": {k: {"value": v["value"], "on": v["on"].isoformat(), "delta": v["delta"]}
+                                 for k, v in body.latest_by_kind(db, ["body_fat_pct", *body.COMPOSITION]).items()},
             "goal": prof.primary_goal, "goal_notes": prof.goal_notes, "experience": prof.experience,
             "days_per_week": prof.days_per_week, "session_minutes": prof.session_minutes, "schedule": prof.schedule,
             "injuries": [i for i in (prof.injuries or []) if i.get("active", True)],

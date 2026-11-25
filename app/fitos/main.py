@@ -27,6 +27,7 @@ from .web.routes_body import router as body_router
 from .web.routes_exercises import router as exercises_router
 from .web.routes_labs import router as labs_router
 from .web.routes_main import router as main_router
+from .web.routes_renpho import router as renpho_router
 from .web.routes_train import router as train_router
 from .web.routes_week import router as week_router
 from .web.routes_welcome import router as welcome_router
@@ -109,6 +110,7 @@ app.include_router(week_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(welcome_router)
+app.include_router(renpho_router)
 app.include_router(train_router)
 app.include_router(body_router)
 app.include_router(placeholder_router)

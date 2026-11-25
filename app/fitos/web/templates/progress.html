@@ -68,6 +68,21 @@
     <div id="weight" class="h-48"></div>
   </section>
 
+  {% if composition %}
+  <section id="composicion" class="card md:col-span-2">
+    <div class="h2">{{ _("Composición corporal") }} <span class="text-xs text-mute font-normal">· {{ _("de tu báscula") }}</span></div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {% for k, m in composition.items() %}
+      <div class="rounded-xl bg-panel2 px-3 py-2">
+        <div class="text-xs text-mute">{{ metric_label(k) }}</div>
+        <div class="text-lg num">{{ m.value|num(1) }}{% if metric_units[k] %} <span class="text-xs text-mute">{{ metric_units[k] }}</span>{% endif %}</div>
+        <div class="text-[11px] text-mute num">{{ fmt_day_month(m.on) }}{% if m.delta is not none and m.delta != 0 %} · {% if m.delta > 0 %}+{% endif %}{{ m.delta|num(1) }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <section id="medidas" class="card md:col-span-2">
     <div class="h2">{{ _("Medidas") }}</div>
     <form method="post" action="/progreso/medidas" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 items-end">

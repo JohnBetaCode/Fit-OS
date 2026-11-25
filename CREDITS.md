@@ -100,6 +100,13 @@ the range printed by your laboratory and your doctor's judgment come first.
   Ferritin, Vitamin B12 II.
 - **Fibrinogen.** Usual clinical range for the Clauss method.
 
+## Integrations
+
+- **Renpho smart scales.** The sync in `app/fitos/integrations/renpho.py` follows the protocol documented by
+  [renpho-api](https://github.com/danvaneijck/renpho-api) (MIT, danvaneijck). It is our own small client; no
+  code is copied and the package is not a dependency. Renpho is a trademark of its owner; this project is not
+  affiliated with it.
+
 ## Inspiration
 
 The progress tab borrows the idea of daily load and recovery rings from wearables such as WHOOP; no code,
