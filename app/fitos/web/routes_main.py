@@ -266,7 +266,8 @@ def delete_session(sid: int, db: Session = Depends(get_db)):
 
 
 @router.get("/progreso", response_class=HTMLResponse)
-def progress_page(request: Request, exercise_id: str | None = None, db: Session = Depends(get_db)):
+def progress_page(request: Request, exercise_id: str | None = None, rango: str = "90d",
+                  db: Session = Depends(get_db)):
     from ..training import metrics as m
 
     prof = body.get_profile(db)
@@ -300,7 +301,7 @@ def progress_page(request: Request, exercise_id: str | None = None, db: Session 
         ],
         lo=lo, hi=int(prefs.get(db, "weekly_sets_target_max")),
         measures=body.latest_by_kind(db, body.MEASUREMENTS), measure_kinds=body.MEASUREMENTS,
-        composition=body.latest_by_kind(db, body.COMPOSITION),
+        composition=body.latest_by_kind(db, body.COMPOSITION), **_recomp_ctx(db, rango, today),
         metric_label=body.metric_label, metric_units=body.METRIC_UNITS, photo_days=photos.by_date(db),
         today=local_today(),
     )
@@ -434,6 +435,19 @@ def _day(iso: str | None) -> str | None:
     with contextlib.suppress(TypeError, ValueError):
         return fmt_date(date.fromisoformat(iso))
     return None
+
+
+def _recomp_ctx(db: Session, rango: str, today: date) -> dict:
+    """Progress → Recomposition: fat and lean mass in kg over the chosen range, raw and 14-day average."""
+    from ..body import composition as comp  # noqa: PLC0415
+
+    rango = rango if rango in comp.RANGES else "90d"
+    n = comp.RANGES[rango]
+    pts = comp.points(db, today - timedelta(days=n) if n else None)
+    raw = {a: [(p.on.isoformat(), getattr(p, a)) for p in pts] for a in ("fat_kg", "lean_kg")}
+    return {"recomp": comp.summary(pts), "rango": rango, "recomp_ranges": [("90d", _("90 días")), ("1a", _("1 año")),
+                                                                            ("todo", _("Todo"))],
+            "recomp_json": json.dumps({a: {"raw": raw[a], "avg": comp.smoothed(pts, a)} for a in raw})}
 
 
 def _local_stamp(iso: str | None) -> str | None:

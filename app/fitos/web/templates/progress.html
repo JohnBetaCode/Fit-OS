@@ -68,6 +68,34 @@
     <div id="weight" class="h-48"></div>
   </section>
 
+  {% if recomp.n or rango != "90d" %}
+  <section id="recomposicion" class="card md:col-span-2">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <div class="h2 mb-0">{{ _("Recomposición") }} <span class="text-xs text-mute font-normal">· {{ _("grasa y masa magra en kilos") }}</span></div>
+      <div class="flex gap-1">{% for key, label in recomp_ranges %}<a href="/progreso?rango={{ key }}#recomposicion" class="chip {% if key == rango %}border-accent text-ink{% endif %}">{{ label }}</a>{% endfor %}</div>
+    </div>
+    {% if recomp.n %}
+    <div class="grid grid-cols-3 gap-3 mb-3">
+      {% for label, val, d, good in [(_("Grasa"), recomp.fat_kg, recomp.d_fat, "down"), (_("Masa magra"), recomp.lean_kg, recomp.d_lean, "up"), (_("Peso"), recomp.weight, recomp.d_weight, none)] %}
+      <div class="rounded-xl bg-panel2 px-3 py-2">
+        <div class="text-xs text-mute">{{ label }}</div>
+        <div class="text-lg num">{{ val|num(1) }} <span class="text-xs text-mute">kg</span></div>
+        {% if d is not none %}<div class="text-xs num {% if good == 'down' and d < 0 or good == 'up' and d > 0 %}text-accent{% elif good and d != 0 %}text-warn{% else %}text-mute{% endif %}">{% if d > 0 %}+{% endif %}{{ d|num(1) }} kg</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <p class="text-sm mb-3 {% if recomp.verdict in ('recomp', 'lean_gain') %}text-accent{% elif recomp.verdict in ('fat_gain', 'cut_losing_lean') %}text-warn{% endif %}">{{ recomp.label }}</p>
+    {% if recomp.n %}
+    <div class="grid md:grid-cols-2 gap-4">
+      <div><div class="text-xs text-mute">{{ _("Grasa (kg)") }}</div><div id="fat-kg" class="h-44"></div></div>
+      <div><div class="text-xs text-mute">{{ _("Masa magra (kg)") }}</div><div id="lean-kg" class="h-44"></div></div>
+    </div>
+    <p class="text-[11px] text-mute mt-2">{{ _("{n} pesajes con % de grasa. Puntos: cada pesaje; línea: promedio de 14 días. La báscula estima la grasa por impedancia: mira la tendencia, no un día suelto.", n=recomp.n) }}</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
   {% if composition %}
   <section id="composicion" class="card md:col-span-2">
     <div class="h2">{{ _("Composición corporal") }} <span class="text-xs text-mute font-normal">· {{ _("de tu báscula") }}</span></div>
@@ -164,6 +192,27 @@
     });
     window.addEventListener('resize', () => ch.resize());
   }
+  function trend(el, d, unit, name, color) {
+    if (!el || !d.raw.length) return;
+    const ch = echarts.init(el, null, { renderer: 'svg' });
+    ch.setOption({
+      grid: { left: 40, right: 16, top: 12, bottom: 28 },
+      tooltip: { trigger: 'axis', backgroundColor: c('panel2'), borderColor: c('line'), textStyle: { color: c('ink') },
+                 valueFormatter: v => (Math.round(v * 10) / 10) + ' ' + unit },
+      xAxis: { type: 'time', axisLine: { lineStyle: { color: c('line') } }, axisLabel: { color: c('mute') }, splitLine: { show: false } },
+      yAxis: { type: 'value', scale: true, axisLabel: { color: c('mute') }, splitLine: { lineStyle: { color: c('line'), opacity: .5 } } },
+      series: [
+        { name: name, type: 'scatter', data: d.raw, symbolSize: 6, itemStyle: { color: color, opacity: .35 } },
+        { name: name + ' (14 d)', type: 'line', data: d.avg, showSymbol: false, smooth: false,
+          lineStyle: { width: 2, color: color } }]
+    });
+    window.addEventListener('resize', () => ch.resize());
+  }
+  {% if recomp.n %}
+  const rc = {{ recomp_json|safe }};
+  trend(document.getElementById('fat-kg'), rc.fat_kg, 'kg', {{ _("Grasa")|tojson }}, c('info'));
+  trend(document.getElementById('lean-kg'), rc.lean_kg, 'kg', {{ _("Masa magra")|tojson }}, c('accent'));
+  {% endif %}
   line(document.getElementById('e1rm'), {{ series_json|safe }}, 'kg', 'e1RM');
   line(document.getElementById('weight'), {{ weights_json|safe }}, 'kg', {{ _("Peso")|tojson }});
 })();

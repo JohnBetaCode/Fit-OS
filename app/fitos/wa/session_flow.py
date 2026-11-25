@@ -704,5 +704,8 @@ async def send_morning_plan() -> str | None:
         back = days.recently(db, "sick", days=3)
         intro = ("🤒 " + _("Estuviste enfermo hace poco. ¿Cómo sigues? Si aún no estás bien escribe *enfermo* y lo "
                           "dejamos; si entrenas, baja ~10 % las cargas.") + "\n\n") if back else ""
-        enqueue_text(db, intro + "☀️ " + _plan_text(db, plan), handler="morning")
+        from ..body.composition import weigh_in_nudge
+
+        nudge = weigh_in_nudge(db, today)
+        enqueue_text(db, intro + "☀️ " + _plan_text(db, plan) + (f"\n\n{nudge}" if nudge else ""), handler="morning")
     return _("enviado")
