@@ -384,3 +384,21 @@ def test_note_form_shows_saved_sleep_and_energy_checked(db, world):
     assert 'name="sleep" value="4" class="sr-only" checked' in live
     assert 'name="energy" value="3" class="sr-only" checked' in live
     assert ">Algo congestionado</textarea>" in live
+
+
+def test_next_sets_take_the_last_logged_set_as_preset(db, world):
+    import re
+
+    from fitos.wa.parser import SetEntry
+
+    plan = tr.put_custom_plan(db, DAY, "Pierna", [{"exercise": "pushdown", "sets": 4, "reps": [10, 15], "rir": 1}])
+    ws = tr.start_session(db, plan, source="web")
+    it = plan.items[0]
+    assist.focus_on(db, ws, it)
+    tr.log_sets(db, ws, it, [SetEntry(12, 59.0, 3)])
+    db.commit()
+    with TestClient(app) as c:
+        live = c.get("/entreno").text
+    nxt = live[live.index("Anotar serie 2") - 1500:live.index("Anotar serie 2")]
+    assert 'name="weight_kg"' in nxt and 'value="59"' in nxt and re.search(r'name="reps"[^>]*value="12"', nxt)
+    assert re.search(r'<option value="3"\s+selected', nxt)

@@ -224,8 +224,8 @@
             <span class="text-mute num">{{ i + 1 }}</span>
             <span class="text-mute text-[11px] whitespace-nowrap num">{% if p %}{{ p.weight_kg|kg if p.weight_kg else "" }}{% if p.weight_kg %}×{% endif %}{{ p.reps }}{% else %}—{% endif %}</span>
             <input name="weight_kg" aria-label="kg" class="input py-1.5 px-2 num" inputmode="decimal" value="{{ (last.weight_kg|kg) if last and last.weight_kg else (it.target_weight_kg|kg if it.target_weight_kg else ((p.weight_kg|kg) if p and p.weight_kg else '')) }}">
-            <input name="reps" aria-label="{{ _("Reps") }}" class="input py-1.5 px-2 num" inputmode="numeric" required value="{{ p.reps if p and p.reps else it.rep_max }}">
-            <select name="rir" aria-label="RIR" class="input py-1.5 px-1">{{ rir_options(it.target_rir) }}</select>
+            <input name="reps" aria-label="{{ _("Reps") }}" class="input py-1.5 px-2 num" inputmode="numeric" required value="{{ last.reps if last and last.reps else (p.reps if p and p.reps else it.rep_max) }}">
+            <select name="rir" aria-label="RIR" class="input py-1.5 px-1">{{ rir_options(last.rir if last and last.rir is not none else it.target_rir) }}</select>
             <button class="btn {% if k == 0 %}btn-accent{% endif %} py-1.5 px-0 justify-center" aria-label="{{ _("Anotar serie {n}", n=i + 1) }}">✓</button>
           </form>
           {% endfor %}
@@ -235,8 +235,8 @@
             <form method="post" action="/entreno/series" class="grid grid-cols-[1.25rem_3.75rem_minmax(3.5rem,1fr)_3.25rem_3.5rem_2.5rem] gap-1.5 items-center px-1">
               <input type="hidden" name="item_id" value="{{ it.id }}"><span class="text-mute num">{{ i + 1 }}</span><span></span>
               <input name="weight_kg" aria-label="kg" class="input py-1.5 px-2 num" inputmode="decimal" value="{{ (r.sets[-1].weight_kg|kg) if r.sets and r.sets[-1].weight_kg else '' }}">
-              <input name="reps" aria-label="{{ _("Reps") }}" class="input py-1.5 px-2 num" inputmode="numeric" required>
-              <select name="rir" aria-label="RIR" class="input py-1.5 px-1">{{ rir_options() }}</select>
+              <input name="reps" aria-label="{{ _("Reps") }}" class="input py-1.5 px-2 num" inputmode="numeric" required value="{{ r.sets[-1].reps if r.sets and r.sets[-1].reps else '' }}">
+              <select name="rir" aria-label="RIR" class="input py-1.5 px-1">{{ rir_options(r.sets[-1].rir if r.sets else none) }}</select>
               <button class="btn py-1.5 px-0 justify-center">✓</button>
             </form></details>
           {% endif %}
