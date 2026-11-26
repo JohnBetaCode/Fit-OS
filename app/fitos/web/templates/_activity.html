@@ -1,0 +1,36 @@
+{# A wearable activity: headline numbers against the same sport the week before, and heart-rate zones. #}
+{% from "_sources.html" import source_chips %}
+{% macro vs(now, prev, unit="", nd=0) -%}
+  {%- if prev is defined and prev is not none and now is not none %}
+  {%- set diff = now - prev %}
+  <div class="text-[11px] num text-mute">{% if diff|abs >= 0.05 %}{{ '▲' if diff > 0 else '▼' }} {% endif %}{{ _("vs {v}", v=(prev|round(nd)|num) ~ unit) }}</div>
+  {%- endif %}
+{%- endmacro %}
+{% macro activity_card(a, d, cmp, link=true, title=none) %}
+<section class="card">
+  <div class="flex items-start justify-between gap-2 mb-3">
+    <div>
+      <div class="h2 mb-0">{{ title or (d.icon ~ " " ~ d.label) }}</div>
+      <div class="text-xs text-mute num">{{ fmt_date(a.local_date) }} · {{ d.start }}–{{ d.end }}{% if cmp.n %} · {{ _("comparado con tus {n} de los {d} días anteriores", n=cmp.n, d=cmp.days) }}{% endif %}</div>
+    </div>
+    <div class="flex items-center gap-2">{{ source_chips([a.source]) }}{% if link %}<a href="/progreso/actividades/{{ a.id }}" class="text-xs text-accent whitespace-nowrap">{{ _("Ver detalle") }} →</a>{% endif %}</div>
+  </div>
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+    <div class="rounded-xl bg-panel2 px-3 py-2"><div class="text-[11px] text-mute">{{ _("Esfuerzo") }}</div><div class="text-lg font-bold num text-info">{{ a.strain|round(1)|num if a.strain is not none else '—' }}</div>{{ vs(a.strain, cmp.strain, "", 1) }}</div>
+    <div class="rounded-xl bg-panel2 px-3 py-2"><div class="text-[11px] text-mute">{{ _("Duración") }}</div><div class="text-lg font-bold num">{{ d.minutes }} <span class="text-xs text-mute font-normal">min</span></div>{{ vs(d.minutes, cmp.minutes, " min") }}</div>
+    <div class="rounded-xl bg-panel2 px-3 py-2"><div class="text-[11px] text-mute">{{ _("Calorías") }}</div><div class="text-lg font-bold num">{{ a.kcal|round|int if a.kcal else '—' }}</div>{{ vs(a.kcal, cmp.kcal, " kcal") }}</div>
+    <div class="rounded-xl bg-panel2 px-3 py-2"><div class="text-[11px] text-mute">{{ _("Pulso promedio") }}</div><div class="text-lg font-bold num">{{ a.avg_hr or '—' }} <span class="text-xs text-mute font-normal">{{ _("lpm") }}</span></div>{{ vs(a.avg_hr, cmp.avg_hr) }}</div>
+    <div class="rounded-xl bg-panel2 px-3 py-2"><div class="text-[11px] text-mute">{{ _("Pulso máximo") }}</div><div class="text-lg font-bold num">{{ a.max_hr or '—' }} <span class="text-xs text-mute font-normal">{{ _("lpm") }}</span></div>{{ vs(a.max_hr, cmp.max_hr) }}</div>
+  </div>
+  {% if d.has_zones %}
+  <div class="text-xs text-mute uppercase tracking-wide mb-1">{{ _("Zonas de tu pulso máximo") }}</div>
+  <div class="flex h-3 rounded-full overflow-hidden mb-2" role="img" aria-label="{{ _("Zonas de tu pulso máximo") }}">
+    {% for z in d.zones if z.pct > 0 %}<div style="width: {{ z.pct }}%; background: {{ z.color }}" title="{{ z.label }}: {{ z.min }} min"></div>{% endfor %}
+  </div>
+  <div class="grid grid-cols-3 sm:grid-cols-6 gap-1 text-[11px] num">
+    {% for z in d.zones %}<div class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm inline-block" style="background: {{ z.color }}"></span><span class="text-mute">{{ z.label }}</span> <b>{{ z.min|round|int }}′</b></div>{% endfor %}
+  </div>
+  {% endif %}
+  {% if d.km %}<div class="text-sm text-mute mt-2 num">📏 {{ d.km|num }} km</div>{% endif %}
+</section>
+{% endmacro %}

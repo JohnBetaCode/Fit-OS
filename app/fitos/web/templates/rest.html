@@ -44,6 +44,25 @@
 </section>
 {% endif %}
 
+{% if r.last_night %}{% set ln = r.last_night %}
+<section class="card mb-3">
+  <div class="h2 mb-0">🌙 {{ _("Anoche") }} <span class="text-xs text-mute font-normal normal-case num">· {{ fmt_date(ln.day) }}{% if ln.performance is not none %} · {{ _("rendimiento {p} %", p=ln.performance|int) }}{% endif %}</span></div>
+  <p class="text-xs text-mute mb-2">{{ _("Contra la noche anterior: ▲▼ en verde es mejor, en amarillo peor.") }}</p>
+  <div class="grid md:grid-cols-[220px_1fr] gap-3 items-center">
+    <div id="ch-night" class="h-52" role="img" aria-label="{{ _("Fases del sueño de anoche") }}"></div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {% for st in ln.stats %}
+      <div class="rounded-xl bg-panel2 px-3 py-2">
+        <div class="text-[11px] text-mute">{{ _(st.label) }}</div>
+        <div class="text-lg font-bold num">{{ st.now|num }}<span class="text-xs text-mute font-normal"> {{ st.unit }}</span></div>
+        {% if st.prev is not none %}<div class="text-[11px] num {% if st.trend == 'good' %}text-accent{% elif st.trend == 'bad' %}text-warn{% else %}text-mute{% endif %}">{% if st.trend %}{{ '▲' if st.up else '▼' }} {% endif %}{{ _("antes {v}", v=st.prev|num) }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
 <div class="grid gap-3 md:grid-cols-2">
   <section class="card md:col-span-2">
     <div class="h2 mb-0">{{ _("Recuperación") }}</div>
@@ -82,6 +101,12 @@
   </section>
 
   <section class="card">
+    <div class="h2 mb-0">{{ _("Cuánto duermes") }}</div>
+    <p class="text-xs text-mute mb-2">{{ _("Tus noches según su duración, con la recuperación promedio de la mañana siguiente.") }}</p>
+    <div id="ch-buckets" class="h-56" role="img" aria-label="{{ _("Cuánto duermes") }}"></div>
+  </section>
+
+  <section class="card">
     <div class="h2 mb-0">{{ _("¿Dormir bien te recupera?") }}</div>
     <p class="text-xs text-mute mb-2">{{ _("Cada punto es un día: rendimiento del sueño contra la recuperación de esa mañana.") }}</p>
     <div id="ch-scatter" class="h-56" role="img" aria-label="{{ _("¿Dormir bien te recupera?") }}"></div>
@@ -89,13 +114,13 @@
 
   <section class="card">
     <div class="h2 mb-0">{{ _("Esfuerzo del día") }}</div>
-    <p class="text-xs text-mute mb-2">{{ _("Escala de WHOOP de 0 a 21; la línea es el promedio de 7 días.") }}</p>
+    <p class="text-xs text-mute mb-2">{{ _("Escala de WHOOP de 0 a 21: barras = el día completo, puntos = tu actividad más dura; la línea es el promedio de 7 días.") }}</p>
     <div id="ch-strain" class="h-56" role="img" aria-label="{{ _("Esfuerzo del día") }}"></div>
   </section>
 
   <section class="card">
     <div class="h2 mb-0">{{ _("Gasto del día") }}</div>
-    <p class="text-xs text-mute mb-2">{{ _("Calorías que quemaste en el día completo; la línea es el promedio de 7 días.") }}</p>
+    <p class="text-xs text-mute mb-2">{{ _("Calorías del día completo, separando lo que quemaste en actividades del resto; la línea es el promedio de 7 días.") }}</p>
     <div id="ch-kcal" class="h-56" role="img" aria-label="{{ _("Gasto del día") }}"></div>
   </section>
 
@@ -146,7 +171,8 @@
     rhr: {{ _("Pulso en reposo")|tojson }}, deep: {{ _("Profundo")|tojson }}, rem: {{ _("REM")|tojson }},
     light: {{ _("Ligero")|tojson }}, awake: {{ _("Despierto")|tojson }}, need: {{ _("Necesitabas")|tojson }},
     bed: {{ _("Te dormiste")|tojson }}, wake: {{ _("Despertaste")|tojson }}, strain: {{ _("Esfuerzo")|tojson }},
-    kcal: {{ _("Gasto")|tojson }}, zone: {{ _("Zona")|tojson }}, perf: {{ _("Rendimiento del sueño")|tojson }},
+    kcal: {{ _("Gasto")|tojson }}, kcalAct: {{ _("En actividades")|tojson }}, kcalRest: {{ _("Resto del día")|tojson }},
+    topAct: {{ _("Actividad más dura")|tojson }}, nights: {{ _("noches")|tojson }}, zone: {{ _("Zona")|tojson }}, perf: {{ _("Rendimiento del sueño")|tojson }},
     days: {{ [weekday_short(0), weekday_short(1), weekday_short(2), weekday_short(3), weekday_short(4), weekday_short(5), weekday_short(6)]|tojson }},
   };
   const charts = [];
@@ -249,19 +275,49 @@
     series: [{ type: 'scatter', symbolSize: 7, data: D.scatter.map(p => ({ value: p, itemStyle: { color: bandOf(p[1]), opacity: .7, borderColor: c('panel'), borderWidth: 1 } })) }],
   });
 
-  function barsWithAvg(id, data, avg, name, unit, color) {
-    mk(id, {
-      tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) + unit },
-      legend: { ...legend, data: [name, T.avg7] },
-      xAxis: axisX, yAxis: axisY({ min: 0 }),
-      series: [
-        { name, type: 'bar', data, barMaxWidth: 10, itemStyle: { color, opacity: .55, borderRadius: [3, 3, 0, 0] } },
-        { name: T.avg7, type: 'line', data: avg, showSymbol: false, lineStyle: { width: 2, color }, itemStyle: { color } },
-      ],
+  mk('ch-strain', {
+    tooltip: { trigger: 'axis', ...tip, valueFormatter: v => r1(v) },
+    legend: { ...legend, data: [T.strain, T.topAct, T.avg7] },
+    xAxis: axisX, yAxis: axisY({ min: 0, max: 21 }),
+    series: [
+      { name: T.strain, type: 'bar', data: D.strain, barMaxWidth: 10, itemStyle: { color: c('info'), opacity: .45, borderRadius: [3, 3, 0, 0] } },
+      { name: T.topAct, type: 'scatter', data: D.act_strain.map(a => ({ value: [a[0], a[1]], name: a[2] })), symbolSize: 7, itemStyle: { color: c('ink'), borderColor: c('panel'), borderWidth: 1 },
+        tooltip: { formatter: p => p.value[0] + '<br>' + p.name + ': ' + r1(p.value[1]) } },
+      { name: T.avg7, type: 'line', data: D.strain7, showSymbol: false, lineStyle: { width: 2, color: c('info') }, itemStyle: { color: c('info') } },
+    ],
+  });
+  mk('ch-kcal', {
+    tooltip: { trigger: 'axis', ...tip, valueFormatter: v => Math.round(v) + ' kcal' },
+    legend: { ...legend, data: [T.kcalAct, T.kcalRest, T.avg7] },
+    xAxis: axisX, yAxis: axisY({ min: 0 }),
+    series: [
+      { name: T.kcalRest, type: 'bar', stack: 'k', data: D.kcal_rest, barMaxWidth: 10, itemStyle: { color: c('warn'), opacity: .35 } },
+      { name: T.kcalAct, type: 'bar', stack: 'k', data: D.kcal_act, barMaxWidth: 10, itemStyle: { color: c('warn'), borderRadius: [3, 3, 0, 0] } },
+      { name: T.avg7, type: 'line', data: D.kcal7, showSymbol: false, lineStyle: { width: 2, color: c('ink') }, itemStyle: { color: c('ink') } },
+    ],
+  });
+
+  // Last night: stages as a donut, time in bed in the middle
+  if (D.last_stages.length) {
+    const SC = ['#6f5ce8', '#9d8ff3', '#cdc5fa', c('mute')];
+    mk('ch-night', {
+      grid: undefined,
+      tooltip: { ...tip, formatter: p => p.name + ': ' + hm(p.value).replace(/^0/, '') + ' h (' + Math.round(p.percent) + ' %)' },
+      title: { text: {{ (r.last_night.in_bed if r.last_night else 0)|tojson }} ? hm({{ (r.last_night.in_bed if r.last_night else 0)|tojson }}) : '', subtext: {{ _("en la cama")|tojson }}, left: 'center', top: '40%', textStyle: { color: c('ink'), fontSize: 20, fontWeight: 700 }, subtextStyle: { color: c('mute'), fontSize: 11 } },
+      series: [{ type: 'pie', radius: ['58%', '82%'], avoidLabelOverlap: true, label: { show: false }, itemStyle: { borderColor: c('panel'), borderWidth: 2 },
+                 data: D.last_stages.map(([name, v], i) => ({ name, value: v, itemStyle: { color: SC[i] } })) }],
     });
   }
-  barsWithAvg('ch-strain', D.strain, D.strain7, T.strain, '', c('info'));
-  barsWithAvg('ch-kcal', D.kcal, D.kcal7, T.kcal, ' kcal', c('warn'));
+
+  // Nights by length, and the next morning's recovery
+  mk('ch-buckets', {
+    grid: { left: 40, right: 12, top: 20, bottom: 26 },
+    tooltip: { trigger: 'axis', ...tip, formatter: ps => { const b = D.buckets[ps[0].dataIndex]; return b.label + '<br>' + b.n + ' ' + T.nights + (b.rec != null ? ' · ' + T.rec + ' ' + b.rec + ' %' : '') + (b.perf != null ? ' · ' + T.perf + ' ' + b.perf + ' %' : ''); } },
+    xAxis: { type: 'category', data: D.buckets.map(b => b.label), axisLabel: { color: c('mute') }, axisLine: { lineStyle: { color: c('line') } } },
+    yAxis: axisY({ min: 0 }),
+    series: [{ type: 'bar', barMaxWidth: 36, data: D.buckets.map(b => ({ value: b.n, itemStyle: { color: b.rec == null ? c('line') : bandOf(b.rec), borderRadius: [4, 4, 0, 0] } })),
+               label: { show: true, position: 'top', color: c('mute'), fontSize: 10, formatter: p => { const b = D.buckets[p.dataIndex]; return b.n ? (b.rec != null ? b.rec + ' %' : '') : ''; } } }],
+  });
 
   if (D.zones) {
     const ZC = ['#9fd0ff', '#5aa9ff', '#f5b942', '#ff8c42', '#ff6b6b'];

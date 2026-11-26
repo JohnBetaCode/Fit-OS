@@ -348,6 +348,29 @@ class BodyMetric(Base):
     source: Mapped[str] = mapped_column(String(24), default="manual")
 
 
+class Activity(Base):
+    """One activity recorded by a wearable (a WHOOP workout): when, what sport, how hard, heart-rate zones.
+
+    Upserted by (source, ext_id) on every sync. `zones_min` is minutes per zone of max heart rate:
+    [<50 %, 50–60, 60–70, 70–80, 80–90, 90–100]. `local_date` is the local day it started."""
+
+    __tablename__ = "activities"
+    __table_args__ = (UniqueConstraint("source", "ext_id", name="uq_activity_ext"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(String(24))
+    ext_id: Mapped[str] = mapped_column(String(64))
+    sport: Mapped[str] = mapped_column(String(48), default="activity")
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    ended_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    local_date: Mapped[DateT] = mapped_column(Date, index=True)
+    strain: Mapped[float | None] = mapped_column(Float)
+    avg_hr: Mapped[int | None] = mapped_column(Integer)
+    max_hr: Mapped[int | None] = mapped_column(Integer)
+    kcal: Mapped[float | None] = mapped_column(Float)
+    distance_m: Mapped[float | None] = mapped_column(Float)
+    zones_min: Mapped[list[Any] | None] = mapped_column(JSON)
+
+
 # ── Exámenes ────────────────────────────────────────────────────────────────
 
 

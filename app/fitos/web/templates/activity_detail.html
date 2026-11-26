@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_activity.html" import activity_card %}
+{% block content %}
+{% include "_progress_nav.html" %}
+<a href="/progreso/actividades" class="text-sm text-mute hover:text-ink">‹ {{ _("Actividades") }}</a>
+<div class="grid gap-3 mt-2">
+  {{ activity_card(a, d, cmp, link=false) }}
+  {% if ws %}
+  <a href="/entrenos/{{ ws.id }}" class="card block hover:border-accent/50">
+    <div class="text-xs text-mute uppercase tracking-wide">{{ _("Tu sesión en Fit-OS") }}</div>
+    <div class="font-semibold">🏋️ {{ _(ws.planned.focus_label) if ws.planned else _("Sesión") }} · {{ _("{n} sets", n=ws.sets|length) }} →</div>
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

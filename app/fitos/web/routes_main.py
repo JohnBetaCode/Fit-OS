@@ -189,10 +189,13 @@ def session_detail(sid: int, request: Request, saved: int = 0, db: Session = Dep
         for it in ws.planned.items:
             g = groups.setdefault(it.exercise_id, {"ex": it.exercise, "sets": [], "item": it})
             g["item"] = it
+    from ..body import activities, readiness
     from ..training.medals import set_medals
 
+    act = activities.for_session(db, ws) if readiness.source(db) else None
     return render(request, "session_detail.html", "entrenos", ws=ws, groups=list(groups.values()),
-                  medals=set_medals(db, list(groups)),
+                  medals=set_medals(db, list(groups)), act=act, act_d=activities.detail(act) if act else None,
+                  act_cmp=activities.compare(db, act) if act else None,
                   summary=session_summary(db, ws.id), fmt=fmt_date, describe=cards.describe_set,
                   rep_range=cards.rep_range, saved=saved, today=local_today())
 
@@ -358,6 +361,67 @@ def rest_page(request: Request, rango: str = "90d", db: Session = Depends(get_db
         return RedirectResponse("/progreso", status_code=303)
     return render(request, "rest.html", "progreso", rango=rango, ranges=rest.range_labels(), wearable=True,
                   r=data, charts_json=json.dumps(data.get("charts") or {}))
+
+
+ACT_RANGES = {"30d": 30, "90d": 90, "1a": 365, "todo": None}
+
+
+def _session_links(db: Session, src: str, since: date | None) -> dict[int, int]:
+    """Activity id → the Fit-OS session it recorded (the best overlap per session)."""
+    from ..body import activities  # noqa: PLC0415
+
+    q = select(WorkoutSession).where(WorkoutSession.state == "completed")
+    if since is not None:
+        q = q.where(WorkoutSession.date >= since)
+    out = {}
+    for ws in db.scalars(q):
+        a = activities.for_session(db, ws)
+        if a is not None and a.source == src:
+            out[a.id] = ws.id
+    return out
+
+
+@router.get("/progreso/actividades", response_class=HTMLResponse)
+def activities_page(request: Request, rango: str = "90d", deporte: str = "", db: Session = Depends(get_db)):
+    """Every activity the wearable recorded, with totals and heart-rate zones per sport."""
+    from ..body import activities, readiness  # noqa: PLC0415
+
+    src = readiness.source(db)
+    if src is None:
+        return RedirectResponse("/progreso", status_code=303)
+    rango = rango if rango in ACT_RANGES else "90d"
+    n = ACT_RANGES[rango]
+    since = local_today() - timedelta(days=n - 1) if n else None
+    every = activities.listing(db, src, since)
+    shown = [a for a in every if not deporte or a.sport == deporte]
+    links = _session_links(db, src, since)
+    rows = [{"a": a, "label": activities.sport_label(a.sport), "icon": activities.sport_icon(a.sport),
+             "minutes": round(activities.minutes(a)), "session": links.get(a.id)} for a in shown[:300]]
+    tot = activities.totals(every)
+    return render(request, "activities.html", "progreso", wearable=True, rango=rango, deporte=deporte,
+                  ranges=[(k, lbl) for k, lbl in (("30d", _("30 días")), ("90d", _("90 días")), ("1a", _("1 año")),
+                                                   ("todo", _("Todo")))],
+                  rows=rows, more=max(len(shown) - 300, 0), totals=tot, source=src,
+                  zones_json=json.dumps({"labels": [t["label"] for t in tot[:10]],
+                                         "z": [[t["zones"][i] for t in tot[:10]] for i in range(6)],
+                                         "names": activities.ZONE_LABELS, "colors": activities.ZONE_COLORS}),
+                  summary={"n": len(shown), "hours": round(sum(activities.minutes(a) for a in shown) / 60, 1),
+                           "kcal": round(sum(a.kcal or 0 for a in shown))})
+
+
+@router.get("/progreso/actividades/{act_id}", response_class=HTMLResponse)
+def activity_page(act_id: int, request: Request, db: Session = Depends(get_db)):
+    from ..body import activities, readiness  # noqa: PLC0415
+    from ..core.models import Activity  # noqa: PLC0415
+
+    src = readiness.source(db)
+    a = db.get(Activity, act_id)
+    if src is None or a is None:
+        raise HTTPException(404)
+    links = _session_links(db, src, a.local_date)
+    ws = db.get(WorkoutSession, links[a.id]) if a.id in links else None
+    return render(request, "activity_detail.html", "progreso", wearable=True, a=a, d=activities.detail(a),
+                  cmp=activities.compare(db, a), ws=ws)
 
 
 PERIODS = {"4s": 28, "12s": 84, "6m": 182, "todo": None}

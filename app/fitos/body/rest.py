@@ -14,11 +14,18 @@ from sqlalchemy.orm import Session
 
 from ..core.models import WorkoutSession
 from ..i18n import _
-from . import readiness
+from . import activities, readiness
 from .readiness import fmean, fsd
 
 RANGES = {"30d": 30, "90d": 90, "1a": 365, "todo": None}
 BASE_DAYS = 60
+# (kind, label, unit, decimals, higher is better) for the last-night card
+LAST_NIGHT = [("sleep_hours", "Horas de sueño", "h", 2, True), ("in_bed_h", "Tiempo en la cama", "h", 2, True),
+              ("sleep_performance_pct", "Rendimiento", "%", 0, True), ("sleep_efficiency_pct", "Eficiencia", "%", 0, True),
+              ("sleep_consistency_pct", "Consistencia", "%", 0, True),
+              ("sleep_disturbances", "Interrupciones", "", 0, False),
+              ("respiratory_rate", "Frecuencia respiratoria", "rpm", 1, False), ("sleep_debt_h", "Deuda de sueño", "h", 2, False)]
+SLEEP_BUCKETS = [(0, 6, "< 6 h"), (6, 7, "6–7 h"), (7, 8, "7–8 h"), (8, 9, "8–9 h"), (9, 24, "≥ 9 h")]
 WEEKLY_AFTER = 120  # longer ranges draw sleep as weekly means: a bar per night stops being readable
 
 
@@ -142,6 +149,43 @@ def build(db: Session, today: date, rango: str = "90d") -> dict:
         pct = (now / base - 1) * 100 if now is not None and base else None
         return {"now": _r(now), "base": _r(base), "pct": _r(pct, 0)}
 
+    # Last night against the night before (WHOOP's sleep day view), stages as a donut
+    nights = [d for d in sorted(every) if "sleep_hours" in every[d]]
+    last_night = None
+    if nights:
+        ln, prev = every[nights[-1]], every[nights[-2]] if len(nights) > 1 else {}
+        stats = []
+        for kind, label, unit, nd, up_good in LAST_NIGHT:
+            if kind in ln:
+                pv = prev.get(kind)
+                stats.append({"kind": kind, "label": label, "unit": unit, "now": _r(ln[kind], nd),
+                              "prev": _r(pv, nd) if pv is not None else None,
+                              "trend": None if pv is None or abs(ln[kind] - pv) < 1e-9 else
+                              ("good" if (ln[kind] > pv) == up_good else "bad"),
+                              "up": pv is not None and ln[kind] > pv})
+        last_night = {"day": nights[-1], "stats": stats,
+                      "stages": [[_(lbl), round(ln.get(k, 0), 2)] for k, lbl in
+                                 (("deep_sleep_h", "Profundo"), ("rem_sleep_h", "REM"), ("light_sleep_h", "Ligero"),
+                                  ("awake_h", "Despierto"))],
+                      "in_bed": _r(ln.get("in_bed_h"), 2), "performance": _r(ln.get("sleep_performance_pct"), 0)}
+
+    # How your nights spread by length, and how you woke up after each kind
+    buckets = []
+    for lo, hi, label in SLEEP_BUCKETS:
+        ds = [d for d in days if "sleep_hours" in rows[d] and lo <= rows[d]["sleep_hours"] < hi]
+        buckets.append({"label": label, "n": len(ds),
+                        "rec": _r(_mean([rows[d]["recovery_pct"] for d in ds if "recovery_pct" in rows[d]]), 0),
+                        "perf": _r(_mean([rows[d]["sleep_performance_pct"] for d in ds
+                                          if "sleep_performance_pct" in rows[d]]), 0)})
+
+    # Strain and energy split by the wearable's activities
+    acts = activities.by_day(db, src, start)
+    act_strain = [[d.isoformat(), round(acts[d]["top_strain"], 1), activities.sport_label(acts[d]["top_sport"])]
+                  for d in days if d in acts and acts[d]["top_strain"] is not None]
+    kcal_act = [[d.isoformat(), round(acts.get(d, {}).get("kcal", 0))] for d in days if "day_kcal" in rows[d]]
+    kcal_rest = [[d.isoformat(), round(max(rows[d]["day_kcal"] - acts.get(d, {}).get("kcal", 0), 0))]
+                 for d in days if "day_kcal" in rows[d]]
+
     last = every[max(every)]
     tiles = {"rec": delta("recovery_pct"), "hrv": delta("hrv_ms"), "rhr": delta("resting_hr"),
              "sleep": delta("sleep_hours"), "need": _r(_window(every, "sleep_need_h", today, 0, 7), 2),
@@ -149,7 +193,7 @@ def build(db: Session, today: date, rango: str = "90d") -> dict:
 
     return {
         "active": True, "empty": False, "source": src, "first": first, "start": start, "days": len(days),
-        "tiles": tiles,
+        "tiles": tiles, "last_night": last_night, "buckets": buckets,
         "flags": [{"day": d, "signals": [readiness._signal_label(k) for k in ks]}
                   for d, ks in sorted(flags.items(), reverse=True)],
         "charts": {
@@ -166,6 +210,8 @@ def build(db: Session, today: date, rango: str = "90d") -> dict:
             "stages": stages, "need": per("sleep_need_h"), "weekly": weekly, "sleep7": _rolling(rows, "sleep_hours", days, 7),
             "bed": bed, "strain": col("strain"), "strain7": _rolling(rows, "strain", days, 7),
             "kcal": col("day_kcal", 0), "kcal7": _rolling(rows, "day_kcal", days, 7),
+            "act_strain": act_strain, "kcal_act": kcal_act, "kcal_rest": kcal_rest,
+            "last_stages": last_night["stages"] if last_night else [], "buckets": buckets,
             "zones": zones, "weekday": weekday, "scatter": scatter, "monthly": monthly, "year": year,
         },
     }

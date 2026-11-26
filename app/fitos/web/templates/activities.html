@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_sources.html" import source_chips %}
+{% block head %}<script src="/static/vendor/echarts.min.js"></script>{% endblock %}
+{% block content %}
+{% include "_progress_nav.html" %}
+<div class="flex flex-wrap items-end justify-between gap-2 mb-3">
+  <div>
+    <div class="h2 mb-0">{{ _("Actividades") }} {{ source_chips([source]) }}</div>
+    <p class="text-xs text-mute num">{{ _("{n} actividades · {h} h · {k} kcal", n=summary.n, h=summary.hours|num, k=summary.kcal|num(0)) }}</p>
+  </div>
+  <div class="flex gap-1">{% for key, label in ranges %}<a href="/progreso/actividades?rango={{ key }}{% if deporte %}&deporte={{ deporte }}{% endif %}" class="chip {% if key == rango %}border-accent text-ink{% endif %}">{{ label }}</a>{% endfor %}</div>
+</div>
+
+{% if totals %}
+<section class="card mb-3">
+  <div class="h2">{{ _("Por deporte") }}</div>
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+    {% for t in totals %}
+    <a href="/progreso/actividades?rango={{ rango }}{% if deporte != t.sport %}&deporte={{ t.sport }}{% endif %}" class="rounded-xl bg-panel2 px-3 py-2 hover:ring-1 hover:ring-accent/40 {% if deporte == t.sport %}ring-1 ring-accent{% endif %}">
+      <div class="font-semibold">{{ t.icon }} {{ t.label }}</div>
+      <div class="text-xs text-mute num">{{ _("{n} veces · {h} h · {k} kcal", n=t.n, h=t.hours|num, k=t.kcal|num(0)) }}{% if t.strain %} · {{ _("esfuerzo {s}", s=t.strain|num) }}{% endif %}</div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+<section class="card mb-3">
+  <div class="h2 mb-0">{{ _("Zonas de pulso por deporte") }}</div>
+  <p class="text-xs text-mute mb-2">{{ _("Minutos en cada zona de tu pulso máximo, sumando todas las actividades del rango.") }}</p>
+  <div id="ch-zones-sport" class="h-72" role="img" aria-label="{{ _("Zonas de pulso por deporte") }}"></div>
+</section>
+{% endif %}
+
+<section class="card">
+  <div class="h2">{{ _("Historial") }}{% if deporte %} · {{ rows[0].label if rows else deporte }} <a href="/progreso/actividades?rango={{ rango }}" class="text-xs text-accent font-normal normal-case">{{ _("ver todas") }}</a>{% endif %}</div>
+  {% if rows %}
+  <div class="divide-y divide-line">
+    {% for r in rows %}
+    <a href="/progreso/actividades/{{ r.a.id }}" class="flex items-center gap-3 py-2 hover:bg-panel2/50 rounded-lg px-1">
+      <div class="w-10 text-center text-xl">{{ r.icon }}</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold truncate">{{ r.label }}{% if r.session %} <span class="chip !py-0 text-[11px]">🏋️ {{ _("tu sesión") }}</span>{% endif %}</div>
+        <div class="text-xs text-mute num">{{ fmt_date(r.a.local_date) }} · {{ r.minutes }} min{% if r.a.kcal %} · {{ r.a.kcal|round|int }} kcal{% endif %}{% if r.a.avg_hr %} · {{ _("FC {a}/{m}", a=r.a.avg_hr, m=r.a.max_hr) }}{% endif %}</div>
+      </div>
+      <div class="text-right"><div class="font-bold num text-info">{{ r.a.strain|round(1)|num if r.a.strain is not none else '—' }}</div><div class="text-[11px] text-mute">{{ _("esfuerzo") }}</div></div>
+    </a>
+    {% endfor %}
+  </div>
+  {% if more %}<p class="text-xs text-mute mt-2">{{ _("y {n} más: acorta el rango o filtra por deporte.", n=more) }}</p>{% endif %}
+  {% else %}<p class="text-sm text-mute">{{ _("No hay actividades en este rango.") }}</p>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+{% if totals %}
+<script>
+(function () {
+  const Z = {{ zones_json|safe }};
+  const css = getComputedStyle(document.documentElement);
+  const FALLBACK = { mute: '#8b95a3', line: '#262b33', panel: '#14171c', panel2: '#1b1f26', ink: '#e8ecf1' };
+  const c = n => css.getPropertyValue('--color-' + n).trim() || FALLBACK[n];
+  const el = document.getElementById('ch-zones-sport');
+  if (!el || !Z.labels.length) return;
+  const ch = echarts.init(el, null, { renderer: 'svg' });
+  ch.setOption({
+    animation: false, grid: { left: 130, right: 16, top: 30, bottom: 24 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: c('panel2'), borderColor: c('line'), textStyle: { color: c('ink') }, valueFormatter: v => v + ' min' },
+    legend: { top: 0, right: 0, textStyle: { color: c('mute'), fontSize: 11 }, itemWidth: 12, itemHeight: 8, icon: 'roundRect' },
+    xAxis: { type: 'value', axisLabel: { color: c('mute') }, splitLine: { lineStyle: { color: c('line'), opacity: .5 } } },
+    yAxis: { type: 'category', inverse: true, data: Z.labels, axisLabel: { color: c('ink') }, axisLine: { lineStyle: { color: c('line') } } },
+    series: Z.names.map((name, i) => ({ name, type: 'bar', stack: 'z', barMaxWidth: 18, data: Z.z[i], itemStyle: { color: Z.colors[i], borderColor: c('panel'), borderWidth: 1 } })),
+  });
+  window.addEventListener('resize', () => ch.resize());
+})();
+</script>
+{% endif %}
+{% endblock %}

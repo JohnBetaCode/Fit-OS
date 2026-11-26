@@ -12,7 +12,8 @@ Daily values (`body_metrics`, source "whoop"), dated by the local day you woke u
 HR, SpO2, skin temperature; the main sleep (hours, stages, need, debt, consistency, bed and wake times) and naps;
 the cycle's strain, energy and heart rate; the day's WHOOP workouts (minutes, strain, energy, HR zones, distance).
 
-Everything WHOOP returns is also kept raw in the person's data dir (`whoop_archive.json.gz`, merged by record
+Each WHOOP workout also becomes a row in `activities` (sport, strain, HR, energy, zones), rebuilt from the
+archive on every sync. Everything WHOOP returns is also kept raw in the person's data dir (`whoop_archive.json.gz`, merged by record
 id), so nothing is lost if the membership ends or WHOOP changes its API. The first background sync reads the
 whole history (`HISTORY_START`); the link itself only brings the last year so the page answers quickly.
 """
@@ -35,7 +36,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..core import prefs, tenancy
-from ..core.models import BodyMetric
+from ..core.models import Activity, BodyMetric
 from ..core.settings import get_settings
 from ..i18n import _
 from . import common
@@ -479,8 +480,68 @@ def since_for(db: Session, today: date, *, history: bool = False) -> date:
         return today - timedelta(days=BACKFILL_DAYS)
 
 
+ZONE_KEYS = ("zone_zero_milli", "zone_one_milli", "zone_two_milli", "zone_three_milli", "zone_four_milli",
+             "zone_five_milli")
+
+
+def _utc(ts: str | None) -> datetime | None:
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")) if ts else None
+    except ValueError:
+        return None
+
+
+def activity_rows(workouts: list[dict]) -> list[dict]:
+    """WHOOP workouts → `activities` rows (scored ones; minutes per zone of max HR, zone 0 first)."""
+    out = []
+    for w in workouts:
+        start, end = _utc(w.get("start")), _utc(w.get("end"))
+        local = _local(w.get("start"), w.get("timezone_offset"))
+        if start is None or end is None or local is None or w.get("score_state") != "SCORED" or end <= start:
+            continue
+        sc = w.get("score") or {}
+        zones = sc.get("zone_durations") or {}
+        num = lambda v: float(v) if isinstance(v, int | float) else None  # noqa: E731
+        out.append({
+            "ext_id": str(w.get("id")), "sport": str(w.get("sport_name") or "activity")[:48],
+            "started_at": start, "ended_at": end, "local_date": local.date(),
+            "strain": num(sc.get("strain")), "avg_hr": int(sc["average_heart_rate"]) if num(sc.get("average_heart_rate")) else None,
+            "max_hr": int(sc["max_heart_rate"]) if num(sc.get("max_heart_rate")) else None,
+            "kcal": round(sc["kilojoule"] / 4.184, 1) if num(sc.get("kilojoule")) else None,
+            "distance_m": num(sc.get("distance_meter")),
+            "zones_min": [round((zones.get(k) or 0) / 60_000, 1) for k in ZONE_KEYS] if zones else None,
+        })
+    return out
+
+
+def sync_activities(db: Session) -> int:
+    """Upsert every workout in the person's raw archive into `activities` (new or changed only)."""
+    p = tenancy.user_dir() / ARCHIVE
+    if not p.is_file():
+        return 0
+    try:
+        raw = json.loads(gzip.decompress(p.read_bytes()))
+    except (OSError, ValueError):
+        return 0
+    rows = activity_rows(list((raw.get("workout") or {}).values()))
+    existing = {a.ext_id: a for a in db.scalars(select(Activity).where(Activity.source == SOURCE))}
+    written = 0
+    for r in rows:
+        cur = existing.get(r["ext_id"])
+        if cur is None:
+            db.add(Activity(source=SOURCE, **r))
+        elif any(getattr(cur, k) != v for k, v in r.items() if k not in ("started_at", "ended_at")):
+            for k, v in r.items():
+                setattr(cur, k, v)
+        else:
+            continue
+        written += 1
+    return written
+
+
 def store(db: Session, days: dict[date, dict[str, float]], since: date | None = None) -> SyncResult:
     written = common.store_daily(db, days, SOURCE, KINDS)
+    sync_activities(db)
     st = prefs.get(db, STATUS_PREF) or {}
     prev = st.get("latest")
     latest = max(days) if days else None

@@ -3,4 +3,5 @@
   <a href="/progreso/cuerpo" class="px-3 py-1.5 rounded-lg {% if request.url.path == '/progreso/cuerpo' %}bg-panel2 text-ink{% else %}text-mute hover:text-ink{% endif %}">{{ _("Cuerpo") }}</a>
   <a href="/progreso/ejercicios" class="px-3 py-1.5 rounded-lg {% if request.url.path == '/progreso/ejercicios' %}bg-panel2 text-ink{% else %}text-mute hover:text-ink{% endif %}">{{ _("Mis ejercicios") }}</a>
   {% if wearable %}<a href="/progreso/descanso" class="px-3 py-1.5 rounded-lg {% if request.url.path == '/progreso/descanso' %}bg-panel2 text-ink{% else %}text-mute hover:text-ink{% endif %}">{{ _("Descanso") }}</a>{% endif %}
+  {% if wearable %}<a href="/progreso/actividades" class="px-3 py-1.5 rounded-lg {% if request.url.path.startswith('/progreso/actividades') %}bg-panel2 text-ink{% else %}text-mute hover:text-ink{% endif %}">{{ _("Actividades") }}</a>{% endif %}
 </nav>

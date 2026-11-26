@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_activity.html" import activity_card %}
 {% block content %}
 <a href="/entrenos" class="text-sm text-mute hover:text-ink">‹ {{ _("Entrenos") }}</a>
 {% if saved %}<div class="card mt-2 border-accent/50 text-sm">✅ {{ _("Entreno guardado.") }}</div>{% endif %}
@@ -32,6 +33,7 @@
   <form id="del-session" method="post" action="/entrenos/{{ ws.id }}/borrar" onsubmit="return confirm({{ _("¿Borrar este entreno y todos sus sets? No se puede deshacer.")|tojson|forceescape }})"></form>
 </details>
 <div class="grid gap-3">
+{% if act %}{{ activity_card(act, act_d, act_cmp, title="⌚ " ~ _("Tu entreno según WHOOP")) }}{% endif %}
 {% for g in groups %}
   <section class="card">
     <div class="flex items-center justify-between">
