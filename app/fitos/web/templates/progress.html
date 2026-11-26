@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% block head %}<script src="/static/vendor/echarts.min.js"></script>{% endblock %}
+{% block head %}<script src="/static/vendor/echarts.min.js"></script><script src="/static/js/chart-range.js"></script>{% endblock %}
 {% from "_sources.html" import source_chips %}
+{% from "_range.html" import range_chips %}
 {% block content %}
 {% include "_progress_nav.html" %}
 <div class="grid gap-3 grid-cols-1 sm:grid-cols-3 mb-4">
@@ -43,6 +44,7 @@
       </select></form>
       {% endif %}
     </div>
+    {% if options %}<div class="mb-2">{{ range_chips("e1rm", "todo") }}</div>{% endif %}
     <div id="e1rm" class="h-56"></div>
     {% if not options %}<p class="text-sm text-mute">{{ _("Aparece cuando registres sets con peso.") }}</p>{% endif %}
   </section>
@@ -66,6 +68,7 @@
       <div class="h2 mb-0">{{ _("Peso corporal") }} {{ source_chips(sources.weight) }}</div>
       <form method="post" action="/progreso/peso" class="flex gap-2"><input name="weight_kg" class="input py-1 w-24" placeholder="kg" inputmode="decimal"><button class="btn py-1">{{ _("Anotar") }}</button></form>
     </div>
+    <div class="mb-2">{{ range_chips("weight", "90d") }}</div>
     <div id="weight" class="h-48"></div>
   </section>
 
@@ -195,7 +198,7 @@
   const css = getComputedStyle(document.documentElement);
   const c = n => css.getPropertyValue('--color-' + n).trim();
   function line(el, data, unit, name) {
-    if (!el || !data.length) return;
+    if (!el || !data.length) return null;
     const ch = echarts.init(el, null, { renderer: 'svg' });
     ch.setOption({
       grid: { left: 40, right: 16, top: 16, bottom: 28 },
@@ -203,10 +206,12 @@
                  valueFormatter: v => v + ' ' + unit },
       xAxis: { type: 'time', axisLine: { lineStyle: { color: c('line') } }, axisLabel: { color: c('mute') }, splitLine: { show: false } },
       yAxis: { type: 'value', scale: true, axisLabel: { color: c('mute') }, splitLine: { lineStyle: { color: c('line'), opacity: .5 } } },
+      dataZoom: window.fitosRangeZoom,
       series: [{ name, type: 'line', data, smooth: false, symbol: 'circle', symbolSize: 8,
                  lineStyle: { width: 2, color: c('accent') }, itemStyle: { color: c('accent'), borderColor: c('panel'), borderWidth: 2 } }]
     });
     window.addEventListener('resize', () => ch.resize());
+    return ch;
   }
   function trend(el, d, unit, name, color) {
     if (!el || !d.raw.length) return;
@@ -229,8 +234,8 @@
   trend(document.getElementById('fat-kg'), rc.fat_kg, 'kg', {{ _("Grasa")|tojson }}, c('info'));
   trend(document.getElementById('lean-kg'), rc.lean_kg, 'kg', {{ _("Masa magra")|tojson }}, c('accent'));
   {% endif %}
-  line(document.getElementById('e1rm'), {{ series_json|safe }}, 'kg', 'e1RM');
-  line(document.getElementById('weight'), {{ weights_json|safe }}, 'kg', {{ _("Peso")|tojson }});
+  window.fitosRange(line(document.getElementById('e1rm'), {{ series_json|safe }}, 'kg', 'e1RM'), 'e1rm');
+  window.fitosRange(line(document.getElementById('weight'), {{ weights_json|safe }}, 'kg', {{ _("Peso")|tojson }}), 'weight');
 })();
 </script>
 {% endblock %}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "labs/_macros.html" import status_chip, subnav, legend_status %}
+{% from "_range.html" import range_chips %}
 {% block title %}{{ d.name }}{% endblock %}
 {% block content %}
 {{ subnav(sub) }}
@@ -30,6 +31,7 @@
 
 {% if d.points %}
 <section class="card mb-4">
+  <div class="flex justify-end mb-2">{{ range_chips("labs-chart", "todo", ("1a", "3a", "todo")) }}</div>
   <div id="labs-chart" class="w-full h-72" role="img"
        aria-label="{{ _("Serie de {name} en el tiempo; los valores están en la tabla de abajo", name=bm_name) }}"></div>
   <div class="mt-2">{{ legend_status() }}</div>
@@ -106,6 +108,7 @@
 {% block scripts %}
 {% if d.points %}
 <script src="/static/vendor/echarts.min.js"></script>
+<script src="/static/js/chart-range.js"></script>
 <script>
 (() => {
   const D = JSON.parse(document.getElementById("labs-chart-data").textContent);
@@ -188,7 +191,9 @@
       markLine: { silent: true, symbol: "none", data: tLines,
                   lineStyle: { color: T.accent, width: 1.5, type: [6, 4] } },
     }],
+    dataZoom: window.fitosRangeZoom,
   });
+  window.fitosRange(chart, "labs-chart");
   window.addEventListener("resize", () => chart.resize());
 })();
 </script>

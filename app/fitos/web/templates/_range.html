@@ -1,0 +1,6 @@
+{# Range chips for a time chart, wired by static/js/chart-range.js: fitosRange(chart, target). #}
+{% macro range_chips(target, default="90d", keys=("7d", "30d", "90d", "1a", "todo")) -%}
+<div class="flex flex-wrap gap-1" role="group" aria-label="{{ _("Rango") }}" data-range-for="{{ target }}" data-default="{{ default }}">
+  {%- for k in keys %}<button type="button" class="chip cursor-pointer hover:text-ink" data-key="{{ k }}" data-days="{{ range_days[k] or 0 }}" aria-pressed="false">{{ range_label(k) }}</button>{% endfor -%}
+</div>
+{%- endmacro %}

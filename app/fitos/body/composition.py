@@ -22,7 +22,7 @@ MIN_POINTS = 2  # weigh-ins needed in each end window to compare
 FALLBACK_POINTS, FALLBACK_SPAN_DAYS = 3, 45  # sparse weigh-ins: the 3 nearest to each end, if close enough
 STEADY_KG = 0.3  # changes smaller than this are noise
 NUDGE_AFTER_DAYS = 2  # the morning message asks for a weigh-in when the last one is older than this
-RANGES = {"90d": 90, "1a": 365, "todo": None}
+RANGES = {"7d": 7, "30d": 30, "90d": 90, "1a": 365, "todo": None}
 
 
 @dataclass

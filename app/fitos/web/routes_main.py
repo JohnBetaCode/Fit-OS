@@ -33,7 +33,7 @@ from ..i18n import LANGS, _, pick
 from ..training import service as tr
 from ..wa import cards
 from ..wa.outbox import gym_chat
-from .ui import form_int, form_num, render
+from .ui import form_int, form_num, range_choices, render
 
 log = logging.getLogger("fitos.web")
 router = APIRouter()
@@ -290,7 +290,7 @@ def progress_page(request: Request, exercise_id: str | None = None, rango: str =
     most = max(trained, key=lambda r: r[3])[0] if trained else None
     sel = exercise_id or most
     series = [(d.isoformat(), round(v, 1)) for d, v in m.e1rm_series(db, sel)] if sel else []
-    weights = [(b.measured_on.isoformat(), b.value) for b in body.metric_series(db, "weight_kg", 365)]
+    weights = [(b.measured_on.isoformat(), b.value) for b in body.metric_series(db, "weight_kg", 100_000)]
     total_sets = sum(b["value"] for b in bars)
     lo = int(prefs.get(db, "weekly_sets_target_min"))
     from ..body import readiness  # noqa: PLC0415
@@ -359,11 +359,11 @@ def rest_page(request: Request, rango: str = "90d", db: Session = Depends(get_db
     data = rest.build(db, local_today(), rango)
     if not data["active"]:
         return RedirectResponse("/progreso", status_code=303)
-    return render(request, "rest.html", "progreso", rango=rango, ranges=rest.range_labels(), wearable=True,
+    return render(request, "rest.html", "progreso", rango=rango, ranges=range_choices(), wearable=True,
                   r=data, charts_json=json.dumps(data.get("charts") or {}))
 
 
-ACT_RANGES = {"30d": 30, "90d": 90, "1a": 365, "todo": None}
+ACT_RANGES = {"7d": 7, "30d": 30, "90d": 90, "1a": 365, "todo": None}
 
 
 def _session_links(db: Session, src: str, since: date | None) -> dict[int, int]:
@@ -399,8 +399,7 @@ def activities_page(request: Request, rango: str = "90d", deporte: str = "", db:
              "minutes": round(activities.minutes(a)), "session": links.get(a.id)} for a in shown[:300]]
     tot = activities.totals(every)
     return render(request, "activities.html", "progreso", wearable=True, rango=rango, deporte=deporte,
-                  ranges=[(k, lbl) for k, lbl in (("30d", _("30 días")), ("90d", _("90 días")), ("1a", _("1 año")),
-                                                   ("todo", _("Todo")))],
+                  ranges=range_choices(),
                   rows=rows, more=max(len(shown) - 300, 0), totals=tot, source=src,
                   zones_json=json.dumps({"labels": [t["label"] for t in tot[:10]],
                                          "z": [[t["zones"][i] for t in tot[:10]] for i in range(6)],
@@ -563,8 +562,7 @@ def _recomp_ctx(db: Session, rango: str, today: date) -> dict:
     n = comp.RANGES[rango]
     pts = comp.points(db, today - timedelta(days=n) if n else None)
     raw = {a: [(p.on.isoformat(), getattr(p, a)) for p in pts] for a in ("fat_kg", "lean_kg")}
-    return {"recomp": comp.summary(pts), "rango": rango, "recomp_ranges": [("90d", _("90 días")), ("1a", _("1 año")),
-                                                                            ("todo", _("Todo"))],
+    return {"recomp": comp.summary(pts), "rango": rango, "recomp_ranges": range_choices(),
             "recomp_json": json.dumps({a: {"raw": raw[a], "avg": comp.smoothed(pts, a)} for a in raw})}
 
 

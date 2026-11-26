@@ -945,4 +945,9 @@ EN: dict[str, str] = {
     "Limpieza": "Cleaning",
     "Meditación": "Meditation",
     "Actividad": "Activity",
+    "3 años": "3 years",
+    "3 meses": "3 months",
+    "Año": "Year",
+    "Mes": "Month",
+    "Rango": "Range",
 }

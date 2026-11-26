@@ -17,7 +17,7 @@ from ..i18n import _
 from . import activities, readiness
 from .readiness import fmean, fsd
 
-RANGES = {"30d": 30, "90d": 90, "1a": 365, "todo": None}
+RANGES = {"7d": 7, "30d": 30, "90d": 90, "1a": 365, "todo": None}
 BASE_DAYS = 60
 # (kind, label, unit, decimals, higher is better) for the last-night card
 LAST_NIGHT = [("sleep_hours", "Horas de sueño", "h", 2, True), ("in_bed_h", "Tiempo en la cama", "h", 2, True),
@@ -28,9 +28,6 @@ LAST_NIGHT = [("sleep_hours", "Horas de sueño", "h", 2, True), ("in_bed_h", "Ti
 SLEEP_BUCKETS = [(0, 6, "< 6 h"), (6, 7, "6–7 h"), (7, 8, "7–8 h"), (8, 9, "8–9 h"), (9, 24, "≥ 9 h")]
 WEEKLY_AFTER = 120  # longer ranges draw sleep as weekly means: a bar per night stops being readable
 
-
-def range_labels() -> list[tuple[str, str]]:
-    return [("30d", _("30 días")), ("90d", _("90 días")), ("1a", _("1 año")), ("todo", _("Todo"))]
 
 
 def _mean(xs: list[float]) -> float | None:

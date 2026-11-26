@@ -57,7 +57,22 @@ def fmt_num(v: float | None, decimals: int = 1) -> str:
 
 templates.env.filters["kg"] = fmt_kg
 templates.env.filters["num"] = fmt_num
+# One set of time ranges for every chart: server-side filters (?rango=) and the browser chips (_range.html)
+RANGE_DAYS = {"7d": 7, "30d": 30, "90d": 90, "1a": 365, "3a": 1095, "todo": None}
+
+
+def range_label(key: str) -> str:
+    return {"7d": _("Semana"), "30d": _("Mes"), "90d": _("3 meses"), "1a": _("Año"), "3a": _("3 años"),
+            "todo": _("Todo")}[key]
+
+
+def range_choices(keys=("7d", "30d", "90d", "1a", "todo")) -> list[tuple[str, str]]:
+    return [(k, range_label(k)) for k in keys]
+
+
 templates.env.globals["tab_icons"] = TAB_ICONS
+templates.env.globals["range_days"] = RANGE_DAYS
+templates.env.globals["range_label"] = range_label
 templates.env.globals["source_meta"] = _sources.meta
 templates.env.globals.update(
     _=_, pick=pick, lang=lang, LANG_NAMES=LANG_NAMES, fmt_date=timeutil.fmt_date,
