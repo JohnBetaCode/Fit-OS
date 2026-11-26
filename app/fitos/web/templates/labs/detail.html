@@ -70,7 +70,7 @@
       <h2 class="h2">{{ _("Alimentos") }}</h2>
       {% if d.food_positive %}
       <h3 class="text-xs text-mute mb-1">{{ _("A favor") }}</h3>
-      <ul class="flex flex-wrap gap-1.5 mb-3">{% for f in d.food_positive %}<li class="chip text-ink"><span class="text-accent mr-1" aria-hidden="true">+</span>{{ f }}</li>{% endfor %}</ul>
+      <ul class="flex flex-wrap gap-1.5 mb-3">{% for f in d.food_positive %}<li class="chip text-ink"><span class="text-good mr-1" aria-hidden="true">+</span>{{ f }}</li>{% endfor %}</ul>
       {% endif %}
       {% if d.food_negative %}
       <h3 class="text-xs text-mute mb-1">{{ _("En contra") }}</h3>
@@ -110,12 +110,12 @@
 (() => {
   const D = JSON.parse(document.getElementById("labs-chart-data").textContent);
   const L = JSON.parse(document.getElementById("labs-chart-i18n").textContent);
-  const T = { surface: "#14171c", grid: "#262b33", mute: "#8b95a3", ink: "#e8ecf1", line: "#8b95a3",
+  const T = { surface: "#0f1624", grid: "#22304a", mute: "#94a3b8", ink: "#e8eef8", line: "#94a3b8",
               accent: "#3ddc97", warn: "#f5b942" };
   // Estado = color + forma: nunca solo color.
   const ST = {
     optimal: { c: "#3ddc97", s: "circle", g: "●" },
-    in_range: { c: "#5aa9ff", s: "diamond", g: "◆" },
+    in_range: { c: "#14b8a6", s: "diamond", g: "◆" },
     borderline: { c: "#f5b942", s: "triangle", g: "▲" },
     out_of_range: { c: "#ff6b6b", g: "✕",
       s: "path://M3,0L10,7L17,0L20,3L13,10L20,17L17,20L10,13L3,20L0,17L7,10L0,3Z" },
@@ -169,7 +169,7 @@
       axisLabel: { color: T.mute, fontSize: 11 },
     },
     tooltip: {
-      trigger: "axis", backgroundColor: "#1b1f26", borderColor: T.grid, textStyle: { color: T.ink, fontSize: 12 },
+      trigger: "axis", backgroundColor: "#16203a", borderColor: T.grid, textStyle: { color: T.ink, fontSize: 12 },
       axisPointer: { type: "line", lineStyle: { color: T.mute, width: 1 } },
       formatter: (ps) => {
         const p = ps[0].data.p, s = ST[p.status];

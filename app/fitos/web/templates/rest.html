@@ -6,7 +6,7 @@
     <div class="text-xl font-bold num">{{ t.now|num if t.now is not none else '—' }}<span class="text-sm text-mute font-normal"> {{ unit }}</span></div>
     {% if t.pct is not none %}
     {% set up = t.pct > 0 %}{% set good = (up and good_up) or (not up and not good_up) %}
-    <div class="text-xs num {% if t.pct|abs < 3 %}text-mute{% elif good %}text-accent{% else %}text-bad{% endif %}">{{ '▲' if up else '▼' }} {{ t.pct|abs|int }} % <span class="text-mute">{{ _("vs tus 60 días ({n})", n=t.base|num) }}</span></div>
+    <div class="text-xs num {% if t.pct|abs < 3 %}text-mute{% elif good %}text-good{% else %}text-bad{% endif %}">{{ '▲' if up else '▼' }} {{ t.pct|abs|int }} % <span class="text-mute">{{ _("vs tus 60 días ({n})", n=t.base|num) }}</span></div>
     {% endif %}
   </div>
 {%- endmacro %}
@@ -55,7 +55,7 @@
       <div class="rounded-xl bg-panel2 px-3 py-2">
         <div class="text-[11px] text-mute">{{ _(st.label) }}</div>
         <div class="text-lg font-bold num">{{ st.now|num }}<span class="text-xs text-mute font-normal"> {{ st.unit }}</span></div>
-        {% if st.prev is not none %}<div class="text-[11px] num {% if st.trend == 'good' %}text-accent{% elif st.trend == 'bad' %}text-warn{% else %}text-mute{% endif %}">{% if st.trend %}{{ '▲' if st.up else '▼' }} {% endif %}{{ _("antes {v}", v=st.prev|num) }}</div>{% endif %}
+        {% if st.prev is not none %}<div class="text-[11px] num {% if st.trend == 'good' %}text-good{% elif st.trend == 'bad' %}text-warn{% else %}text-mute{% endif %}">{% if st.trend %}{{ '▲' if st.up else '▼' }} {% endif %}{{ _("antes {v}", v=st.prev|num) }}</div>{% endif %}
       </div>
       {% endfor %}
     </div>
@@ -158,12 +158,12 @@
 (function () {
   const D = {{ charts_json|safe }};
   const css = getComputedStyle(document.documentElement);
-  const FALLBACK = { accent: '#3ddc97', bad: '#ff6b6b', info: '#5aa9ff', warn: '#f5b942', ink: '#e8ecf1', mute: '#8b95a3', line: '#262b33', panel: '#14171c', panel2: '#1b1f26' };
+  const FALLBACK = { accent: '#3b82f6', good: '#3ddc97', bad: '#ff6b6b', info: '#14b8a6', warn: '#f5b942', ink: '#e8eef8', mute: '#94a3b8', line: '#22304a', panel: '#0f1624', panel2: '#16203a' };
   const c = n => css.getPropertyValue('--color-' + n).trim() || FALLBACK[n];
   const MONTHS = {{ months_short()|tojson }};
   const dm = iso => { const [y, m, d] = iso.split('-').map(Number); return d + ' ' + MONTHS[m - 1]; };
   const ym = (iso, i, all) => { const [y, m] = iso.split('-').map(Number); const first = i === 0 || all[i - 1].slice(0, 4) !== iso.slice(0, 4); return MONTHS[m - 1] + (first ? ' ' + String(y).slice(2) : ''); };
-  const BAND = { green: c('accent'), yellow: c('warn'), red: c('bad') };
+  const BAND = { green: c('good'), yellow: c('warn'), red: c('bad') };
   const bandOf = v => v >= 67 ? BAND.green : v >= 34 ? BAND.yellow : BAND.red;
   const T = {
     rec: {{ _("Recuperación")|tojson }}, avg7: {{ _("Promedio 7 d")|tojson }}, trained: {{ _("Entrenaste")|tojson }},

@@ -4,7 +4,7 @@
     <div class="w-10 h-10 shrink-0 rounded-xl bg-bg border border-line grid place-items-center text-xl" aria-hidden="true">{{ icon }}</div>
     <div class="flex-1 min-w-0">
       <div class="font-semibold flex flex-wrap items-center gap-2">{{ name }}
-        {% if badge %}<span class="chip !py-0 text-[11px] {% if tone == 'ok' %}!text-accent !border-accent/40{% elif tone == 'warn' %}!text-warn !border-warn/40{% endif %}">{{ badge }}</span>{% endif %}</div>
+        {% if badge %}<span class="chip !py-0 text-[11px] {% if tone == 'ok' %}!text-good !border-good/40{% elif tone == 'warn' %}!text-warn !border-warn/40{% endif %}">{{ badge }}</span>{% endif %}</div>
       <div class="text-xs text-mute mt-0.5">{{ desc }}</div>
     </div>
   </div>

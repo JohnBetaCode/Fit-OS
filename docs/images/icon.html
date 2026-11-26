@@ -1,55 +1,33 @@
 <!doctype html>
 <!-- Source of the WhatsApp group picture (docs/images/group-icon.png, with the wordmark) and the app icons
-     (app/fitos/web/static/icons/*.png, "#mark": symbol only). Render: see docs/development.md#icons -->
+     (app/fitos/web/static/icons/*.png, "#mark": the symbol full-bleed, safe for maskable icons).
+     The symbol is app/fitos/web/static/icons/icon.svg. Render: see docs/development.md#icons -->
 <html><head><meta charset="utf-8"><style>
-  :root{--bg:#0b0d10;--panel:#14171c;--line:#262b33;--ink:#e8ecf1;--mute:#8b95a3;--accent:#3ddc97;--info:#5aa9ff}
+  :root{--bg:#080d16;--panel:#0f1624;--panel2:#16203a;--line:#22304a;--ink:#e8eef8;--mute:#94a3b8;--accent:#3b82f6;--teal:#14b8a6}
   *{box-sizing:border-box;margin:0}
   html,body{width:100vw;height:100vh;overflow:hidden;background:var(--bg)}
   body{font-family:"Inter","Segoe UI",Roboto,ui-sans-serif,system-ui,sans-serif;color:var(--ink);position:relative;
        display:grid;place-items:center}
   .glow{position:absolute;border-radius:50%;filter:blur(9vw)}
-  .g1{width:70vw;height:70vw;background:var(--accent);opacity:.22;left:15vw;top:8vw}
-  .g2{width:50vw;height:40vw;background:var(--info);opacity:.14;right:-12vw;bottom:-14vw}
+  .g1{width:70vw;height:70vw;background:var(--accent);opacity:.24;left:15vw;top:6vw}
+  .g2{width:50vw;height:40vw;background:var(--teal);opacity:.16;right:-12vw;bottom:-14vw}
   .grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),
         linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:5vw 5vw;opacity:.35;
         mask-image:radial-gradient(circle at 50% 50%,#000 25%,transparent 62%)}
-  .ring{position:absolute;width:76vw;height:76vw;border-radius:50%;border:.6vw solid rgba(61,220,151,.18)}
-  .stack{position:relative;display:flex;flex-direction:column;align-items:center;gap:2.4vw;margin-top:-2vw}
-  svg{width:62vw;height:auto;filter:drop-shadow(0 1.5vw 3vw rgba(0,0,0,.55))}
+  .stack{position:relative;display:flex;flex-direction:column;align-items:center;gap:2.6vw;margin-top:-2vw}
+  img{width:46vw;height:46vw;filter:drop-shadow(0 1.5vw 3vw rgba(0,0,0,.55))}
   .word{font-size:13.5vw;font-weight:800;letter-spacing:-.5vw;line-height:1}
-  .word span{color:var(--accent)}
+  .word span{background:linear-gradient(90deg,var(--accent),var(--teal));-webkit-background-clip:text;color:transparent}
   .sub{font-size:3.6vw;font-weight:600;letter-spacing:1.1vw;color:var(--mute);margin-top:-.4vw}
-  body.mark svg{width:72vw}
-  body.mark .word,body.mark .sub{display:none}
-  body.mark .ring{width:90vw;height:90vw}
+  /* #mark: the icon itself, full-bleed (the OS rounds or masks it) */
+  body.mark{background:#16203a}
+  body.mark .glow,body.mark .grid,body.mark .word,body.mark .sub{display:none}
+  body.mark img{position:fixed;left:50%;top:50%;width:112vw;height:112vw;transform:translate(-50%,-50%);filter:none}
 </style></head>
 <body>
-  <div class="glow g1"></div><div class="glow g2"></div><div class="grid"></div><div class="ring"></div>
+  <div class="glow g1"></div><div class="glow g2"></div><div class="grid"></div>
   <div class="stack">
-    <svg viewBox="0 0 240 120" aria-hidden="true">
-      <defs>
-        <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#5df0b0"/><stop offset="1" stop-color="#22b877"/>
-        </linearGradient>
-        <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#e8ecf1"/><stop offset="1" stop-color="#9aa4b1"/>
-        </linearGradient>
-      </defs>
-      <!-- bar -->
-      <rect x="40" y="54" width="160" height="12" rx="6" fill="url(#bar)"/>
-      <!-- plates, left and right -->
-      <rect x="14" y="22" width="22" height="76" rx="7" fill="url(#plate)"/>
-      <rect x="38" y="34" width="14" height="52" rx="5" fill="url(#plate)"/>
-      <rect x="4" y="44" width="10" height="32" rx="4" fill="#22b877"/>
-      <rect x="204" y="22" width="22" height="76" rx="7" fill="url(#plate)"/>
-      <rect x="188" y="34" width="14" height="52" rx="5" fill="url(#plate)"/>
-      <rect x="226" y="44" width="10" height="32" rx="4" fill="#22b877"/>
-      <!-- pulse over the bar -->
-      <polyline points="62,60 92,60 102,40 114,82 126,30 138,74 148,60 178,60" fill="none"
-                stroke="#0b0d10" stroke-width="11" stroke-linejoin="round" stroke-linecap="round"/>
-      <polyline points="62,60 92,60 102,40 114,82 126,30 138,74 148,60 178,60" fill="none"
-                stroke="#3ddc97" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
-    </svg>
+    <img src="../../app/fitos/web/static/icons/icon.svg" alt="">
     <div class="word">Fit<span>·</span>OS</div>
     <div class="sub">PERSONAL TRAINER</div>
   </div>

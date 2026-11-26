@@ -35,7 +35,7 @@
         <td class="num"><span class="text-mute whitespace-nowrap">{{ fmt_day_month(r.first_date) }}</span> {{ describe(r.first_top, r.first_top.exercise) if r.first_top else "" }}</td>
         <td class="num"><span class="text-mute whitespace-nowrap">{{ fmt_day_month(r.last_date) }}</span> {{ describe(r.last_top, r.last_top.exercise) if r.last_top else "" }}</td>
         <td class="num text-right whitespace-nowrap" title="{{ fmt_date(r.best_date) if r.best_date else '' }}">{% if r.best is not none %}{{ r.best|num(1 if r.kind == 'e1rm' else 0) }} {{ unit }}{% else %}—{% endif %}</td>
-        <td class="num text-right whitespace-nowrap">{% if r.change_pct is none %}<span class="text-mute">—</span>{% elif r.change_pct > 0 %}<span class="text-accent">▲</span> +{{ r.change_pct|num(1) }} %{% elif r.change_pct < 0 %}<span class="text-bad">▼</span> {{ r.change_pct|num(1) }} %{% else %}<span class="text-mute">=</span> 0 %{% endif %}</td>
+        <td class="num text-right whitespace-nowrap">{% if r.change_pct is none %}<span class="text-mute">—</span>{% elif r.change_pct > 0 %}<span class="text-good">▲</span> +{{ r.change_pct|num(1) }} %{% elif r.change_pct < 0 %}<span class="text-bad">▼</span> {{ r.change_pct|num(1) }} %{% else %}<span class="text-mute">=</span> 0 %{% endif %}</td>
         <td class="w-28">
           {% if r.spark.points %}
           <a href="/progreso?exercise_id={{ r.id }}" title="{{ _("Ver la curva") }}">
@@ -66,7 +66,7 @@
     <div class="grid grid-cols-3 gap-2 mt-2 text-xs num">
       <div><div class="text-mute">{{ _("Última") }} · {{ fmt_day_month(r.last_date) }}</div>{{ describe(r.last_top, r.last_top.exercise) if r.last_top else "—" }}</div>
       <div><div class="text-mute">{{ _("Mejor") }}</div>{% if r.best is not none %}{{ r.best|num(1 if r.kind == 'e1rm' else 0) }} {{ unit }}{% else %}—{% endif %}</div>
-      <div><div class="text-mute">{{ _("Cambio") }}</div>{% if r.change_pct is none %}—{% elif r.change_pct > 0 %}<span class="text-accent">▲</span> +{{ r.change_pct|num(1) }} %{% elif r.change_pct < 0 %}<span class="text-bad">▼</span> {{ r.change_pct|num(1) }} %{% else %}= 0 %{% endif %}</div>
+      <div><div class="text-mute">{{ _("Cambio") }}</div>{% if r.change_pct is none %}—{% elif r.change_pct > 0 %}<span class="text-good">▲</span> +{{ r.change_pct|num(1) }} %{% elif r.change_pct < 0 %}<span class="text-bad">▼</span> {{ r.change_pct|num(1) }} %{% else %}= 0 %{% endif %}</div>
     </div>
   </li>
   {% endfor %}

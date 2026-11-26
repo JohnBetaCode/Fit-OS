@@ -26,8 +26,8 @@
     <div class="flex items-center gap-2 text-sm mb-1.5" title="{{ b.label }}: {{ _("{n} sets", n=b.value|num) }}">
       <span class="w-24 text-mute truncate">{{ b.label }}</span>
       <div class="flex-1 h-3 bg-panel2 rounded-full relative overflow-hidden">
-        <div class="absolute inset-y-0 bg-accent/10" style="left: {{ lo / hi * 100 }}%; right: 0"></div>
-        <div class="absolute inset-y-0 left-0 rounded-full {% if b.status == 'ok' %}bg-accent{% elif b.status == 'high' %}bg-warn{% else %}bg-info/70{% endif %}" style="width: {{ b.pct }}%"></div>
+        <div class="absolute inset-y-0 bg-good/10" style="left: {{ lo / hi * 100 }}%; right: 0"></div>
+        <div class="absolute inset-y-0 left-0 rounded-full {% if b.status == 'ok' %}bg-good{% elif b.status == 'high' %}bg-warn{% else %}bg-info/70{% endif %}" style="width: {{ b.pct }}%"></div>
       </div>
       <span class="w-10 text-right num">{{ b.value|num }}</span>
     </div>
@@ -96,12 +96,12 @@
       <div class="rounded-xl bg-panel2 px-3 py-2">
         <div class="text-xs text-mute">{{ label }}</div>
         <div class="text-lg num">{{ val|num(1) }} <span class="text-xs text-mute">kg</span></div>
-        {% if d is not none %}<div class="text-xs num {% if good == 'down' and d < 0 or good == 'up' and d > 0 %}text-accent{% elif good and d != 0 %}text-warn{% else %}text-mute{% endif %}">{% if d > 0 %}+{% endif %}{{ d|num(1) }} kg</div>{% endif %}
+        {% if d is not none %}<div class="text-xs num {% if good == 'down' and d < 0 or good == 'up' and d > 0 %}text-good{% elif good and d != 0 %}text-warn{% else %}text-mute{% endif %}">{% if d > 0 %}+{% endif %}{{ d|num(1) }} kg</div>{% endif %}
       </div>
       {% endfor %}
     </div>
     {% endif %}
-    <p class="text-sm mb-3 {% if recomp.verdict in ('recomp', 'lean_gain') %}text-accent{% elif recomp.verdict in ('fat_gain', 'cut_losing_lean') %}text-warn{% endif %}">{{ recomp.label }}</p>
+    <p class="text-sm mb-3 {% if recomp.verdict in ('recomp', 'lean_gain') %}text-good{% elif recomp.verdict in ('fat_gain', 'cut_losing_lean') %}text-warn{% endif %}">{{ recomp.label }}</p>
     {% if recomp.n %}
     <div class="grid md:grid-cols-2 gap-4">
       <div><div class="text-xs text-mute">{{ _("Grasa (kg)") }}</div><div id="fat-kg" class="h-44"></div></div>

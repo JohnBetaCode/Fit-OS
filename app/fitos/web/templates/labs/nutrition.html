@@ -16,7 +16,7 @@
     <div class="mt-1">{{ status_chip(it.status, it.status_label) }}</div>
     {% if it.food_positive %}
     <h3 class="text-xs text-mute uppercase tracking-wide mt-3 mb-1">{{ _("A favor") }}</h3>
-    <ul class="flex flex-wrap gap-1.5">{% for f in it.food_positive %}<li class="chip text-ink"><span class="text-accent mr-1" aria-hidden="true">+</span>{{ f }}</li>{% endfor %}</ul>
+    <ul class="flex flex-wrap gap-1.5">{% for f in it.food_positive %}<li class="chip text-ink"><span class="text-good mr-1" aria-hidden="true">+</span>{{ f }}</li>{% endfor %}</ul>
     {% endif %}
     {% if it.food_negative %}
     <h3 class="text-xs text-mute uppercase tracking-wide mt-3 mb-1">{{ _("En contra") }}</h3>

@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Source of docs/images/banner.png. Render: see docs/development.md#banner -->
 <html><head><meta charset="utf-8"><style>
-  :root{--bg:#0b0d10;--panel:#14171c;--panel2:#1b1f26;--line:#262b33;--ink:#e8ecf1;--mute:#8b95a3;--accent:#3ddc97;--warn:#f5b942;--info:#5aa9ff;--wa:#1f3b2f}
+  :root{--bg:#080d16;--panel:#0f1624;--panel2:#16203a;--line:#22304a;--ink:#e8eef8;--mute:#94a3b8;--accent:#3b82f6;--warn:#f5b942;--info:#14b8a6;--wa:#1f3b2f}
   *{box-sizing:border-box;margin:0}
   html,body{width:1600px;height:620px;background:var(--bg);overflow:hidden}
   body{font-family:"Inter","Segoe UI",Roboto,ui-sans-serif,system-ui,sans-serif;color:var(--ink);position:relative}
@@ -10,8 +10,9 @@
   .g2{width:600px;height:420px;background:var(--info);right:-120px;bottom:-260px;opacity:.16}
   .grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:40px 40px;opacity:.25;mask-image:radial-gradient(ellipse at 30% 50%,#000 20%,transparent 75%)}
   .left{position:absolute;left:90px;top:110px;width:660px}
-  .logo{font-size:112px;font-weight:800;letter-spacing:-4px;line-height:1}
-  .logo span{color:var(--accent)}
+  .logo{font-size:112px;font-weight:800;letter-spacing:-4px;line-height:1;display:flex;align-items:center;gap:26px}
+  .logo img{width:120px;height:120px;filter:drop-shadow(0 12px 30px rgba(0,0,0,.5))}
+  .logo span{background:linear-gradient(90deg,var(--accent),var(--info));-webkit-background-clip:text;color:transparent}
   .tag{font-size:34px;font-weight:600;margin-top:22px;line-height:1.25}
   .sub{font-size:22px;color:var(--mute);margin-top:18px;line-height:1.45}
   .chips{display:flex;gap:10px;margin-top:30px;flex-wrap:wrap}
@@ -46,7 +47,7 @@
   <div class="glow g1"></div><div class="glow g2"></div><div class="grid"></div>
 
   <div class="left">
-    <div class="logo">Fit<span>·</span>OS</div>
+    <div class="logo"><img src="../../app/fitos/web/static/icons/icon.svg" alt=""><div>Fit<span>·</span>OS</div></div>
     <div class="tag">Your gym coach lives in a WhatsApp group.</div>
     <div class="sub">Today's plan, every set logged, a swap when the machine is busy, and a dashboard for progress and lab results. Self-hosted.</div>
     <div class="chips">
@@ -74,11 +75,11 @@
     <div class="h2">Bench press · e1RM</div>
     <div class="big">92 kg<small>+6.5 in 8 wk</small></div>
     <svg width="356" height="110" viewBox="0 0 356 110">
-      <defs><linearGradient id="a" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3ddc97" stop-opacity=".35"/><stop offset="1" stop-color="#3ddc97" stop-opacity="0"/></linearGradient></defs>
-      <line x1="0" y1="100" x2="356" y2="100" stroke="#262b33"/><line x1="0" y1="55" x2="356" y2="55" stroke="#262b33" stroke-dasharray="3 5"/>
+      <defs><linearGradient id="a" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3b82f6" stop-opacity=".35"/><stop offset="1" stop-color="#3b82f6" stop-opacity="0"/></linearGradient></defs>
+      <line x1="0" y1="100" x2="356" y2="100" stroke="#22304a"/><line x1="0" y1="55" x2="356" y2="55" stroke="#22304a" stroke-dasharray="3 5"/>
       <path d="M0 92 L44 88 L88 84 L132 86 L176 72 L220 66 L264 58 L308 44 L352 30 L352 100 L0 100Z" fill="url(#a)"/>
-      <path d="M0 92 L44 88 L88 84 L132 86 L176 72 L220 66 L264 58 L308 44 L352 30" fill="none" stroke="#3ddc97" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
-      <circle cx="352" cy="30" r="6" fill="#3ddc97" stroke="#14171c" stroke-width="3"/>
+      <path d="M0 92 L44 88 L88 84 L132 86 L176 72 L220 66 L264 58 L308 44 L352 30" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="352" cy="30" r="6" fill="#3b82f6" stroke="#14171c" stroke-width="3"/>
     </svg>
     <div class="rings">
       <div class="ring"><div class="k">This week</div><div class="v">3 / 4</div></div>

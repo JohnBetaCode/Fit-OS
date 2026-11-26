@@ -55,7 +55,7 @@
 (function () {
   const Z = {{ zones_json|safe }};
   const css = getComputedStyle(document.documentElement);
-  const FALLBACK = { mute: '#8b95a3', line: '#262b33', panel: '#14171c', panel2: '#1b1f26', ink: '#e8ecf1' };
+  const FALLBACK = { mute: '#94a3b8', line: '#22304a', panel: '#0f1624', panel2: '#16203a', ink: '#e8eef8' };
   const c = n => css.getPropertyValue('--color-' + n).trim() || FALLBACK[n];
   const el = document.getElementById('ch-zones-sport');
   if (!el || !Z.labels.length) return;

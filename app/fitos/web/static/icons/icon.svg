@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fit-OS mark: the recovery ring with a pulse inside (training + rest). Source of truth for every icon. -->
+  <defs>
+    <linearGradient id="fo-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#14b8a6"/></linearGradient>
+    <linearGradient id="fo-pulse" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#14b8a6"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="#16203a"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#22304a" stroke-width="38"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="url(#fo-ring)" stroke-width="38" stroke-linecap="round" stroke-dasharray="700 942" transform="rotate(-90 256 256)"/>
+  <path d="M150 262h52l26-58 40 116 30-80 18 22h46" fill="none" stroke="url(#fo-pulse)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

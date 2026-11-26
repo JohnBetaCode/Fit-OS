@@ -145,7 +145,7 @@
     <div class="h2">{{ _("Semana") }}</div>
     <div class="grid grid-cols-7 gap-1 text-center mb-4">
       {% for d in days %}
-      <div class="rounded-lg py-2 text-xs {% if d.done %}bg-accent text-black font-semibold{% elif d.date == today %}border border-accent/60{% elif d.planned %}bg-panel2{% else %}text-mute{% endif %}" title="{{ fmt_date(d.date) }}">{{ d.label }}</div>
+      <div class="rounded-lg py-2 text-xs {% if d.done %}bg-accent text-white font-semibold{% elif d.date == today %}border border-accent/60{% elif d.planned %}bg-panel2{% else %}text-mute{% endif %}" title="{{ fmt_date(d.date) }}">{{ d.label }}</div>
       {% endfor %}
     </div>
     {% if rec %}
@@ -157,7 +157,7 @@
     {% for b in bars %}
     <div class="flex items-center gap-2 text-sm mb-1.5">
       <span class="w-24 text-mute truncate">{{ b.label }}</span>
-      <div class="flex-1 h-2 bg-panel2 rounded-full overflow-hidden"><div class="h-full rounded-full {% if b.status == 'ok' %}bg-accent{% elif b.status == 'high' %}bg-warn{% else %}bg-info/70{% endif %}" style="width: {{ b.pct }}%"></div></div>
+      <div class="flex-1 h-2 bg-panel2 rounded-full overflow-hidden"><div class="h-full rounded-full {% if b.status == 'ok' %}bg-good{% elif b.status == 'high' %}bg-warn{% else %}bg-info/70{% endif %}" style="width: {{ b.pct }}%"></div></div>
       <span class="w-8 text-right num">{{ b.value|num }}</span>
     </div>
     {% endfor %}
