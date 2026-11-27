@@ -103,6 +103,38 @@
   </nav>
   {% endif %}
   <footer class="max-w-6xl mx-auto px-4 pb-4 text-[11px] text-mute/70 text-right num" aria-label="{{ _("Versión") }}">Fit·OS {{ version }}</footer>
+  {# Any exercise animation with data-zoom opens big: tap outside, ✕ or Esc to close #}
+  <dialog id="zoom" class="m-auto p-0 bg-transparent backdrop:bg-black/85 max-w-[96vw]" aria-label="{{ _("Animación") }}">
+    <div class="relative">
+      <button type="button" data-zoom-close class="absolute -top-2 -right-2 z-10 w-10 h-10 rounded-full bg-panel2 border border-line text-ink text-lg" aria-label="{{ _("Cerrar") }}">✕</button>
+      <div id="zoom-media" class="rounded-2xl bg-white overflow-hidden"></div>
+      <div id="zoom-title" class="text-center text-sm text-white mt-2"></div>
+    </div>
+  </dialog>
+  <script>
+  (function () {
+    const dlg = document.getElementById("zoom"), box = document.getElementById("zoom-media"), title = document.getElementById("zoom-title");
+    if (!dlg || !dlg.showModal) return;
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("[data-zoom]");
+      if (!el) return;
+      e.preventDefault(); e.stopPropagation();
+      const src = el.dataset.zoom, isVideo = /\.mp4$/i.test(src);
+      box.innerHTML = "";
+      const m = document.createElement(isVideo ? "video" : "img");
+      m.src = src;
+      m.style.cssText = "display:block;width:min(92vw,80vh);height:min(92vw,80vh);object-fit:contain";
+      if (isVideo) { m.autoplay = true; m.loop = true; m.muted = true; m.playsInline = true; m.setAttribute("playsinline", ""); }
+      else { m.alt = ""; }
+      box.appendChild(m);
+      title.textContent = el.dataset.zoomTitle || "";
+      dlg.showModal();
+    }, true);
+    function close() { dlg.close(); }
+    dlg.addEventListener("click", function (e) { if (e.target === dlg || e.target.closest("[data-zoom-close]")) close(); });
+    dlg.addEventListener("close", function () { box.innerHTML = ""; });
+  })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

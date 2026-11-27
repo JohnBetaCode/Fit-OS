@@ -2,8 +2,8 @@
 {# Logging a set swaps only #live: keep the scroll where it is (boosted forms jump to the top by default) #}
 {% block head %}<meta name="htmx-config" content='{"scrollIntoViewOnBoost": false}'>{% endblock %}
 {% macro media(ex, size="w-20 h-20", keep=none) -%}
-  {% if ex.media_mp4 %}<video {% if keep %}id="{{ keep }}" hx-preserve{% endif %} class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain" data-src="/media/mp4/{{ ex.media_mp4 }}"{% if ex.media_thumb %} poster="/media/thumbs/{{ ex.media_thumb }}"{% endif %} muted loop playsinline autoplay preload="none" aria-label="{{ ex.display_name }}"></video>
-  {%- elif ex.media_thumb %}<img src="/media/thumbs/{{ ex.media_thumb }}" alt="" loading="lazy" class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain">
+  {% if ex.media_mp4 %}<video {% if keep %}id="{{ keep }}" hx-preserve{% endif %} class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain cursor-zoom-in" data-src="/media/mp4/{{ ex.media_mp4 }}" data-zoom="/media/mp4/{{ ex.media_mp4 }}" data-zoom-title="{{ ex.display_name }}"{% if ex.media_thumb %} poster="/media/thumbs/{{ ex.media_thumb }}"{% endif %} muted loop playsinline autoplay preload="none" aria-label="{{ ex.display_name }}"></video>
+  {%- elif ex.media_thumb %}<img src="/media/thumbs/{{ ex.media_thumb }}" alt="" loading="lazy" class="shrink-0 {{ size }} rounded-lg bg-panel2 object-contain cursor-zoom-in" data-zoom="/media/thumbs/{{ ex.media_thumb }}" data-zoom-title="{{ ex.display_name }}">
   {%- else %}<div class="shrink-0 {{ size }} rounded-lg bg-panel2 flex items-center justify-center text-xl">🏋️</div>{% endif %}
 {%- endmacro %}
 {% macro rir_options(selected=none) -%}

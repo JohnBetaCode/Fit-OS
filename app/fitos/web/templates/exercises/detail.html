@@ -6,7 +6,8 @@
   <div class="grid gap-3 content-start">
     <div class="rounded-2xl bg-white overflow-hidden aspect-square max-w-md w-full mx-auto">
       <video src="/media/mp4/{{ ex.media_mp4 }}" poster="/media/thumbs/{{ ex.media_thumb }}"
-             autoplay loop muted playsinline class="w-full h-full object-contain"></video>
+             autoplay loop muted playsinline class="w-full h-full object-contain cursor-zoom-in"
+             data-zoom="/media/mp4/{{ ex.media_mp4 }}" data-zoom-title="{{ ex.display_name }}"></video>
     </div>
     <p class="text-xs text-mute text-center">{{ _("Animaciones") }} © <a href="https://gymvisual.com/" class="underline" target="_blank" rel="noopener">Gym visual</a></p>
   </div>

@@ -950,4 +950,6 @@ EN: dict[str, str] = {
     "Año": "Year",
     "Mes": "Month",
     "Rango": "Range",
+    "Animación": "Animation",
+    "Cerrar": "Close",
 }
